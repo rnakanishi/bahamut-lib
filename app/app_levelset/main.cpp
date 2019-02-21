@@ -13,11 +13,18 @@ int main(void) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  for (int i = 0; i < res.x(); i++)
-    for (int j = 0; j < res.y(); j++) {
+  for (int i = 0; i < res.x() + 1; i++)
+    for (int j = 0; j < res.y() + 1; j++) {
       Ramuh::Vector3d pos(h * Ramuh::Vector3i(i, j, 0));
       sim[i][j][0] = std::cos(5.0 * pos.x()) * std::cos(5.0 * pos.y());
     }
+  for (int i = 0; i < res.x() + 1; i++) {
+    for (int j = 0; j < res.y() + 1; j++) {
+      std::cerr << sim[i][j][0] << " ";
+    }
+    std::cerr << std::endl;
+  }
+  std::cerr << "===\n";
   sim.integrateLevelSet();
 
   return 0;

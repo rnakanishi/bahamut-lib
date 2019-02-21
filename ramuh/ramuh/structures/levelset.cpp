@@ -44,16 +44,16 @@ void LevelSet::integrateLevelSet() {
   int cellCount;
   cellCount = _resolution.x() * _resolution.y() * _resolution.z();
 
-// Compute levelset gradient values
-// Upwind
-#pragma omp parallel
+  // Compute levelset gradient values
+  // Upwind
+  // #pragma omp parallel
   {
-    int id = omp_get_thread_num();
-    int nthreads = omp_get_num_threads();
+    // int id = omp_get_thread_num();
+    // int nthreads = omp_get_num_threads();
 
-    for (int i = id; i < _resolution.x(); i += nthreads) {
-      for (int j = 0; j < _resolution.y(); j++) {
-        for (int k = 0; k < _resolution.z(); k++) {
+    for (int i = 0; i < _resolution.x() + 1; i += 1)
+      for (int j = 0; j < _resolution.y() + 1; j++)
+        for (int k = 0; k < _resolution.z() + 1; k++) {
           double dx, dy, dz;
           // X Component
           if (i < _resolution.x())
@@ -62,22 +62,21 @@ void LevelSet::integrateLevelSet() {
             dx = (_phi[i][j][k] - _phi[i - 1][j][k]) / _h.x();
 
           // Y Component
-          if (i < _resolution.y())
+          if (j < _resolution.y())
             dy = (_phi[i][j + 1][k] - _phi[i][j][k]) / _h.y();
           else
             dy = (_phi[i][j][k] - _phi[i][j - 1][k]) / _h.y();
 
           // Z Component
-          if (i < _resolution.z())
+          if (k < _resolution.z())
             dz = (_phi[i][j][k + 1] - _phi[i][j][k]) / _h.z();
           else
             dz = (_phi[i][j][k] - _phi[i][j][k - 1]) / _h.z();
 
           _gradPhi[i][j][k] = Vector3d(dx, dy, dz);
         }
-      }
-    }
   }
+
   // Euler method integration
 }
 
