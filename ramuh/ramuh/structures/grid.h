@@ -1,3 +1,6 @@
+#ifndef __RAMUH_GRID_H__
+#define __RAMUH_GRID_H__
+
 #include <structures/vector3.h>
 #include <vector>
 
@@ -13,9 +16,9 @@ public:
   Vector3d gridSize();
 
   ///
-  /// Grid size
+  /// Grid domain size
   /// \return Vector3d
-  Vector3d size();
+  Vector3d domainSize();
 
   ///
   /// Grid integer resolution
@@ -31,12 +34,12 @@ public:
   /// Change grid size to the newSize. This method also updates grid spacing
   /// values
   /// \param newSize Vector3d containing the new size values
-  void setSize(Vector3d newSize);
+  virtual void setSize(Vector3d newSize);
 
   ///
   /// Change grid resolution. This method also updates grid spacing values
   /// \param newResolution
-  void setResolution(Vector3i newResolution);
+  virtual void setResolution(Vector3i newResolution);
 
 protected:
   ///
@@ -46,10 +49,12 @@ protected:
   void setH(Vector3d newH);
 
   Vector3i _resolution;            // Number of cells in each dimension
-  Vector3d _size;                  // domain size in units
+  Vector3d _domainSize;            // domain size in units
   Vector3d _h;                     // Spacing between cells
   std::vector<char> _materialMask; // Either cell is fluid, air, solid
-  std::vector<double> u, v, w;     // Velocity components stored on faces
+  std::vector<double> _u, _v, _w;  // Velocity components stored on faces
 };
 
 } // namespace Ramuh
+
+#endif

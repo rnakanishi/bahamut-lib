@@ -1,3 +1,6 @@
+#ifndef __RAMUH_LEVELSET_H__
+#define __RAMUH_LEVELSET_H__
+
 #include <structures/grid.h>
 
 namespace Ramuh {
@@ -25,8 +28,19 @@ public:
   /// Poisson equation. After, updates the velocity values.
   void solvePressure();
 
+  void setResolution(Vector3i newResolution) override;
+
+  std::vector<std::vector<double>> &operator[](const int i);
+
+  Vector3d operator()(int i, int j, int k);
+
 protected:
-  double dt;                  // Time step
-  std::vector<Vector3d> _phi; // Level set stored on the grid corners
+  double dt; // Time step
+  std::vector<std::vector<std::vector<Vector3d>>>
+      _gradPhi; // Level set stored on the grid corners and its gradient values
+  std::vector<std::vector<std::vector<double>>>
+      _phi; // Level set stored on the grid corners and its gradient values
 };
 } // namespace Ramuh
+
+#endif

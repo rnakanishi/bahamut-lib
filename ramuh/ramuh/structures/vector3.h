@@ -1,3 +1,6 @@
+#ifndef __RAMUH_VECTOR3_H__
+#define __RAMUH_VECTOR3_H__
+
 #include <iostream>
 
 namespace Ramuh {
@@ -20,6 +23,22 @@ public:
   Vector3<double> operator/(const Vector3<type> &v) const {
     return Vector3<double>(_x / v.x(), _y / v.y(), _z / v.z());
   }
+  template <typename type>
+  Vector3<double> operator*(const Vector3<type> &v) const {
+    return Vector3<double>(_x * v.x(), _y * v.y(), _z * v.z());
+  }
+
+  void set(const Vector3<T> &v) {
+    _x = v.x();
+    _y = v.y();
+    _z = v.z();
+  }
+
+  void set(const T &x, const T &y, const T &z) {
+    _x = x;
+    _y = y;
+    _z = z;
+  }
 
   friend std::ostream &operator<<(std::ostream &os, const Vector3<T> &v) {
     os << "[" << v.x() << ", " << v.y() << ", " << v.z() << "]";
@@ -30,7 +49,9 @@ protected:
   T _x, _y, _z;
 };
 
-#define Vector3d Vector3<double>
 #define Vector3i Vector3<int>
+#define Vector3d Vector3<double>
 
 } // namespace Ramuh
+
+#endif
