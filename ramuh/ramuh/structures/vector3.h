@@ -23,9 +23,18 @@ public:
   Vector3<double> operator/(const Vector3<type> &v) const {
     return Vector3<double>(_x / v.x(), _y / v.y(), _z / v.z());
   }
+
+  Vector3<double> operator/(double s) {
+    return Vector3<double>(_x / s, _y / s, _z / s);
+  }
+
   template <typename type>
   Vector3<double> operator*(const Vector3<type> &v) const {
     return Vector3<double>(_x * v.x(), _y * v.y(), _z * v.z());
+  }
+
+  double dot(const Vector3<T> &v) {
+    return _x * v.x() + _y * v.y() + _z * v.z();
   }
 
   void set(const Vector3<T> &v) {

@@ -41,6 +41,10 @@ public:
   /// \param newResolution
   virtual void setResolution(Vector3i newResolution);
 
+  void setVelocity();
+
+  void printFaceVelocity();
+
 protected:
   ///
   /// Change values for spacing. This method is called only through
@@ -52,7 +56,8 @@ protected:
   Vector3d _domainSize;            // domain size in units
   Vector3d _h;                     // Spacing between cells
   std::vector<char> _materialMask; // Either cell is fluid, air, solid
-  std::vector<double> _u, _v, _w;  // Velocity components stored on faces
+  std::vector<std::vector<std::vector<double>>> _u, _v,
+      _w; // Velocity components stored on faces
 };
 
 } // namespace Ramuh

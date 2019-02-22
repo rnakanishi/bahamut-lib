@@ -27,5 +27,10 @@ int main(void) {
   std::cerr << "===\n";
   sim.integrateLevelSet();
 
+  sim.setVelocity();
+  sim.printFaceVelocity();
+  sim.interpolateVelocitiesToVertices();
+  sim.printVertexVelocity();
+
   return 0;
 }

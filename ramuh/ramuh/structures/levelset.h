@@ -28,6 +28,8 @@ public:
   /// Poisson equation. After, updates the velocity values.
   void solvePressure();
 
+  void printVertexVelocity();
+
   void setResolution(Vector3i newResolution) override;
 
   std::vector<std::vector<double>> &operator[](const int i);
@@ -35,9 +37,9 @@ public:
   Vector3d operator()(int i, int j, int k);
 
 protected:
-  double dt; // Time step
-  std::vector<std::vector<std::vector<Vector3d>>>
-      _gradPhi; // Level set stored on the grid corners and its gradient values
+  double _dt; // Time step
+  std::vector<std::vector<std::vector<Vector3d>>> _gradPhi,
+      _velocity; // level set gradient and velocity on the corners
   std::vector<std::vector<std::vector<double>>>
       _phi; // Level set stored on the grid corners and its gradient values
 };
