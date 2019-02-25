@@ -26,6 +26,13 @@ void RegularGrid::setResolution(Vector3i newResolution) {
   _resolution = newResolution;
   setH(_domainSize / _resolution);
 
+  _pressure.resize(_resolution.x());
+  for (auto &row : _pressure) {
+    row.resize(_resolution.y());
+    for (auto &depth : row)
+      depth.resize(_resolution.z());
+  }
+
   _u.resize(_resolution.x() + 1);
   for (auto &row : _u) {
     row.resize(_resolution.y());
@@ -55,21 +62,21 @@ void RegularGrid::setVelocity() {
   for (int i = 0; i < _resolution.x() + 1; i++) {
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        _u[i][j][k] = j + 1;
+        _u[i][j][k] = 1;
       }
   }
 
   for (int i = 0; i < _resolution.x(); i++) {
     for (int j = 0; j < _resolution.y() + 1; j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        _v[i][j][k] = i + 1;
+        _v[i][j][k] = 1;
       }
   }
 
   for (int i = 0; i < _resolution.x(); i++) {
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z() + 1; k++) {
-        _w[i][j][k] = j + 1;
+        _w[i][j][k] = 0;
       }
   }
 }

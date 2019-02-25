@@ -58,6 +58,8 @@ protected:
   std::vector<char> _materialMask; // Either cell is fluid, air, solid
   std::vector<std::vector<std::vector<double>>> _u, _v,
       _w; // Velocity components stored on faces
+  std::vector<std::vector<std::vector<double>>>
+      _pressure; // pressure component stored on cell center
 };
 
 } // namespace Ramuh

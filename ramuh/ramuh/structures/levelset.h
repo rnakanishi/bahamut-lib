@@ -28,6 +28,13 @@ public:
   /// Poisson equation. After, updates the velocity values.
   void solvePressure();
 
+  ///
+  /// Define a value for each vertex of the grid correspnoding to the isocontour
+  /// of a sphere given its center and radius
+  /// \param center center of the sphere
+  /// \param radius radius of the sphere
+  void addSphereSurface(Vector3d center, double radius);
+
   void printVertexVelocity();
 
   void setResolution(Vector3i newResolution) override;

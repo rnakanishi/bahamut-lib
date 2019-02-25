@@ -65,6 +65,16 @@ void LevelSet::printVertexVelocity() {
   }
 }
 
+void LevelSet::addSphereSurface(Vector3d center, double radius) {
+  for (int k = 0; k < _resolution.z() + 1; k++)
+    for (int j = 0; j < _resolution.y() + 1; j++)
+      for (int i = 0; i < _resolution.x() + 1; i++) {
+        Vector3d position(Vector3i(i, j, k) * _h);
+        position = position - center;
+        _phi[i][j][k] = position.dot(position) - radius * radius;
+      }
+}
+
 void LevelSet::addImplicitFunction() { NOT_IMPLEMENTED(); }
 
 void LevelSet::interpolateVelocitiesToVertices() {
@@ -107,7 +117,7 @@ void LevelSet::interpolateVelocitiesToVertices() {
           }
           // v component
           if (j == 0 || j == _resolution.y())
-            vel.y(0);
+            vel.y(0.0);
           else {
             if (i > 0 && k > 0 && i < _resolution.x() && k < _resolution.z())
               vel.y((_v[i][j][k] + _v[i - 1][j][k] + _v[i - 1][j][k - 1] +
