@@ -17,11 +17,7 @@ int main(void) {
   auto res = sim.resolution();
   auto h = sim.h();
   sim.addSphereSurface(Ramuh::Vector3d(0.3, 0.3, 0), 0.25);
-  // for (int i = 0; i < res.x() + 1; i++)
-  //   for (int j = 0; j < res.y() + 1; j++) {
-  //     Ramuh::Vector3d pos(h * Ramuh::Vector3i(i, j, 0));
-  //     sim[i][j][0] = std::cos(5.0 * pos.x()) * std::cos(5.0 * pos.y());
-  //   }
+
   for (int i = 0; i < res.x() + 1; i++) {
     for (int j = 0; j < res.y() + 1; j++) {
       std::cerr << sim[i][j][0] << " ";
@@ -33,10 +29,6 @@ int main(void) {
   sim.interpolateVelocitiesToVertices();
   // sim.printVertexVelocity();
 
-  for (int i = 0; i < 5; i++) {
-    sim.integrateLevelSet();
-  }
-
   for (int i = 0; i < res.x() + 1; i++) {
     for (int j = 0; j < res.y() + 1; j++) {
       std::cerr << sim[i][j][0] << " ";
@@ -46,6 +38,10 @@ int main(void) {
   std::cerr << "===\n";
 
   sim.addGravity();
+  sim.boundaryVelocities();
   sim.solvePressure();
+  sim.interpolateVelocitiesToVertices();
+  sim.integrateLevelSet();
+
   return 0;
 }

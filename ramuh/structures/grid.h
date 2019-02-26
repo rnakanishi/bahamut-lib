@@ -56,8 +56,16 @@ public:
   /// Poisson equation. After, updates the velocity values.
   void solvePressure();
 
+  ///
+  /// Check boundary velocities and set them to the solid velocity (free slip)
+  void boundaryVelocities();
+
+  ///
+  /// Add gravity value (\f$-9.81 \frac{m}{s^2}\f$) to all vertical velocities
   void addGravity();
 
+  ///
+  /// Initialize velocities
   void setVelocity();
 
   void printFaceVelocity();

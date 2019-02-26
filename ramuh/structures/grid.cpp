@@ -1,6 +1,7 @@
 #include <structures/grid.h>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
+#include <Eigen/IterativeLinearSolvers>
 #include <iostream>
 
 namespace Ramuh {
@@ -27,13 +28,6 @@ void RegularGrid::setSize(Vector3d newSize) {
 void RegularGrid::setResolution(Vector3i newResolution) {
   _resolution = newResolution;
   setH(_domainSize / _resolution);
-
-  // _pressure.resize(_resolution.x());
-  // for (auto &row : _pressure) {
-  //   row.resize(_resolution.y());
-  //   for (auto &depth : row)
-  //     depth.resize(_resolution.z());
-  // }
 
   _u.resize(_resolution.x() + 1);
   for (auto &row : _u) {
@@ -124,6 +118,28 @@ void RegularGrid::printFaceVelocity() {
   }
 }
 
+void RegularGrid::boundaryVelocities() {
+  // Z velocities
+  for (int j = 0; j < _resolution.y(); j++) {
+    for (int i = 0; i < _resolution.x(); i++) {
+      _w[i][j][0] = 0.0;
+      _w[i][j][_resolution.z()] = 0.0;
+    }
+  }
+  for (int k = 0; k < _resolution.z(); k++) {
+    for (int i = 0; i < _resolution.x(); i++) {
+      _v[i][0][k] = 0.0;
+      _v[i][_resolution.y()][k] = 0.0;
+    }
+  }
+  for (int k = 0; k < _resolution.z(); k++) {
+    for (int j = 0; j < _resolution.y(); j++) {
+      _u[0][j][k] = 0.0;
+      _u[_resolution.x()][j][k] = 0.0;
+    }
+  }
+}
+
 void RegularGrid::addGravity() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y() + 1; j++) {
@@ -139,10 +155,11 @@ void RegularGrid::solvePressure() {
   // Compute velocity divergent over cell center
   // std::vector<double> divergent(cellCount(), 0.0);
   int nCells = cellCount();
-  Eigen::VectorXd divergent;
+  Eigen::VectorXd divergent, pressure;
   Eigen::SparseMatrix<double> pressureMatrix(nCells, nCells);
   std::vector<Eigen::Triplet<double>> triplets;
 
+  divergent = Eigen::VectorXd::Zero(nCells);
   divergent = Eigen::VectorXd::Zero(nCells);
 
 #pragma omp parallel
@@ -152,11 +169,9 @@ void RegularGrid::solvePressure() {
     for (int k = 0; k < _resolution.z(); k++) {
       for (int j = 0; j < _resolution.y(); j++) {
         for (int i = 0; i < _resolution.x(); i++) {
-          if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
-            std::cout << "   NOT Fluid\n";
+          if (_material[i][j][k] != Material::FluidMaterial::FLUID)
             continue;
-          }
-          std::cout << "FLUID\n";
+
           int validCells = 0;
           int id = ijkToId(i, j, k);
           std::vector<Eigen::Triplet<double>> threadTriplet;
@@ -212,7 +227,28 @@ void RegularGrid::solvePressure() {
 
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
 
+  // SOlve pressure Poisson system
+  Eigen::ConjugateGradient<Eigen::SparseMatrix<double>> solver;
+  solver.compute(pressureMatrix);
+  pressure = solver.solve(divergent);
+
   // Correct velocity through pressure gradient
+
+  for (int k = 1; k < _resolution.z(); k++) {
+    for (int j = 1; j < _resolution.y(); j++) {
+      for (int i = 1; i < _resolution.x(); i++) {
+        _u[i][j][k] = _u[i][j][k] - (pressure[ijkToId(i, j, k)] -
+                                     pressure[ijkToId(i - 1, j, k)]) /
+                                        _h.x();
+        _v[i][j][k] = _v[i][j][k] - (pressure[ijkToId(i, j, k)] -
+                                     pressure[ijkToId(i, j - 1, k)]) /
+                                        _h.y();
+        _w[i][j][k] = _w[i][j][k] - (pressure[ijkToId(i, j, k)] -
+                                     pressure[ijkToId(i, j, k - 1)]) /
+                                        _h.z();
+      }
+    }
+  }
 }
 
 } // namespace Ramuh
