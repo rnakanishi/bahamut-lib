@@ -31,6 +31,15 @@ public:
   Vector3d h();
 
   ///
+  /// Return the total amount of cells present on the grid
+  /// \return int
+  int cellCount();
+
+  int ijkToId(int i, int j, int k);
+
+  Vector3i idToijk(int id);
+
+  ///
   /// Change grid size to the newSize. This method also updates grid spacing
   /// values
   /// \param newSize Vector3d containing the new size values
@@ -40,6 +49,11 @@ public:
   /// Change grid resolution. This method also updates grid spacing values
   /// \param newResolution
   virtual void setResolution(Vector3i newResolution);
+
+  ///
+  /// Computes velocities divergent in cell center and then solves pressure
+  /// Poisson equation. After, updates the velocity values.
+  void solvePressure();
 
   void setVelocity();
 
@@ -58,8 +72,6 @@ protected:
   std::vector<char> _materialMask; // Either cell is fluid, air, solid
   std::vector<std::vector<std::vector<double>>> _u, _v,
       _w; // Velocity components stored on faces
-  std::vector<std::vector<std::vector<double>>>
-      _pressure; // pressure component stored on cell center
 };
 
 } // namespace Ramuh

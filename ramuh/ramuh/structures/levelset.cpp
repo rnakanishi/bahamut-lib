@@ -222,15 +222,6 @@ void LevelSet::integrateLevelSet() {
   }
 }
 
-void LevelSet::solvePressure() {
-
-  // Compute velocity divergent over cell center
-
-  // Solve pressure Poisson equation
-
-  // Correct velocity through pressure gradient
-}
-
 std::vector<std::vector<double>> &LevelSet::operator[](const int i) {
   return _phi[i];
 }

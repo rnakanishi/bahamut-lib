@@ -17,6 +17,9 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+set(EIGEN3_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/eigen3)
+include_directories(${EIGEN3_INCLUDE_DIR})
+
 add_subdirectory(ramuh)
 add_subdirectory(garuda)
 add_subdirectory(app)

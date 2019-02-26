@@ -6,7 +6,9 @@
 
 int main(void) {
   LevelSetFluid sim;
-  sim.setResolution(Ramuh::Vector3i(64, 64, 64));
+  int resolution = 8;
+  sim.setResolution(Ramuh::Vector3i(resolution, resolution, 1));
+  sim.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0 / resolution));
 
   std::cerr << "Initialized grid with size " << sim.domainSize()
             << ", resolution " << sim.resolution() << "  and h spacing "
@@ -42,5 +44,7 @@ int main(void) {
     std::cerr << std::endl;
   }
   std::cerr << "===\n";
+
+  sim.solvePressure();
   return 0;
 }

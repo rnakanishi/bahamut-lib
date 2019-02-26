@@ -24,11 +24,6 @@ public:
   void integrateLevelSet();
 
   ///
-  /// Computes velocities divergent in cell center and then solves pressure
-  /// Poisson equation. After, updates the velocity values.
-  void solvePressure();
-
-  ///
   /// Define a value for each vertex of the grid correspnoding to the isocontour
   /// of a sphere given its center and radius
   /// \param center center of the sphere

@@ -62,8 +62,8 @@ protected:
   T _x, _y, _z;
 };
 
-#define Vector3i Vector3<int>
-#define Vector3d Vector3<double>
+typedef Vector3<int> Vector3i;
+typedef Vector3<double> Vector3d;
 
 } // namespace Ramuh
 
