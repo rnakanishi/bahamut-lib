@@ -9,7 +9,7 @@ LevelSet::LevelSet() : RegularGrid() {
   for (auto &row : _phi) {
     row.resize(_resolution.y() + 1);
     for (auto &depth : row)
-      depth.resize(_resolution.z() + 1);
+      depth.resize(_resolution.z() + 1, 1e8);
   }
   _gradPhi.resize(_resolution.x() + 1);
   for (auto &row : _gradPhi) {
@@ -71,7 +71,23 @@ void LevelSet::addSphereSurface(Vector3d center, double radius) {
       for (int i = 0; i < _resolution.x() + 1; i++) {
         Vector3d position(Vector3i(i, j, k) * _h);
         position = position - center;
-        _phi[i][j][k] = position.dot(position) - radius * radius;
+        _phi[i][j][k] =
+            std::min(_phi[i][j][k], position.dot(position) - radius * radius);
+      }
+  checkCellMaterial();
+}
+
+void LevelSet::checkCellMaterial() {
+  for (int k = 0; k < _resolution.z(); k++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int i = 0; i < _resolution.x(); i++) {
+        if (_phi[i][j][k] <= 0 || _phi[i + 1][j][k] <= 0 ||
+            _phi[i][j + 1][k] <= 0 || _phi[i][j][k + 1] <= 0 ||
+            _phi[i + 1][j + 1][k] <= 0 || _phi[i + 1][j][k + 1] <= 0 ||
+            _phi[i][j + 1][k + 1] <= 0 || _phi[i + 1][j + 1][k + 1] <= 0)
+          _material[i][j][k] = Material::FluidMaterial::FLUID;
+        else
+          _material[i][j][k] = Material::FluidMaterial::AIR;
       }
 }
 
@@ -79,11 +95,11 @@ void LevelSet::addImplicitFunction() { NOT_IMPLEMENTED(); }
 
 void LevelSet::interpolateVelocitiesToVertices() {
 
-  // #pragma omp parallel
+// TODO: Improve this interpolation
+#pragma omp parallel
   {
-    int id = 0, nthreads = 1;
-    // int id = omp_get_thread_num();
-    // int nthreads = omp_get_num_threads();
+    int id = omp_get_thread_num();
+    int nthreads = omp_get_num_threads();
 
     // Iterate over all grid vertices interpolating faces velocities
     for (int i = id; i < _resolution.x() + 1; i += nthreads)
@@ -225,4 +241,5 @@ void LevelSet::integrateLevelSet() {
 std::vector<std::vector<double>> &LevelSet::operator[](const int i) {
   return _phi[i];
 }
+
 } // namespace Ramuh

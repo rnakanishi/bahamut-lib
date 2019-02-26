@@ -2,6 +2,7 @@
 #define __RAMUH_GRID_H__
 
 #include <structures/vector3.h>
+#include <utils/material.h>
 #include <vector>
 
 namespace Ramuh {
@@ -55,6 +56,8 @@ public:
   /// Poisson equation. After, updates the velocity values.
   void solvePressure();
 
+  void addGravity();
+
   void setVelocity();
 
   void printFaceVelocity();
@@ -66,12 +69,15 @@ protected:
   /// \param newH
   void setH(Vector3d newH);
 
+  double _dt;                      // Time step
   Vector3i _resolution;            // Number of cells in each dimension
   Vector3d _domainSize;            // domain size in units
   Vector3d _h;                     // Spacing between cells
   std::vector<char> _materialMask; // Either cell is fluid, air, solid
   std::vector<std::vector<std::vector<double>>> _u, _v,
       _w; // Velocity components stored on faces
+  std::vector<std::vector<std::vector<Material::FluidMaterial>>>
+      _material; // Wheter the cell is a fluid, solid or air
 };
 
 } // namespace Ramuh

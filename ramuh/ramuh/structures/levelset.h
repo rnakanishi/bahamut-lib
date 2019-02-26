@@ -2,6 +2,7 @@
 #define __RAMUH_LEVELSET_H__
 
 #include <structures/grid.h>
+#include <utils/material.h>
 
 namespace Ramuh {
 
@@ -30,6 +31,8 @@ public:
   /// \param radius radius of the sphere
   void addSphereSurface(Vector3d center, double radius);
 
+  void checkCellMaterial();
+
   void printVertexVelocity();
 
   void setResolution(Vector3i newResolution) override;
@@ -39,7 +42,6 @@ public:
   Vector3d operator()(int i, int j, int k);
 
 protected:
-  double _dt; // Time step
   std::vector<std::vector<std::vector<Vector3d>>> _gradPhi,
       _velocity; // level set gradient and velocity on the corners
   std::vector<std::vector<std::vector<double>>>

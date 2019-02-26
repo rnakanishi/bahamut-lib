@@ -55,6 +55,13 @@ void RegularGrid::setResolution(Vector3i newResolution) {
     for (auto &depth : row)
       depth.resize(_resolution.z() + 1);
   }
+
+  _material.resize(_resolution.x());
+  for (auto &row : _material) {
+    row.resize(_resolution.y());
+    for (auto &depth : row)
+      depth.resize(_resolution.z(), Material::FluidMaterial::AIR);
+  }
 }
 
 void RegularGrid::setH(Vector3d newH) { _h = newH; }
@@ -117,6 +124,16 @@ void RegularGrid::printFaceVelocity() {
   }
 }
 
+void RegularGrid::addGravity() {
+  for (int k = 0; k < _resolution.z(); k++) {
+    for (int j = 0; j < _resolution.y() + 1; j++) {
+      for (int i = 0; i < _resolution.x(); i++) {
+        _v[i][j][k] = _v[i][j][k] - 9.81 * _dt;
+      }
+    }
+  }
+}
+
 void RegularGrid::solvePressure() {
 
   // Compute velocity divergent over cell center
@@ -135,10 +152,15 @@ void RegularGrid::solvePressure() {
     for (int k = 0; k < _resolution.z(); k++) {
       for (int j = 0; j < _resolution.y(); j++) {
         for (int i = 0; i < _resolution.x(); i++) {
+          if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
+            std::cout << "   NOT Fluid\n";
+            continue;
+          }
+          std::cout << "FLUID\n";
           int validCells = 0;
           int id = ijkToId(i, j, k);
           std::vector<Eigen::Triplet<double>> threadTriplet;
-          // TODO: create a validity check for fluid cells
+
           if (i > 0 || i < _resolution.x() - 1) {
             if (i > 0) {
               validCells++;
@@ -187,6 +209,8 @@ void RegularGrid::solvePressure() {
       }
     }
   }
+
+  pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
 
   // Correct velocity through pressure gradient
 }

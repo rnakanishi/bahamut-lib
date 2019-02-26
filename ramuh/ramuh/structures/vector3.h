@@ -28,6 +28,10 @@ public:
     return Vector3<T>(_x - v.x(), _y - v.y(), _z - v.z());
   }
 
+  Vector3<T> operator-(T alpha) {
+    return Vector3<T>(_x - alpha, _y - alpha, _z - alpha);
+  }
+
   Vector3<double> operator/(double s) {
     return Vector3<double>(_x / s, _y / s, _z / s);
   }

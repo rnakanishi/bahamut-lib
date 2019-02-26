@@ -45,6 +45,7 @@ int main(void) {
   }
   std::cerr << "===\n";
 
+  sim.addGravity();
   sim.solvePressure();
   return 0;
 }
