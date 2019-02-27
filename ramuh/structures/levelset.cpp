@@ -111,75 +111,75 @@ void LevelSet::interpolateVelocitiesToVertices() {
             vel.x(0.0);
           else {
             if (j > 0 && k > 0 && j < _resolution.y() && k < _resolution.z())
-              vel.x((_u[i][j][k] + _u[i][j - 1][k] + _u[i][j - 1][k - 1] +
-                     _u[i][j][k - 1]) /
+              vel.x((_u[i][j][k].x() + _u[i][j - 1][k].x() +
+                     _u[i][j - 1][k - 1].x() + _u[i][j][k - 1].x()) /
                     4.0);
             else if (j == 0 && k == 0)
-              vel.x(_u[i][j][k]);
+              vel.x(_u[i][j][k].x());
             else if (j == 0 && k > 0 && k < _resolution.z())
-              vel.x((_u[i][j][k] + _u[i][j][k - 1]) / 2.0);
+              vel.x((_u[i][j][k].x() + _u[i][j][k - 1].x()) / 2.0);
             else if (j == 0 && k == _resolution.z())
-              vel.x(_u[i][j][k - 1]);
+              vel.x(_u[i][j][k - 1].x());
             else if (k == 0 && j > 0 && j < _resolution.y())
-              vel.x((_u[i][j][k] + _u[i][j - 1][k]) / 2.0);
+              vel.x((_u[i][j][k].x() + _u[i][j - 1][k].x()) / 2.0);
             else if (k == 0 && j == _resolution.y())
-              vel.x(_u[i][j - 1][k]);
+              vel.x(_u[i][j - 1][k].x());
             else if (j == _resolution.y() && k > 0 && k < _resolution.z())
-              vel.x((_u[i][j - 1][k] + _u[i][j - 1][k - 1]) / 2.0);
+              vel.x((_u[i][j - 1][k].x() + _u[i][j - 1][k - 1].x()) / 2.0);
             else if (k == _resolution.z() && j > 0 && j < _resolution.y())
-              vel.x((_u[i][j - 1][k - 1] + _u[i][j][k - 1]) / 2.0);
+              vel.x((_u[i][j - 1][k - 1].x() + _u[i][j][k - 1].x()) / 2.0);
             else
-              vel.x(_u[i][j - 1][k - 1]);
+              vel.x(_u[i][j - 1][k - 1].x());
           }
           // v component
           if (j == 0 || j == _resolution.y())
             vel.y(0.0);
           else {
             if (i > 0 && k > 0 && i < _resolution.x() && k < _resolution.z())
-              vel.y((_v[i][j][k] + _v[i - 1][j][k] + _v[i - 1][j][k - 1] +
-                     _v[i][j][k - 1]) /
+              vel.y((_v[i][j][k].y() + _v[i - 1][j][k].y() +
+                     _v[i - 1][j][k - 1].y() + _v[i][j][k - 1].y()) /
                     4.0);
             else if (i == 0 && k == 0)
-              vel.y(_v[i][j][k]);
+              vel.y(_v[i][j][k].y());
             else if (i == 0 && k > 0 && k < _resolution.z())
-              vel.y((_v[i][j][k] + _v[i][j][k - 1]) / 2.0);
+              vel.y((_v[i][j][k].y() + _v[i][j][k - 1].y()) / 2.0);
             else if (i == 0 && k == _resolution.z())
-              vel.y((_v[i][j][k - 1]));
+              vel.y((_v[i][j][k - 1].y()));
             else if (k == 0 && i > 0 && i < _resolution.x())
-              vel.y((_v[i][j][k] + _v[i - 1][j][k]) / 2.0);
+              vel.y((_v[i][j][k].y() + _v[i - 1][j][k].y()) / 2.0);
             else if (k == 0 && i == _resolution.x())
-              vel.y((_v[i - 1][j][k]));
+              vel.y((_v[i - 1][j][k].y()));
             else if (i == _resolution.x() && k > 0 && k < _resolution.z())
-              vel.y((_v[i - 1][j][k] + _v[i - 1][j][k - 1]) / 2.0);
+              vel.y((_v[i - 1][j][k].y() + _v[i - 1][j][k - 1].y()) / 2.0);
             else if (k == _resolution.z() && i > 0 && i < _resolution.x())
-              vel.y((_v[i - 1][j][k - 1] + _v[i][j][k - 1]) / 2.0);
+              vel.y((_v[i - 1][j][k - 1].y() + _v[i][j][k - 1].y()) / 2.0);
             else
-              vel.y(_v[i - 1][j][k - 1]);
+              vel.y(_v[i - 1][j][k - 1].y());
           }
           // z component
           if (k == 0 || k == _resolution.z())
             vel.z(0);
           else {
             if (i > 0 && j > 0 && i < _resolution.x() && j < _resolution.y())
-              vel.z((_w[i][j][k] + _w[i - 1][j][k] + _w[i - 1][j - 1][k] +
-                     _w[i][j - 1][k]) /
+              vel.z((_w[i][j][k].z() + _w[i - 1][j][k].z() +
+                     _w[i - 1][j - 1][k].z() + _w[i][j - 1][k].z()) /
                     4.0);
             else if (i == 0 && j == 0)
-              vel.z(_w[i][j][k]);
+              vel.z(_w[i][j][k].z());
             else if (i == 0 && j > 0 && j < _resolution.y())
-              vel.z((_w[i][j][k] + _w[i][j - 1][k]) / 2.0);
+              vel.z((_w[i][j][k].z() + _w[i][j - 1][k].z()) / 2.0);
             else if (i == 0 && j == _resolution.y())
-              vel.z(_w[i][j - 1][k]);
+              vel.z(_w[i][j - 1][k].z());
             else if (j == 0 && i > 0 && i < _resolution.x())
-              vel.z((_w[i][j][k] + _w[i - 1][j][k]) / 2.0);
+              vel.z((_w[i][j][k].z() + _w[i - 1][j][k].z()) / 2.0);
             else if (j == 0 && i == _resolution.x())
-              vel.z(_w[i - 1][j][k]);
+              vel.z(_w[i - 1][j][k].z());
             else if (i == _resolution.x() && j > 0 && j < _resolution.y())
-              vel.z((_w[i - 1][j][k] + _w[i - 1][j - 1][k]) / 2.0);
+              vel.z((_w[i - 1][j][k].z() + _w[i - 1][j - 1][k].z()) / 2.0);
             else if (j == _resolution.y() && i > 0 && i < _resolution.x())
-              vel.z((_w[i - 1][j - 1][k] + _w[i][j - 1][k]) / 2.0);
+              vel.z((_w[i - 1][j - 1][k].z() + _w[i][j - 1][k].z()) / 2.0);
             else
-              vel.z(_w[i - 1][j - 1][k]);
+              vel.z(_w[i - 1][j - 1][k].z());
           }
 
           _velocity[i][j][k] = vel;

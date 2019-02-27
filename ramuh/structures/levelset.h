@@ -42,6 +42,7 @@ public:
   Vector3d operator()(int i, int j, int k);
 
 protected:
+  // TODO: Change to Matrix3 type
   std::vector<std::vector<std::vector<Vector3d>>> _gradPhi,
       _velocity; // level set gradient and velocity on the corners
   std::vector<std::vector<std::vector<double>>>

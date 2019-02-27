@@ -1,7 +1,7 @@
 #ifndef __RAMUH_GRID_H__
 #define __RAMUH_GRID_H__
 
-#include <structures/vector3.h>
+#include <geometry/vector3.h>
 #include <utils/material.h>
 #include <vector>
 
@@ -64,6 +64,8 @@ public:
   /// Add gravity value (\f$-9.81 \frac{m}{s^2}\f$) to all vertical velocities
   void addGravity();
 
+  void advectGridVelocity();
+
   ///
   /// Initialize velocities
   void setVelocity();
@@ -82,7 +84,9 @@ protected:
   Vector3d _domainSize;            // domain size in units
   Vector3d _h;                     // Spacing between cells
   std::vector<char> _materialMask; // Either cell is fluid, air, solid
-  std::vector<std::vector<std::vector<double>>> _u, _v,
+
+  // TODO: Change to Matrix3 type
+  std::vector<std::vector<std::vector<Vector3d>>> _u, _v,
       _w; // Velocity components stored on faces
   std::vector<std::vector<std::vector<Material::FluidMaterial>>>
       _material; // Wheter the cell is a fluid, solid or air

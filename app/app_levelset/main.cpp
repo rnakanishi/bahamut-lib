@@ -1,6 +1,7 @@
 #include "levelset_fluid.h"
 #include <iostream>
-#include <structures/vector3.h>
+#include <geometry/vector3.h>
+#include <geometry/matrix.h>
 #include <vector>
 #include <cmath>
 
@@ -16,10 +17,10 @@ int main(void) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.3, 0.3, 0), 0.25);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.1, 0), 0.3);
 
-  for (int i = 0; i < res.x() + 1; i++) {
-    for (int j = 0; j < res.y() + 1; j++) {
+  for (int j = 0; j < res.y() + 1; j++) {
+    for (int i = 0; i < res.x() + 1; i++) {
       std::cerr << sim[i][j][0] << " ";
     }
     std::cerr << std::endl;
@@ -29,8 +30,8 @@ int main(void) {
   sim.interpolateVelocitiesToVertices();
   // sim.printVertexVelocity();
 
-  for (int i = 0; i < res.x() + 1; i++) {
-    for (int j = 0; j < res.y() + 1; j++) {
+  for (int j = 0; j < res.y() + 1; j++) {
+    for (int i = 0; i < res.x() + 1; i++) {
       std::cerr << sim[i][j][0] << " ";
     }
     std::cerr << std::endl;
