@@ -22,6 +22,7 @@ public:
   ///
   /// Advect level set according to \f$\phi_t + u\cdot\nabla\phi = 0\f$. This
   /// method assumes that a velocity field is already defined over cell corners
+  /// TODO: Change to semi lagrangean method
   void integrateLevelSet();
 
   ///

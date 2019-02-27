@@ -27,8 +27,14 @@ int main(void) {
   }
   std::cerr << "===\n";
   sim.setVelocity();
-  sim.interpolateVelocitiesToVertices();
   // sim.printVertexVelocity();
+
+  sim.advectGridVelocity();
+  sim.addGravity();
+  sim.boundaryVelocities();
+  sim.solvePressure();
+  sim.interpolateVelocitiesToVertices();
+  sim.integrateLevelSet();
 
   for (int j = 0; j < res.y() + 1; j++) {
     for (int i = 0; i < res.x() + 1; i++) {
@@ -37,12 +43,5 @@ int main(void) {
     std::cerr << std::endl;
   }
   std::cerr << "===\n";
-
-  sim.addGravity();
-  sim.boundaryVelocities();
-  sim.solvePressure();
-  sim.interpolateVelocitiesToVertices();
-  sim.integrateLevelSet();
-
   return 0;
 }
