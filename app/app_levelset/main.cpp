@@ -4,9 +4,11 @@
 #include <geometry/matrix.h>
 #include <vector>
 #include <cmath>
+#include <utils/file_writer.h>
 
 int main(void) {
   LevelSetFluid sim;
+  Ramuh::FileWriter output;
   int resolution = 8;
   sim.setResolution(Ramuh::Vector3i(resolution, resolution, 1));
   sim.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0 / resolution));
@@ -19,8 +21,8 @@ int main(void) {
   auto h = sim.h();
   sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.1, 0), 0.3);
 
-  for (int j = 0; j < res.y() + 1; j++) {
-    for (int i = 0; i < res.x() + 1; i++) {
+  for (int j = 0; j < res.y(); j++) {
+    for (int i = 0; i < res.x(); i++) {
       std::cerr << sim[i][j][0] << " ";
     }
     std::cerr << std::endl;
@@ -29,15 +31,18 @@ int main(void) {
   sim.setVelocity();
   // sim.printVertexVelocity();
 
-  sim.advectGridVelocity();
-  sim.addGravity();
-  sim.boundaryVelocities();
-  sim.solvePressure();
-  sim.interpolateVelocitiesToVertices();
-  sim.integrateLevelSet();
+  for (int frame = 0; frame < 3; frame++) {
+    sim.advectGridVelocity();
+    sim.addGravity();
+    sim.boundaryVelocities();
+    sim.solvePressure();
+    sim.interpolateVelocitiesToVertices();
+    sim.integrateLevelSet();
 
-  for (int j = 0; j < res.y() + 1; j++) {
-    for (int i = 0; i < res.x() + 1; i++) {
+    output.writeLevelSet(sim, "data/" + frame);
+  }
+  for (int j = 0; j < res.y(); j++) {
+    for (int i = 0; i < res.x(); i++) {
       std::cerr << sim[i][j][0] << " ";
     }
     std::cerr << std::endl;

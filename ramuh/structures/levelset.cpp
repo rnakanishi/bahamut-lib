@@ -22,11 +22,11 @@ LevelSet::LevelSet() : RegularGrid() {
 
 void LevelSet::setResolution(Vector3i newResolution) {
   RegularGrid::setResolution(newResolution);
-  _phi.resize(_resolution.x() + 1);
+  _phi.resize(_resolution.x());
   for (auto &row : _phi) {
-    row.resize(_resolution.y() + 1);
+    row.resize(_resolution.y());
     for (auto &depth : row)
-      depth.resize(_resolution.z() + 1);
+      depth.resize(_resolution.z());
   }
   _gradPhi.resize(_resolution.x() + 1);
   for (auto &row : _gradPhi) {
@@ -66,10 +66,10 @@ void LevelSet::printVertexVelocity() {
 }
 
 void LevelSet::addSphereSurface(Vector3d center, double radius) {
-  for (int k = 0; k < _resolution.z() + 1; k++)
-    for (int j = 0; j < _resolution.y() + 1; j++)
-      for (int i = 0; i < _resolution.x() + 1; i++) {
-        Vector3d position(Vector3i(i, j, k) * _h);
+  for (int k = 0; k < _resolution.z(); k++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int i = 0; i < _resolution.x(); i++) {
+        Vector3d position(Vector3i(i, j, k) * _h + _h / 2);
         position = position - center;
         _phi[i][j][k] =
             std::min(_phi[i][j][k], position.dot(position) - radius * radius);
@@ -81,10 +81,7 @@ void LevelSet::checkCellMaterial() {
   for (int k = 0; k < _resolution.z(); k++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int i = 0; i < _resolution.x(); i++) {
-        if (_phi[i][j][k] <= 0 || _phi[i + 1][j][k] <= 0 ||
-            _phi[i][j + 1][k] <= 0 || _phi[i][j][k + 1] <= 0 ||
-            _phi[i + 1][j + 1][k] <= 0 || _phi[i + 1][j][k + 1] <= 0 ||
-            _phi[i][j + 1][k + 1] <= 0 || _phi[i + 1][j + 1][k + 1] <= 0)
+        if (_phi[i][j][k] <= 0)
           _material[i][j][k] = Material::FluidMaterial::FLUID;
         else
           _material[i][j][k] = Material::FluidMaterial::AIR;
@@ -191,7 +188,7 @@ void LevelSet::interpolateVelocitiesToVertices() {
 void LevelSet::integrateLevelSet() {
   int cellCount;
   cellCount = _resolution.x() * _resolution.y() * _resolution.z();
-
+  double phiTemp[_resolution.x()][_resolution.y()][_resolution.z()];
 #pragma omp parallel
   {
     // Compute levelset gradient values

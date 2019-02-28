@@ -397,7 +397,6 @@ void RegularGrid::solvePressure() {
   pressure = solver.solve(divergent);
 
   // Correct velocity through pressure gradient
-  std::cerr << "New velocity u " << _resolution << "\n";
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 1; i < _resolution.x(); i++) {
