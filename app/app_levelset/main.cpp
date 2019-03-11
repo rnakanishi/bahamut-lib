@@ -1,4 +1,5 @@
 #include "levelset_fluid.h"
+#include <iomanip>
 #include <iostream>
 #include <geometry/vector3.h>
 #include <geometry/matrix.h>
@@ -8,8 +9,9 @@
 
 int main(void) {
   LevelSetFluid sim;
-  Ramuh::FileWriter output;
-  int resolution = 8;
+  Ramuh::FileWriter writer;
+  // writer.setDebug(true);
+  int resolution = 128;
   sim.setResolution(Ramuh::Vector3i(resolution, resolution, 1));
   sim.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0 / resolution));
 
@@ -19,34 +21,30 @@ int main(void) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.1, 0), 0.3);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0), 0.1);
+  sim.addCubeSurface(Ramuh::Vector3d(0, 0, 0),
+                     Ramuh::Vector3d(1, 0.3, 2.0 / resolution));
+  // sim.addCubeSurface(Ramuh::Vector3d(0, 0, 0),
+  //  Ramuh::Vector3d(0.2, 0.8, 2.0 / resolution));
 
-  for (int j = 0; j < res.y(); j++) {
-    for (int i = 0; i < res.x(); i++) {
-      std::cerr << sim[i][j][0] << " ";
-    }
-    std::cerr << std::endl;
-  }
-  std::cerr << "===\n";
   sim.setVelocity();
   // sim.printVertexVelocity();
-
-  for (int frame = 0; frame < 3; frame++) {
-    sim.advectGridVelocity();
+  writer.writeLevelSet(sim, "data/0");
+  for (int frame = 1; frame < 150; frame++) {
+    sim.checkCellMaterial();
     sim.addGravity();
+    sim.advectGridVelocity();
     sim.boundaryVelocities();
     sim.solvePressure();
-    sim.interpolateVelocitiesToVertices();
+    // sim.printFaceVelocity();
+    sim.extrapolateVelocity();
+    // sim.printFaceVelocity();
     sim.integrateLevelSet();
 
-    output.writeLevelSet(sim, "data/" + frame);
+    std::ostringstream filename;
+    // filename << "data/" << std::setw(4) << std::setfill('0') << frame;
+    filename << "data/" << frame;
+    writer.writeLevelSet(sim, std::string(filename.str()));
   }
-  for (int j = 0; j < res.y(); j++) {
-    for (int i = 0; i < res.x(); i++) {
-      std::cerr << sim[i][j][0] << " ";
-    }
-    std::cerr << std::endl;
-  }
-  std::cerr << "===\n";
   return 0;
 }
