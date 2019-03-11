@@ -2,6 +2,7 @@
 #define __RAMUH_GRID_H__
 
 #include <geometry/vector3.h>
+#include <geometry/vector2.h>
 #include <utils/material.h>
 #include <vector>
 
@@ -71,6 +72,8 @@ public:
   ///
   /// Initialize velocities
   void setVelocity();
+
+  void extrapolateVelocity();
 
   void printFaceVelocity();
 

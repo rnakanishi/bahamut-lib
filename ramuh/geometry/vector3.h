@@ -2,6 +2,7 @@
 #define __RAMUH_VECTOR3_H__
 
 #include <iostream>
+#include <cmath>
 
 namespace Ramuh {
 template <typename T> class Vector3 {
@@ -40,6 +41,46 @@ public:
     return Vector3<double>(_x / s, _y / s, _z / s);
   }
 
+  bool operator>(const Vector3<T> v) {
+    if (_x <= v.x())
+      return false;
+    if (_y <= v.y())
+      return false;
+    if (_z <= v.z())
+      return false;
+    return true;
+  }
+
+  bool operator>=(const Vector3<T> v) {
+    if (_x < v.x())
+      return false;
+    if (_y < v.y())
+      return false;
+    if (_z < v.z())
+      return false;
+    return true;
+  }
+
+  bool operator<(const Vector3<T> v) {
+    if (_x >= v.x())
+      return false;
+    if (_y >= v.y())
+      return false;
+    if (_z >= v.z())
+      return false;
+    return true;
+  }
+
+  bool operator<=(const Vector3<T> v) {
+    if (_x > v.x())
+      return false;
+    if (_y > v.y())
+      return false;
+    if (_z > v.z())
+      return false;
+    return true;
+  }
+
   template <typename type>
   Vector3<double> operator*(const Vector3<type> &v) const {
     return Vector3<double>(_x * v.x(), _y * v.y(), _z * v.z());
@@ -51,6 +92,19 @@ public:
 
   double dot(const Vector3<T> &v) {
     return _x * v.x() + _y * v.y() + _z * v.z();
+  }
+
+  double min() {
+    return std::min(_x, _y);
+    return std::min(std::min(_x, _y), _z);
+  }
+
+  double length() { return std::sqrt(_x * _x + _y * _y + _z * _z); }
+
+  double sqrtLength() { return _x * _x + _y * _y + _z * _z; }
+
+  Vector3<T> abs() {
+    return Vector3<T>(std::abs(_x), std::abs(_y), std::abs(_z));
   }
 
   void set(const Vector3<T> &v) {

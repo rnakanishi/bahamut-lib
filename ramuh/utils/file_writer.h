@@ -11,7 +11,12 @@ class FileWriter {
 public:
   FileWriter();
 
-  static void writeLevelSet(LevelSet data, const std::string &filename);
+  void writeLevelSet(LevelSet data, const std::string &filename);
+
+  void setDebug(bool out);
+
+private:
+  bool _stdout;
 };
 
 } // namespace Ramuh

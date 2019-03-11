@@ -1,8 +1,11 @@
 #include <structures/grid.h>
+#include <utils/macros.h>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include <Eigen/IterativeLinearSolvers>
 #include <iostream>
+#include <queue>
+#include <set>
 #include <omp.h>
 
 namespace Ramuh {
@@ -11,6 +14,7 @@ RegularGrid::RegularGrid() {
   setResolution(Vector3i(32, 32, 32));
   _h = Vector3d(1. / 32);
   _domainSize = Vector3d(1.0);
+  _dt = 0.01;
 }
 
 Vector3d RegularGrid::domainSize() { return _domainSize; }
@@ -62,147 +66,192 @@ void RegularGrid::setResolution(Vector3i newResolution) {
 void RegularGrid::setH(Vector3d newH) { _h = newH; }
 
 void RegularGrid::advectGridVelocity() {
-  Vector3d utemp[_resolution.x() + 1][_resolution.y()][_resolution.z()];
-  Vector3d vtemp[_resolution.x()][_resolution.y() + 1][_resolution.z()];
-  Vector3d wtemp[_resolution.x()][_resolution.y()][_resolution.z() + 1];
+  // TODO: change to dynamic allocation
+  std::vector<std::vector<Vector2d>> utemp;
+  std::vector<std::vector<Vector2d>> vtemp;
+
+  utemp.resize(_resolution.x() + 1);
+  for (auto &row : utemp) {
+    row.resize(_resolution.y());
+  }
+
+  vtemp.resize(_resolution.x());
+  for (auto &row : vtemp) {
+    row.resize(_resolution.y() + 1);
+  }
 
 // Interpolate other components
 #pragma omp parallel for
   // x faces - all velocities components
   for (int i = 0; i < _resolution.x() + 1; i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        double vVel = 0.0, wVel = 0.0;
-        int vCount, wCount;
+    for (int j = 0; j < _resolution.y(); j++) {
+      double vVel = 0.0;
+      int vCount = 0;
 
-        if (i > 0) {
-          vCount += 2;
-          wCount += 2;
-          vVel += _v[i - 1][j][k].y() + _v[i - 1][j + 1][k].y();
-          wVel += _w[i - 1][j][k].z() + _w[i - 1][j][k + 1].z();
-        }
-        if (i < _resolution.x()) {
-          vCount += 2;
-          wCount += 2;
-          vVel += _v[i][j][k].y() + _v[i][j + 1][k].y();
-          wVel += _w[i][j][k].z() + _w[i][j][k + 1].z();
-        }
-        utemp[i][j][k].x(_u[i][j][k].x());
-        utemp[i][j][k].y(vVel / vCount);
-        utemp[i][j][k].z(wVel / wCount);
+      if (i > 0) {
+        vCount += 2;
+        vVel += _v[i - 1][j][0].y() + _v[i - 1][j + 1][0].y();
       }
+      if (i < _resolution.x()) {
+        vCount += 2;
+        vVel += _v[i][j][0].y() + _v[i][j + 1][0].y();
+      }
+      utemp[i][j].x(_u[i][j][0].x());
+      utemp[i][j].y(vVel / vCount);
+    }
 
 #pragma omp parallel for
   // y faces - all velocities components
   for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y() + 1; j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        double uVel = 0.0, wVel = 0.0;
-        int uCount, wCount;
+    for (int j = 0; j < _resolution.y() + 1; j++) {
+      double uVel = 0.0;
+      int uCount = 0;
 
-        if (j > 0) {
-          uCount += 2;
-          wCount += 2;
-          uVel += _u[i][j - 1][k].x() + _u[i + 1][j - 1][k].x();
-          wVel += _w[i][j - 1][k].z() + _w[i][j - 1][k + 1].z();
-        }
-        if (j < _resolution.y()) {
-          uCount += 2;
-          wCount += 2;
-          uVel += _u[i][j][k].x() + _u[i + 1][j][k].x();
-          wVel += _w[i][j][k].z() + _w[i][j][k + 1].z();
-        }
-        vtemp[i][j][k].x(uVel / uCount);
-        vtemp[i][j][k].y(_v[i][j][k].y());
-        vtemp[i][j][k].z(wVel / wCount);
+      if (j > 0) {
+        uCount += 2;
+        uVel += _u[i][j - 1][0].x() + _u[i + 1][j - 1][0].x();
       }
-
-#pragma omp parallel for
-  // z faces - all velocities components
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z() + 1; k++) {
-        double uVel = 0.0, vVel = 0.0;
-        int uCount, vCount;
-
-        if (k > 0) {
-          uCount += 2;
-          vCount += 2;
-          uVel += _u[i][j][k - 1].x() + _u[i + 1][j][k - 1].x();
-          vVel += _w[i][j][k - 1].y() + _w[i][j + 1][k - 1].y();
-        }
-        if (k < _resolution.z()) {
-          uCount += 2;
-          vCount += 2;
-          uVel += _u[i][j][k].x() + _u[i + 1][j][k].x();
-          vVel += _w[i][j][k].y() + _w[i][j + 1][k].y();
-        }
-        wtemp[i][j][k].x(uVel / uCount);
-        wtemp[i][j][k].y(vVel / vCount);
-        wtemp[i][j][k].z(_w[i][j][k].z());
+      if (j < _resolution.y()) {
+        uCount += 2;
+        uVel += _u[i][j][0].x() + _u[i + 1][j][0].x();
       }
+      vtemp[i][j].x(uVel / uCount);
+      vtemp[i][j].y(_v[i][j][0].y());
+    }
 
 // Solve convection term (material derivative) - u velocities
 #pragma omp parallel for
   for (int i = 1; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        Vector3d backPosition,
-            velPosition =
-                Vector3d(i, j, k) * _h + Vector3d(0, _h.y() / 2, _h.z() / 2);
-        backPosition = velPosition - utemp[i][j][k] * _dt;
+    for (int j = 0; j < _resolution.y(); j++) {
+      Vector2d h(_h.x(), _h.y());
+      Vector2d backPosition,
+          velPosition = Vector2d(i, j) * h + Vector2d(0, h.y() / 2);
+      backPosition = velPosition - utemp[i][j] * _dt;
 
-        // Velocity Linear interpolation
-        Vector3i index;
-        double newVel = 0.0;
-        int count = 0;
-        index.x(std::floor(backPosition.x() / _h.x()));
-        index.y(std::floor(backPosition.y() / _h.y()));
-        index.z(std::floor(backPosition.z() / _h.z()));
-        if (index.y() >= 0 || index.y() < _resolution.y()) {
-          if (index.y() >= 0) {
-            count += 2;
-            newVel += utemp[i][j][k].x();
-            newVel += utemp[i + 1][j][k].x();
+      // Velocity Linear interpolation
+      Vector2i index;
+      double newVel = 0.0;
+      double distanceCount = 0.;
+      double distance = 0.0;
+      index.x(std::floor(backPosition.x() / h.x()));
+      index.y(std::floor(backPosition.y() / h.y()));
+      if (index >= Vector2i(0, 0) &&
+          index < Vector2i(_resolution.x(), _resolution.y())) {
+        Material::FluidMaterial centerMaterial =
+            _material[index.x()][index.y()][0];
+        Vector2d position;
+        // double distance = (backPosition - position).length();
+        // distanceCount += distance;
+
+        if (index.y() >= 0) {
+          if (index.x() >= 0) {
+            // && _material[index.x()][index.y()][0] == centerMaterial) {
+            position = index * h + (h * Vector2i(0, 0.5));
+            distance = (backPosition - position).length();
+            distanceCount += distance;
+            newVel += distance * utemp[index.x()][index.y()].x();
           }
-          if (index.y() < _resolution.y()) {
-            count += 2;
-            newVel += utemp[i][j + 1][k].x();
-            newVel += utemp[i][j + 1][k].x();
+          if (index.x() < _resolution.x() - 1) {
+            // && _material[index.x() + 1][index.y()][0] == centerMaterial) {
+            position = (index + Vector2i(1, 0)) * h + (h * Vector2i(0, 0.5));
+            distance = (backPosition - position).length();
+            distanceCount += distance;
+            newVel += distance * utemp[index.x() + 1][index.y()].x();
           }
         }
-        // TODO: Add verification for z axis
+        if (index.y() < _resolution.y() - 1) {
+          if (index.x() >= 0) {
+            // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
+            position = (index + Vector2i(0, 1)) * h + (h * Vector2i(0, 0.5));
+            distance = (backPosition - position).length();
+            distanceCount += distance;
+            newVel += distance * utemp[index.x()][index.y() + 1].x();
+          }
+
+          if (index.x() < _resolution.x() - 1) {
+            // && _material[index.x() + 1][index.y() + 1][0] == centerMaterial)
+            // {
+            position = (index + Vector2i(1, 1)) * h + (h * Vector2i(0, 0.5));
+            distance = (backPosition - position).length();
+            distanceCount += distance;
+            newVel += distance * utemp[index.x() + 1][index.y() + 1].x();
+          }
+        }
+      } else {
+        newVel = utemp[i][j].x();
+        distanceCount = 1;
       }
+      // TODO: Add verification for z axis
+      if (distanceCount <= 1e-8)
+        _u[i][j][0].x(utemp[i][j].x());
+      else
+        _u[i][j][0].x(newVel / distanceCount);
+    }
 // Solve convection term (material derivative) - v velocities
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 1; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        Vector3d backPosition,
-            velPosition =
-                Vector3d(i, j, k) * _h + Vector3d(0, _h.y() / 2, _h.z() / 2);
-        backPosition = velPosition - utemp[i][j][k] * _dt;
+    for (int j = 1; j < _resolution.y(); j++) {
+      Vector2d h(_h.x(), _h.y());
+      Vector2d backPosition,
+          velPosition = Vector2d(i, j) * h + Vector2d(h.x() / 2, 0);
+      backPosition = velPosition - vtemp[i][j] * _dt;
 
-        // Velocity Linear interpolation
-        Vector3i index;
-        double newVel = 0.0;
-        int count = 0;
-        index.x(std::floor(backPosition.x() / _h.x()));
-        index.y(std::floor(backPosition.y() / _h.y()));
-        index.z(std::floor(backPosition.z() / _h.z()));
-        if (index.x() >= 0 || index.x() < _resolution.x()) {
-          if (index.x() >= 0) {
-            count += 2;
-            newVel += utemp[i][j][k].x();
-            newVel += utemp[i][j + 1][k].x();
+      // Velocity Linear interpolation
+      Vector2i index;
+      double newVel = 0.0;
+      int distanceCount = 0;
+      double distance = 0.0; //= (backPosition - position).length();
+      index.x(std::floor(backPosition.x() / _h.x()));
+      index.y(std::floor(backPosition.y() / _h.y()));
+      // if (index.x() >= 0 || index.x() < _resolution.x() - 1) {
+      if (index >= Vector2i(0, 0) &&
+          index < Vector2i(_resolution.x(), _resolution.y())) {
+        Material::FluidMaterial centerMaterial =
+            _material[index.x()][index.y()][0];
+        Vector2d position;
+        // distanceCount += distance;
+
+        if (index.x() >= 0) {
+          if (index.y() >= 0) {
+            // && _material[index.x()][index.y()][0] == centerMaterial) {
+            position = index * h + (h * Vector2i(0.5, 0));
+            distance = (backPosition - position).length();
+            distanceCount += distance;
+            newVel += distance * vtemp[index.x()][index.y()].y();
           }
-          if (index.x() < _resolution.x()) {
-            count += 2;
-            newVel += utemp[i + 1][j + 1][k].x();
-            newVel += utemp[i + 1][j + 1][k].x();
+          if (index.y() < _resolution.y() - 1) {
+            // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
+            position = (index + Vector2i(0, 1)) * h + (h * Vector2i(0.5, 0));
+            distance = (backPosition - position).length();
+            distanceCount += distance;
+            newVel += distance * vtemp[index.x()][index.y() + 1].y();
           }
         }
+        if (index.x() < _resolution.x() - 1) {
+          if (index.y() >= 0) {
+            // && _material[index.x() + 1][index.y()][0] == centerMaterial) {
+            position = (index + Vector2i(1, 0)) * h + (h * Vector2i(0.5, 0));
+            distance = (backPosition - position).length();
+            distanceCount += distance;
+            newVel += distance * vtemp[index.x() + 1][index.y()].y();
+          }
+          if (index.y() < _resolution.y() - 1) {
+            // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
+            position = (index + Vector2i(1, 1)) * h + (h * Vector2i(0.5, 0));
+            distance = (backPosition - position).length();
+            distanceCount += distance;
+            newVel += distance * vtemp[index.x() + 1][index.y() + 1].y();
+          }
+        }
+      } else {
+        newVel = vtemp[i][j].y();
+        distanceCount = 1;
       }
+      if (distanceCount == 0)
+        _v[i][j][0].y(vtemp[i][j].y());
+      else
+        _v[i][j][0].y(newVel / distanceCount);
+    }
 
   // TODO: add convective term for z axis
 }
@@ -239,7 +288,7 @@ int RegularGrid::ijkToId(int i, int j, int k) {
   return k * _resolution.x() * _resolution.y() + j * _resolution.x() + i;
 }
 
-Vector3i RegularGrid::idToijk(int id) {}
+Vector3i RegularGrid::idToijk(int id) { NOT_IMPLEMENTED(); }
 
 void RegularGrid::printFaceVelocity() {
 
@@ -289,9 +338,108 @@ void RegularGrid::boundaryVelocities() {
 
 void RegularGrid::addGravity() {
   for (int k = 0; k < _resolution.z(); k++) {
-    for (int j = 0; j < _resolution.y() + 1; j++) {
+    for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _v[i][j][k].y(_v[i][j][k].y() - 9.81 * _dt);
+        if (_material[i][j - 1][k] == Material::FluidMaterial::FLUID) {
+          double vel = _v[i][j][k].y() - 9.81 * _dt;
+          _v[i][j][k].y(vel);
+        }
+      }
+    }
+  }
+}
+
+void RegularGrid::extrapolateVelocity() {
+  std::queue<Vector3i> processingCells;
+  std::vector<std::vector<int>> processedCells;
+
+  processedCells.resize(_resolution.x());
+  for (auto &row : processedCells)
+    row.resize(_resolution.y(), _resolution.x() * _resolution.y());
+
+  for (int i = 0; i < _resolution.x(); i++) {
+    for (int j = 0; j < _resolution.x(); j++) {
+      // Extrapolate velocity from fluid to air cells
+      // Check if is a air surface cell
+      if (_material[i][j][0] == Material::FluidMaterial::FLUID) {
+        processedCells[i][j] = 0;
+        // Look for air neighbors
+        // Add air cells to processing queue
+        if (i > 0 && _material[i - 1][j][0] == Material::FluidMaterial::AIR) {
+          processedCells[i - 1][j] = 1;
+          processingCells.push(Vector3i(i - 1, j, 0));
+          _u[i - 1][j][0].x(_u[i][j][0].x());
+          _v[i - 1][j][0].y(_v[i][j][0].y());
+          _v[i - 1][j + 1][0].y(_v[i][j + 1][0].y());
+        }
+        if (i < _resolution.x() - 1 &&
+            _material[i + 1][j][0] == Material::FluidMaterial::AIR) {
+          processedCells[i + 1][j] = 1;
+          processingCells.push(Vector3i(i + 1, j, 0));
+          _u[i + 2][j][0].x(_u[i + 1][j][0].x());
+          _v[i + 1][j][0].y(_v[i][j][0].y());
+          _v[i + 1][j + 1][0].y(_v[i][j + 1][0].y());
+        }
+        if (j > 0 && _material[i][j - 1][0] == Material::FluidMaterial::AIR) {
+          processedCells[i][j - 1] = 1;
+          processingCells.push(Vector3i(i, j - 1, 0));
+          _v[i][j - 1][0].y(_v[i][j][0].y());
+          _u[i][j - 1][0].x(_u[i][j][0].x());
+          _u[i + 1][j - 1][0].x(_u[i + 1][j][0].x());
+        }
+        if (j < _resolution.y() - 1 &&
+            _material[i][j + 1][0] == Material::FluidMaterial::AIR) {
+          processedCells[i][j + 1] = 1;
+          processingCells.push(Vector3i(i, j + 1, 0));
+          _v[i][j + 2][0].y(_v[i][j + 1][0].y());
+          _u[i][j + 1][0].x(_u[i][j][0].x());
+          _u[i + 1][j + 1][0].x(_u[i + 1][j][0].x());
+        }
+      }
+    }
+  }
+  while (!processingCells.empty()) {
+    Vector3i currCell = processingCells.front();
+    processingCells.pop();
+    int i = currCell.x(), j = currCell.y();
+
+    // Check for neighbor airs
+    if (i > 0 && _material[i - 1][j][0] == Material::FluidMaterial::AIR) {
+      if (processedCells[i - 1][j] > processedCells[i][j] + 1) {
+        processedCells[i - 1][j] = processedCells[i][j] + 1;
+        processingCells.push(Vector3i(i - 1, j, 0));
+        _u[i - 1][j][0].x(_u[i][j][0].x());
+        _v[i - 1][j][0].y(_v[i][j][0].y());
+        _v[i - 1][j + 1][0].y(_v[i][j + 1][0].y());
+      }
+    }
+    if (i < _resolution.x() - 1 &&
+        _material[i + 1][j][0] == Material::FluidMaterial::AIR) {
+      if (processedCells[i + 1][j] > processedCells[i][j] + 1) {
+        processedCells[i + 1][j] = processedCells[i][j] + 1;
+        processingCells.push(Vector3i(i + 1, j, 0));
+        _u[i + 2][j][0].x(_u[i + 1][j][0].x());
+        _v[i + 1][j][0].y(_v[i][j][0].y());
+        _v[i + 1][j + 1][0].y(_v[i][j + 1][0].y());
+      }
+    }
+    if (j > 0 && _material[i][j - 1][0] == Material::FluidMaterial::AIR) {
+      if (processedCells[i][j - 1] > processedCells[i][j] + 1) {
+        processedCells[i][j - 1] = processedCells[i][j] + 1;
+        processingCells.push(Vector3i(i, j - 1, 0));
+        _v[i][j - 1][0].y(_v[i][j][0].y());
+        _u[i][j - 1][0].x(_u[i][j][0].x());
+        _u[i + 1][j - 1][0].x(_u[i + 1][j][0].x());
+      }
+    }
+    if (j < _resolution.y() - 1 &&
+        _material[i][j + 1][0] == Material::FluidMaterial::AIR) {
+      if (processedCells[i][j + 1] > processedCells[i][j] + 1) {
+        processedCells[i][j + 1] = processedCells[i][j] + 1;
+        processingCells.push(Vector3i(i, j + 1, 0));
+        _v[i][j + 2][0].y(_v[i][j + 1][0].y());
+        _u[i][j + 1][0].x(_u[i][j][0].x());
+        _u[i + 1][j + 1][0].x(_u[i + 1][j][0].x());
       }
     }
   }
@@ -312,8 +460,8 @@ void RegularGrid::solvePressure() {
 #pragma omp parallel
   // Solve pressure Poisson equation
   {
-#pragma omp for
     for (int k = 0; k < _resolution.z(); k++) {
+#pragma omp for
       for (int j = 0; j < _resolution.y(); j++) {
         for (int i = 0; i < _resolution.x(); i++) {
           if (_material[i][j][k] != Material::FluidMaterial::FLUID)

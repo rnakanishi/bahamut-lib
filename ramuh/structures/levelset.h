@@ -31,6 +31,7 @@ public:
   /// \param center center of the sphere
   /// \param radius radius of the sphere
   void addSphereSurface(Vector3d center, double radius);
+  void addCubeSurface(Vector3d lower, Vector3d upper);
 
   void checkCellMaterial();
 
