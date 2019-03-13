@@ -1,6 +1,6 @@
-#include <structures/levelset.h>
+#include <structures/levelset2.h>
 
-class LevelSetFluid : public Ramuh::LevelSet {
+class LevelSetFluid2 : public Ramuh::LevelSet2 {
 public:
-  LevelSetFluid();
+  LevelSetFluid2();
 };

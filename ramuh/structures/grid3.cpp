@@ -1,4 +1,4 @@
-#include <structures/grid.h>
+#include <structures/grid3.h>
 #include <utils/macros.h>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
@@ -10,27 +10,27 @@
 
 namespace Ramuh {
 
-RegularGrid::RegularGrid() {
+RegularGrid3::RegularGrid3() {
   setResolution(Vector3i(32, 32, 32));
   _h = Vector3d(1. / 32);
   _domainSize = Vector3d(1.0);
   _dt = 0.01;
 }
 
-Vector3d RegularGrid::domainSize() { return _domainSize; }
+Vector3d RegularGrid3::domainSize() { return _domainSize; }
 
-Vector3i RegularGrid::resolution() { return _resolution; }
+Vector3i RegularGrid3::resolution() { return _resolution; }
 
-Vector3d RegularGrid::h() { return _h; }
+Vector3d RegularGrid3::h() { return _h; }
 
-Vector3d RegularGrid::gridSize() { return _domainSize; }
+Vector3d RegularGrid3::gridSize() { return _domainSize; }
 
-void RegularGrid::setSize(Vector3d newSize) {
+void RegularGrid3::setSize(Vector3d newSize) {
   _domainSize = newSize;
   setH(_domainSize / _resolution);
 }
 
-void RegularGrid::setResolution(Vector3i newResolution) {
+void RegularGrid3::setResolution(Vector3i newResolution) {
   _resolution = newResolution;
   setH(_domainSize / _resolution);
 
@@ -63,9 +63,9 @@ void RegularGrid::setResolution(Vector3i newResolution) {
   }
 }
 
-void RegularGrid::setH(Vector3d newH) { _h = newH; }
+void RegularGrid3::setH(Vector3d newH) { _h = newH; }
 
-void RegularGrid::advectGridVelocity() {
+void RegularGrid3::advectGridVelocity() {
   // TODO: change to dynamic allocation
   std::vector<std::vector<Vector2d>> utemp;
   std::vector<std::vector<Vector2d>> vtemp;
@@ -256,7 +256,7 @@ void RegularGrid::advectGridVelocity() {
   // TODO: add convective term for z axis
 }
 
-void RegularGrid::setVelocity() {
+void RegularGrid3::setVelocity() {
 
   for (int i = 0; i < _resolution.x() + 1; i++) {
     for (int j = 0; j < _resolution.y(); j++)
@@ -280,17 +280,17 @@ void RegularGrid::setVelocity() {
   }
 }
 
-int RegularGrid::cellCount() {
+int RegularGrid3::cellCount() {
   return _resolution.x() * _resolution.y() * _resolution.z();
 }
 
-int RegularGrid::ijkToId(int i, int j, int k) {
+int RegularGrid3::ijkToId(int i, int j, int k) {
   return k * _resolution.x() * _resolution.y() + j * _resolution.x() + i;
 }
 
-Vector3i RegularGrid::idToijk(int id) { NOT_IMPLEMENTED(); }
+Vector3i RegularGrid3::idToijk(int id) { NOT_IMPLEMENTED(); }
 
-void RegularGrid::printFaceVelocity() {
+void RegularGrid3::printFaceVelocity() {
 
   std::cerr << "==== u: \n";
   for (int k = 0; k < _resolution.z(); k++) {
@@ -314,7 +314,7 @@ void RegularGrid::printFaceVelocity() {
   }
 }
 
-void RegularGrid::boundaryVelocities() {
+void RegularGrid3::boundaryVelocities() {
   // Z velocities
   for (int j = 0; j < _resolution.y(); j++) {
     for (int i = 0; i < _resolution.x(); i++) {
@@ -336,7 +336,7 @@ void RegularGrid::boundaryVelocities() {
   }
 }
 
-void RegularGrid::addGravity() {
+void RegularGrid3::addGravity() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
@@ -349,7 +349,7 @@ void RegularGrid::addGravity() {
   }
 }
 
-void RegularGrid::extrapolateVelocity() {
+void RegularGrid3::extrapolateVelocity() {
   std::queue<Vector3i> processingCells;
   std::vector<std::vector<int>> processedCells;
 
@@ -445,7 +445,7 @@ void RegularGrid::extrapolateVelocity() {
   }
 }
 
-void RegularGrid::solvePressure() {
+void RegularGrid3::solvePressure() {
 
   // Compute velocity divergent over cell center
   // std::vector<double> divergent(cellCount(), 0.0);

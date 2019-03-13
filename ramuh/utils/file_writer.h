@@ -1,7 +1,7 @@
 #ifndef __RAMUH_FILE_WRITER_H__
 #define __RAMUH_FILE_WRITER_H__
 
-#include <structures/levelset.h>
+#include <structures/levelset2.h>
 #include <string>
 
 namespace Ramuh {
@@ -11,7 +11,7 @@ class FileWriter {
 public:
   FileWriter();
 
-  void writeLevelSet(LevelSet data, const std::string &filename);
+  void writeLevelSet(LevelSet2 data, const std::string &filename);
 
   void setDebug(bool out);
 

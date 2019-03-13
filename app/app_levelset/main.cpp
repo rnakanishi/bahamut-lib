@@ -8,12 +8,12 @@
 #include <utils/file_writer.h>
 
 int main(void) {
-  LevelSetFluid sim;
+  LevelSetFluid2 sim;
   Ramuh::FileWriter writer;
   // writer.setDebug(true);
   int resolution = 128;
-  sim.setResolution(Ramuh::Vector3i(resolution, resolution, 1));
-  sim.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0 / resolution));
+  sim.setResolution(Ramuh::Vector2i(resolution, resolution));
+  sim.setSize(Ramuh::Vector2d(1.0, 1.0));
 
   std::cerr << "Initialized grid with size " << sim.domainSize()
             << ", resolution " << sim.resolution() << "  and h spacing "
@@ -21,11 +21,10 @@ int main(void) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0), 0.1);
-  sim.addCubeSurface(Ramuh::Vector3d(0, 0, 0),
-                     Ramuh::Vector3d(1, 0.3, 2.0 / resolution));
-  // sim.addCubeSurface(Ramuh::Vector3d(0, 0, 0),
-  //  Ramuh::Vector3d(0.2, 0.8, 2.0 / resolution));
+  sim.addSphereSurface(Ramuh::Vector2d(0.5, 0.7), 0.1);
+  sim.addCubeSurface(Ramuh::Vector2d(0, 0), Ramuh::Vector2d(1, 0.3));
+  // sim.addCubeSurface(Ramuh::Vector2d(0, 0, 0),
+  //  Ramuh::Vector2d(0.2, 0.8, 2.0 / resolution));
 
   sim.setVelocity();
   // sim.printVertexVelocity();

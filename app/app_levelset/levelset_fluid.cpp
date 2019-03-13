@@ -1,3 +1,3 @@
 #include "levelset_fluid.h"
 
-LevelSetFluid::LevelSetFluid() : Ramuh::LevelSet() {}
+LevelSetFluid2::LevelSetFluid2() : Ramuh::LevelSet2() {}

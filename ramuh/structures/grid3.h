@@ -1,5 +1,5 @@
-#ifndef __RAMUH_GRID_H__
-#define __RAMUH_GRID_H__
+#ifndef __RAMUH_GRID3_H__
+#define __RAMUH_GRID3_H__
 
 #include <geometry/vector3.h>
 #include <geometry/vector2.h>
@@ -8,9 +8,9 @@
 
 namespace Ramuh {
 
-class RegularGrid {
+class RegularGrid3 {
 public:
-  RegularGrid();
+  RegularGrid3();
 
   ///
   /// Grid size
@@ -90,7 +90,7 @@ protected:
   Vector3d _h;                     // Spacing between cells
   std::vector<char> _materialMask; // Either cell is fluid, air, solid
 
-  // TODO: Change to Matrix3 type
+  // TODO: Change to Matrix2 type
   // TODO: use two matrices to improve performance
   std::vector<std::vector<std::vector<Vector3d>>> _u, _v,
       _w; // Velocity components stored on faces

@@ -1,11 +1,11 @@
-#include <structures/levelset.h>
+#include <structures/levelset3.h>
 #include <utils/macros.h>
 #include <omp.h>
 #include <cmath>
 
 namespace Ramuh {
 
-LevelSet::LevelSet() : RegularGrid() {
+LevelSet3::LevelSet3() : RegularGrid3() {
   _phi.resize(_resolution.x());
   for (auto &row : _phi) {
     row.resize(_resolution.y());
@@ -20,8 +20,8 @@ LevelSet::LevelSet() : RegularGrid() {
   }
 }
 
-void LevelSet::setResolution(Vector3i newResolution) {
-  RegularGrid::setResolution(newResolution);
+void LevelSet3::setResolution(Vector3i newResolution) {
+  RegularGrid3::setResolution(newResolution);
   _phi.resize(_resolution.x());
   for (auto &row : _phi) {
     row.resize(_resolution.y());
@@ -42,7 +42,7 @@ void LevelSet::setResolution(Vector3i newResolution) {
   }
 }
 
-void LevelSet::printVertexVelocity() {
+void LevelSet3::printVertexVelocity() {
   std::cerr << "==== x component: \n";
   for (int j = 0; j < _resolution.y() + 1; j++) {
     for (int i = 0; i < _resolution.x() + 1; i++) {
@@ -61,7 +61,7 @@ void LevelSet::printVertexVelocity() {
   std::cerr << std::endl;
 }
 
-void LevelSet::addSphereSurface(Vector3d center, double radius) {
+void LevelSet3::addSphereSurface(Vector3d center, double radius) {
   for (int k = 0; k < _resolution.z(); k++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int i = 0; i < _resolution.x(); i++) {
@@ -73,7 +73,7 @@ void LevelSet::addSphereSurface(Vector3d center, double radius) {
   checkCellMaterial();
 }
 
-void LevelSet::addCubeSurface(Vector3d lower, Vector3d upper) {
+void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
   // for (int k = 0; k < _resolution.z(); k++)
   for (int j = 0; j < _resolution.y(); j++)
     for (int i = 0; i < _resolution.x(); i++) {
@@ -95,7 +95,7 @@ void LevelSet::addCubeSurface(Vector3d lower, Vector3d upper) {
   checkCellMaterial();
 }
 
-void LevelSet::checkCellMaterial() {
+void LevelSet3::checkCellMaterial() {
   for (int k = 0; k < _resolution.z(); k++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int i = 0; i < _resolution.x(); i++) {
@@ -106,9 +106,9 @@ void LevelSet::checkCellMaterial() {
       }
 }
 
-void LevelSet::addImplicitFunction() { NOT_IMPLEMENTED(); }
+void LevelSet3::addImplicitFunction() { NOT_IMPLEMENTED(); }
 
-void LevelSet::interpolateVelocitiesToVertices() {
+void LevelSet3::interpolateVelocitiesToVertices() {
 
 // TODO: Improve this interpolation
 #pragma omp parallel
@@ -203,7 +203,7 @@ void LevelSet::interpolateVelocitiesToVertices() {
 
 } // namespace Ramuh
 
-void LevelSet::integrateLevelSet() {
+void LevelSet3::integrateLevelSet() {
   int cellCount;
   cellCount = _resolution.x() * _resolution.y();
   // std::vector<std::vector<double>> oldPhi;
@@ -283,7 +283,7 @@ void LevelSet::integrateLevelSet() {
   delete[] oldPhi;
 }
 
-std::vector<std::vector<double>> &LevelSet::operator[](const int i) {
+std::vector<std::vector<double>> &LevelSet3::operator[](const int i) {
   return _phi[i];
 }
 

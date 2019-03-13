@@ -1,14 +1,14 @@
-#ifndef __RAMUH_LEVELSET_H__
-#define __RAMUH_LEVELSET_H__
+#ifndef __RAMUH_LEVELSET3_H__
+#define __RAMUH_LEVELSET3_H__
 
-#include <structures/grid.h>
+#include <structures/grid3.h>
 #include <utils/material.h>
 
 namespace Ramuh {
 
-class LevelSet : public RegularGrid {
+class LevelSet3 : public RegularGrid3 {
 public:
-  LevelSet();
+  LevelSet3();
 
   ///
   /// Add an implicit region for the fluid
