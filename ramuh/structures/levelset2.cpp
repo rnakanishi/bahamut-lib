@@ -2,13 +2,14 @@
 #include <utils/macros.h>
 #include <omp.h>
 #include <cmath>
+#include <queue>
 
 namespace Ramuh {
 
 LevelSet2::LevelSet2() : RegularGrid2() {
   _phi.resize(_resolution.x());
   for (auto &row : _phi) {
-    row.resize(_resolution.y());
+    row.resize(_resolution.y(), 1e8);
   }
   _gradPhi.resize(_resolution.x() + 1);
   for (auto &row : _gradPhi) {
@@ -20,7 +21,7 @@ void LevelSet2::setResolution(Vector2i newResolution) {
   RegularGrid2::setResolution(newResolution);
   _phi.resize(_resolution.x());
   for (auto &row : _phi) {
-    row.resize(_resolution.y());
+    row.resize(_resolution.y(), 1e8);
   }
   _gradPhi.resize(_resolution.x() + 1);
   for (auto &row : _gradPhi) {
@@ -56,8 +57,9 @@ void LevelSet2::addSphereSurface(Vector2d center, double radius) {
     for (int i = 0; i < _resolution.x(); i++) {
       Vector2d position(Vector2i(i, j) * _h + _h / 2);
       position = position - center;
-      _phi[i][j] =
-          std::min(_phi[i][j], position.dot(position) - radius * radius);
+      double value = position.dot(position) - radius * radius;
+      int sign = value / std::fabs(value);
+      _phi[i][j] = sign * std::min(std::fabs(_phi[i][j]), std::fabs(value));
     }
   checkCellMaterial();
 }
@@ -75,10 +77,6 @@ void LevelSet2::addCubeSurface(Vector2d lower, Vector2d upper) {
       } else {
         _phi[i][j] = std::min(
             _phi[i][j], std::min(distanceLower.min(), distanceUpper.min()));
-      }
-      if (_phi[i][j] == 0) {
-        std::cerr << '[' << i << ',' << j << ']';
-        std::cerr << position << distanceLower << distanceUpper << std::endl;
       }
     }
   checkCellMaterial();
@@ -175,6 +173,128 @@ void LevelSet2::integrateLevelSet() {
   }
   delete[] oldPhi;
 }
+
+void LevelSet2::redistance() {
+  std::vector<std::vector<double>> tempPhi;
+  std::vector<std::vector<bool>> processed;
+  std::priority_queue<std::pair<double, int>,
+                      std::vector<std::pair<double, int>>,
+                      std::greater<std::pair<double, int>>>
+      cellsQueue;
+
+  tempPhi.resize(_resolution.x());
+  processed.resize(_resolution.x());
+  for (int i = 0; i < _resolution.x(); i++) {
+    tempPhi[i].resize(_resolution.y(), 1e8);
+    processed[i].resize(_resolution.y(), false);
+  }
+#pragma omp parallel for
+  // While setting remaining cells to infinity
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++) {
+      double cellPhi;
+      int cellSign;
+      Material::FluidMaterial cellMaterial;
+      cellMaterial = _material[i][j];
+      cellPhi = _phi[i][j];
+      cellSign = (cellPhi < 0.0) ? -1 : 1;
+
+      // Look for surface cells and compute distance over them
+      if (i < _resolution.x() - 1 &&
+          std::signbit(cellPhi) != std::signbit(_phi[i + 1][j])) {
+        // compute distance to the surface
+        double distance = 1e8;
+        double theta = cellSign * _phi[i][j] / (_phi[i][j] - _phi[i + 1][j]);
+        tempPhi[i][j] = std::min(tempPhi[i][j], theta * _h.x());
+        processed[i][j] = true;
+      }
+      if (i > 0 && std::signbit(cellPhi) != std::signbit(_phi[i - 1][j])) {
+        // compute distance to the surface
+        double distance = 1e8;
+        double theta = cellSign * _phi[i][j] / (_phi[i][j] - _phi[i - 1][j]);
+        tempPhi[i][j] = std::min(tempPhi[i][j], theta * _h.x());
+        processed[i][j] = true;
+      }
+      if (j < _resolution.y() - 1 &&
+          std::signbit(cellPhi) != std::signbit(_phi[i][j + 1])) {
+        // compute distance to the surface
+        double distance = 1e8;
+        double theta = cellSign * _phi[i][j] / (_phi[i][j] - _phi[i][j + 1]);
+        tempPhi[i][j] = std::min(tempPhi[i][j], theta * _h.x());
+        processed[i][j] = true;
+      }
+      if (j > 0 && std::signbit(cellPhi) != std::signbit(_phi[i][j - 1])) {
+        // compute distance to the surface
+        double distance = 1e8;
+        double theta = cellSign * _phi[i][j] / (_phi[i][j] - _phi[i][j - 1]);
+        tempPhi[i][j] = std::min(tempPhi[i][j], theta * _h.x());
+        processed[i][j] = true;
+      }
+
+      if (processed[i][j]) {
+#pragma omp critical
+        {
+          cellsQueue.push(
+              std::make_pair(std::fabs(tempPhi[i][j]), ijToId(i, j)));
+        }
+      }
+    }
+
+  // Propagating distances
+  while (!cellsQueue.empty()) {
+    int cellId = cellsQueue.top().second;
+    cellsQueue.pop();
+    int i = cellId % _resolution.x(), j = cellId / _resolution.x();
+    // std::cerr << "Id " << cellId << " -> " << i << ' ' << j << std::endl;
+    // If the cell is not processed yet, compute its distance
+    if (!processed[i][j]) {
+      processed[i][j] = true;
+      double distances[2] = {1e8, 1e8};
+      distances[0] = std::min(tempPhi[std::max(0, i - 1)][j],
+                              tempPhi[std::min(_resolution.x() - 1, i + 1)][j]);
+      distances[1] = std::min(tempPhi[i][std::max(0, j - 1)],
+                              tempPhi[i][std::min(_resolution.y() - 1, j + 1)]);
+      if (std::fabs(distances[0]) > std::fabs(distances[1])) {
+        double aux = distances[0];
+        distances[0] = distances[1];
+        distances[1] = aux;
+      }
+      // std::cerr << "Distances " << distances[0] << ' ' << distances[1]
+      // << std::endl;
+      double newPhi = distances[0] + ((distances[0] < 0) ? -_h.x() : _h.x());
+      if (newPhi > distances[1]) {
+        newPhi =
+            0.5 *
+            (distances[0] + distances[1] +
+             std::sqrt(2 * _h.x() * _h.x() - ((distances[1] - distances[0]) *
+                                              (distances[1] - distances[0]))));
+      }
+      if (newPhi < tempPhi[i][j])
+        tempPhi[i][j] = newPhi;
+    }
+
+    // Compute neighbor distance to the levelset and add it to queue
+    if (i > 0 && !processed[i - 1][j])
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i - 1][j]), ijToId(i - 1, j)));
+    if (i < _resolution.x() - 1 && !processed[i + 1][j])
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i + 1][j]), ijToId(i + 1, j)));
+    if (j > 0 && !processed[i][j - 1])
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i][j - 1]), ijToId(i, j - 1)));
+    if (j < _resolution.y() - 1 && !processed[i][j + 1])
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i][j + 1]), ijToId(i, j + 1)));
+  }
+  // Solve Eikonal function
+  for (int j = 0; j < _resolution.y(); j++) {
+    for (int i = 0; i < _resolution.x(); i++) {
+      std::cerr << tempPhi[i][j] << ' ';
+    }
+    std::cerr << '\n';
+  }
+} // namespace Ramuh
 
 std::vector<double> &LevelSet2::operator[](const int i) { return _phi[i]; }
 

@@ -53,7 +53,7 @@ public:
     return true;
   }
 
-  bool operator<(const Vector2<T> v) {
+  bool operator<(const Vector2<T> &v) {
     if (_x >= v.x())
       return false;
     if (_y >= v.y())
@@ -61,13 +61,15 @@ public:
     return true;
   }
 
-  bool operator<=(const Vector2<T> v) {
+  bool operator<=(const Vector2<T> &v) {
     if (_x > v.x())
       return false;
     if (_y > v.y())
       return false;
     return true;
   }
+
+  bool operator==(const Vector2<T> v) { return (_x == v.x() && _y == v.y()); }
 
   template <typename type>
   Vector2<double> operator*(const Vector2<type> &v) const {
@@ -107,6 +109,12 @@ protected:
   T _x, _y;
 };
 
+template <typename T> class Vector2CompareLess {
+public:
+  bool operator()(const Vector2<T> *lhs, const Vector2<T> *rhs) {
+    return *lhs < *rhs;
+  }
+};
 typedef Vector2<int> Vector2i;
 typedef Vector2<double> Vector2d;
 
