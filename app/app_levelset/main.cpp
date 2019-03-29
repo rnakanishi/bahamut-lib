@@ -11,7 +11,7 @@ int main(void) {
   LevelSetFluid2 sim;
   Ramuh::FileWriter writer;
   // writer.setDebug(true);
-  int resolution = 32;
+  int resolution = 16;
   sim.setResolution(Ramuh::Vector2i(resolution, resolution));
   sim.setSize(Ramuh::Vector2d(1.0, 1.0));
 
@@ -21,19 +21,20 @@ int main(void) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector2d(0.5, 0.8), 0.15);
+  sim.addSphereSurface(Ramuh::Vector2d(0.5, 0.75), 0.15);
   sim.addCubeSurface(Ramuh::Vector2d(-5, -5), Ramuh::Vector2d(5, 0.37));
   // sim.addCubeSurface(Ramuh::Vector2d(0, 0, 0),
   //  Ramuh::Vector2d(0.2, 0.8, 2.0 / resolution));
 
-  // sim.redistance();
+  sim.redistance();
   sim.setVelocity();
   // sim.printVertexVelocity();
   writer.writeLevelSet(sim, "data/0");
-  for (int frame = 1; frame < 150; frame++) {
+  for (int frame = 1; frame < 4; frame++) {
     sim.checkCellMaterial();
     sim.addGravity();
     sim.advectGridVelocity();
+    sim.printFaceVelocity();
     sim.boundaryVelocities();
     sim.solvePressure();
     // sim.printFaceVelocity();
@@ -41,7 +42,7 @@ int main(void) {
     // sim.printFaceVelocity();
     sim.integrateLevelSet();
     // if (!(frame % 5))
-    //   sim.redistance();
+    // sim.redistance();
     std::ostringstream filename;
     // filename << "data/" << std::setw(4) << std::setfill('0') << frame;
     filename << "data/" << frame;

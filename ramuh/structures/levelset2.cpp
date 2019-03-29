@@ -3,6 +3,7 @@
 #include <omp.h>
 #include <cmath>
 #include <queue>
+#include <set>
 
 namespace Ramuh {
 
@@ -181,6 +182,7 @@ void LevelSet2::redistance() {
                       std::vector<std::pair<double, int>>,
                       std::greater<std::pair<double, int>>>
       cellsQueue;
+  std::set<int> cellsAdded;
 
   tempPhi.resize(_resolution.x());
   processed.resize(_resolution.x());
@@ -236,6 +238,7 @@ void LevelSet2::redistance() {
         {
           cellsQueue.push(
               std::make_pair(std::fabs(tempPhi[i][j]), ijToId(i, j)));
+          cellsAdded.insert(ijToId(i, j));
         }
       }
     }
@@ -272,24 +275,35 @@ void LevelSet2::redistance() {
       if (newPhi < tempPhi[i][j])
         tempPhi[i][j] = newPhi;
     }
-
     // Compute neighbor distance to the levelset and add it to queue
-    if (i > 0 && !processed[i - 1][j])
+    std::cerr << cellsAdded.size() << ' ';
+    if (i > 0 && cellsAdded.find(ijToId(i - 1, j)) == cellsAdded.end()) {
       cellsQueue.push(
           std::make_pair(std::fabs(_phi[i - 1][j]), ijToId(i - 1, j)));
-    if (i < _resolution.x() - 1 && !processed[i + 1][j])
+      cellsAdded.insert(ijToId(i - 1, j));
+    }
+    if (i < _resolution.x() - 1 &&
+        cellsAdded.find(ijToId(i + 1, j)) == cellsAdded.end()) {
       cellsQueue.push(
           std::make_pair(std::fabs(_phi[i + 1][j]), ijToId(i + 1, j)));
-    if (j > 0 && !processed[i][j - 1])
+      cellsAdded.insert(ijToId(i + 1, j));
+    }
+    if (j > 0 && cellsAdded.find(ijToId(i, j - 1)) == cellsAdded.end()) {
       cellsQueue.push(
           std::make_pair(std::fabs(_phi[i][j - 1]), ijToId(i, j - 1)));
-    if (j < _resolution.y() - 1 && !processed[i][j + 1])
+      cellsAdded.insert(ijToId(i, j - 1));
+    }
+    if (j < _resolution.y() - 1 &&
+        cellsAdded.find(ijToId(i, j + 1)) == cellsAdded.end()) {
       cellsQueue.push(
           std::make_pair(std::fabs(_phi[i][j + 1]), ijToId(i, j + 1)));
+      cellsAdded.insert(ijToId(i, j + 1));
+    }
   }
   // Solve Eikonal function
   for (int j = 0; j < _resolution.y(); j++) {
     for (int i = 0; i < _resolution.x(); i++) {
+      _phi[i][j] = tempPhi[i][j];
       std::cerr << tempPhi[i][j] << ' ';
     }
     std::cerr << '\n';

@@ -298,10 +298,10 @@ void RegularGrid2::boundaryVelocities() {
 void RegularGrid2::addGravity() {
   for (int j = 1; j < _resolution.y(); j++) {
     for (int i = 0; i < _resolution.x(); i++) {
-      if (_material[i][j - 1] == Material::FluidMaterial::FLUID) {
-        double vel = _v[i][j].y() - 9.81 * _dt;
-        _v[i][j].y(vel);
-      }
+      // if (_material[i][j - 1] == Material::FluidMaterial::FLUID) {
+      double vel = _v[i][j].y() - 9.81 * _dt;
+      _v[i][j].y(vel);
+      // }
     }
   }
 }
@@ -416,6 +416,7 @@ void RegularGrid2::solvePressure() {
 
 // Solve pressure Poisson equation
 #pragma omp parallel for
+  // Assemble Laplacian matrix
   for (int j = 0; j < _resolution.y(); j++) {
     for (int i = 0; i < _resolution.x(); i++) {
       if (_material[i][j] != Material::FluidMaterial::FLUID)
@@ -426,33 +427,29 @@ void RegularGrid2::solvePressure() {
       std::vector<Eigen::Triplet<double>> threadTriplet;
 
       // TODO: impose second order boundary condition for pressure
-      if (i > 0 || i < _resolution.x() - 1) {
-        if (i > 0) {
-          validCells++;
-          if (_material[i - 1][j] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijToId(i - 1, j),
-                                       -1 / (_h.x() * _h.x()));
-        }
-        if (i < _resolution.x() - 1) {
-          validCells++;
-          if (_material[i + 1][j] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijToId(i + 1, j),
-                                       -1 / (_h.x() * _h.x()));
-        }
+      if (i > 0) {
+        validCells++;
+        if (_material[i - 1][j] != Material::FluidMaterial::AIR)
+          threadTriplet.emplace_back(id, ijToId(i - 1, j),
+                                     -1 / (_h.x() * _h.x()));
       }
-      if (j > 0 || j < _resolution.y() - 1) {
-        if (j > 0) {
-          validCells++;
-          if (_material[i][j - 1] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijToId(i, j - 1),
-                                       -1 / (_h.x() * _h.x()));
-        }
-        if (j < _resolution.y() - 1) {
-          validCells++;
-          if (_material[i][j + 1] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijToId(i, j + 1),
-                                       -1 / (_h.x() * _h.x()));
-        }
+      if (i < _resolution.x() - 1) {
+        validCells++;
+        if (_material[i + 1][j] != Material::FluidMaterial::AIR)
+          threadTriplet.emplace_back(id, ijToId(i + 1, j),
+                                     -1 / (_h.x() * _h.x()));
+      }
+      if (j > 0) {
+        validCells++;
+        if (_material[i][j - 1] != Material::FluidMaterial::AIR)
+          threadTriplet.emplace_back(id, ijToId(i, j - 1),
+                                     -1 / (_h.x() * _h.x()));
+      }
+      if (j < _resolution.y() - 1) {
+        validCells++;
+        if (_material[i][j + 1] != Material::FluidMaterial::AIR)
+          threadTriplet.emplace_back(id, ijToId(i, j + 1),
+                                     -1 / (_h.x() * _h.x()));
       }
       threadTriplet.emplace_back(id, ijToId(i, j),
                                  validCells / (_h.x() * _h.x()));
@@ -468,9 +465,7 @@ void RegularGrid2::solvePressure() {
       divergent[id] /= _dt;
     }
   }
-
   triplets.emplace_back(nCells, nCells, 1);
-
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
 
   // SOlve pressure Poisson system
@@ -479,9 +474,9 @@ void RegularGrid2::solvePressure() {
       solver;
   solver.compute(pressureMatrix);
   pressure = solver.solve(divergent);
-
+  std::cerr << divergent.transpose() << std::endl;
+  // std::cerr << pressure.transpose() << std::endl;
   // Correct velocity through pressure gradient
-
   for (int j = 0; j < _resolution.y(); j++) {
     for (int i = 1; i < _resolution.x(); i++) {
       _u[i][j].x(_u[i][j].x() -
