@@ -474,7 +474,7 @@ void RegularGrid2::solvePressure() {
       solver;
   solver.compute(pressureMatrix);
   pressure = solver.solve(divergent);
-  std::cerr << divergent.transpose() << std::endl;
+  // std::cerr << divergent.transpose() << std::endl;
   // std::cerr << pressure.transpose() << std::endl;
   // Correct velocity through pressure gradient
   for (int j = 0; j < _resolution.y(); j++) {

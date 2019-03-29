@@ -22,7 +22,7 @@ int main(void) {
   auto res = sim.resolution();
   auto h = sim.h();
   sim.addSphereSurface(Ramuh::Vector2d(0.5, 0.75), 0.15);
-  sim.addCubeSurface(Ramuh::Vector2d(-5, -5), Ramuh::Vector2d(5, 0.37));
+  // sim.addCubeSurface(Ramuh::Vector2d(-5, -5), Ramuh::Vector2d(5, 0.37));
   // sim.addCubeSurface(Ramuh::Vector2d(0, 0, 0),
   //  Ramuh::Vector2d(0.2, 0.8, 2.0 / resolution));
 
@@ -30,17 +30,20 @@ int main(void) {
   sim.setVelocity();
   // sim.printVertexVelocity();
   writer.writeLevelSet(sim, "data/0");
-  for (int frame = 1; frame < 4; frame++) {
+  for (int frame = 1; frame < 2; frame++) {
     sim.checkCellMaterial();
     sim.addGravity();
     sim.advectGridVelocity();
-    sim.printFaceVelocity();
+    // sim.printFaceVelocity();
     sim.boundaryVelocities();
     sim.solvePressure();
     // sim.printFaceVelocity();
     sim.extrapolateVelocity();
     // sim.printFaceVelocity();
+    sim.printLevelSetValue();
     sim.integrateLevelSet();
+    std::cout << std::endl;
+    sim.printLevelSetValue();
     // if (!(frame % 5))
     // sim.redistance();
     std::ostringstream filename;

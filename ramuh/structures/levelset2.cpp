@@ -113,62 +113,72 @@ void LevelSet2::integrateLevelSet() {
 #pragma omp for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++) {
-      Vector2d position, backPosition, velocity, h(_h.x(), _h.y());
+      Vector2d position, backPosition, velocity, h(_h.x(), _h.y()), cellCenter;
       Vector2i index;
       double newPhi = 0.0;
       double distanceCount = 0.0, distance = 0.0;
 
-      position = Vector2d(i, j) * h + h / 2.0;
+      cellCenter = position = Vector2d(i, j) * h + h / 2.0;
       velocity.x((_u[i][j].x() + _u[i + 1][j].x()) / 2.0);
       velocity.y((_v[i][j].y() + _v[i][j + 1].y()) / 2.0);
-      backPosition = position - velocity * _dt;
+      backPosition = position - (velocity * _dt);
 
       index.x(std::floor(backPosition.x() / h.x()));
       index.y(std::floor(backPosition.y() / h.y()));
 
       if (index >= Vector2i(0, 0) &&
           index < Vector2(_resolution.x(), _resolution.y())) {
+        // If inside simulation domain
         Material::FluidMaterial centerMaterial =
             _material[index.x()][index.y()];
         position = index * h + h / 2.0;
+        // Backposition distance to the target cell center
         distance = (backPosition - position).length();
-        distanceCount += distance;
-        newPhi += distance * oldPhi[index.x()][index.y()];
-        if (index.x() > 0) {
-          //  && _material[index.x() - 1][index.y()][0] == centerMaterial) {
-          distance = (backPosition - position).length();
-          distanceCount += distance;
-          newPhi += distance * oldPhi[index.x() - 1][index.y()];
+        if (distance < 1e-6) {
+          newPhi = oldPhi[i][j];
+        } else {
+          distanceCount += 1. / distance;
+          newPhi += (1. / distance) * oldPhi[index.x()][index.y()];
+          // Weighted interpolation of the level set value
+          if (index.x() > 0) {
+            //  && _material[index.x() - 1][index.y()][0] == centerMaterial) {
+            Vector2d targetCellCenter =
+                Vector2d(index.x() - 1, index.y()) * h + h / 2.0;
+            distance = (backPosition - targetCellCenter).length();
+            distanceCount += (1. / distance);
+            newPhi += (1. / distance) * oldPhi[index.x() - 1][index.y()];
+          }
+          if (index.x() < _resolution.x() - 1) {
+            //  && _material[index.x() + 1][index.y()][0] == centerMaterial) {
+            Vector2d targetCellCenter =
+                Vector2d(index.x() + 1, index.y()) * h + h / 2.0;
+            distance = (backPosition - targetCellCenter).length();
+            distanceCount += (1. / distance);
+            newPhi += (1. / distance) * oldPhi[index.x() + 1][index.y()];
+          }
+          if (index.y() > 0) {
+            // && _material[index.x()][index.y() - 1][0] == centerMaterial) {
+            Vector2d targetCellCenter =
+                Vector2d(index.x(), index.y() - 1) * h + h / 2.0;
+            distance = (backPosition - targetCellCenter).length();
+            distanceCount += (1. / distance);
+            newPhi += (1. / distance) * oldPhi[index.x()][index.y() - 1];
+          }
+          if (index.y() < _resolution.y() - 1) {
+            // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
+            Vector2d targetCellCenter =
+                Vector2d(index.x(), index.y() + 1) * h + h / 2.0;
+            distance = (backPosition - targetCellCenter).length();
+            distanceCount += (1. / distance);
+            newPhi += (1. / distance) * oldPhi[index.x()][index.y() + 1];
+          }
+          newPhi /= distanceCount;
         }
-        if (index.x() < _resolution.x() - 1) {
-          //  && _material[index.x() + 1][index.y()][0] == centerMaterial) {
-          distance = (backPosition - position).length();
-          distanceCount += distance;
-          newPhi += distance * oldPhi[index.x() + 1][index.y()];
-        }
-        if (index.y() > 0) {
-          // && _material[index.x()][index.y() - 1][0] == centerMaterial) {
-          distance = (backPosition - position).length();
-          distanceCount += distance;
-          newPhi += distance * oldPhi[index.x()][index.y() - 1];
-        }
-        if (index.y() < _resolution.y() - 1) {
-          // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
-          distance = (backPosition - position).length();
-          distanceCount += distance;
-          newPhi += distance * oldPhi[index.x()][index.y() + 1];
-        }
-        // TODO: Do the same for z axis
-      } else {
-        newPhi = oldPhi[i][j];
-        distanceCount += 1.0;
       }
-      if (distanceCount == 0.0) {
-        _phi[i][j] = oldPhi[i][j];
-      } else
-        _phi[i][j] = newPhi / distanceCount;
+      _phi[i][j] = newPhi;
     }
 
+  // Clean up
   for (int i = 0; i < _resolution.y(); ++i) {
     delete[] oldPhi[i];
   }
@@ -276,7 +286,6 @@ void LevelSet2::redistance() {
         tempPhi[i][j] = newPhi;
     }
     // Compute neighbor distance to the levelset and add it to queue
-    std::cerr << cellsAdded.size() << ' ';
     if (i > 0 && cellsAdded.find(ijToId(i - 1, j)) == cellsAdded.end()) {
       cellsQueue.push(
           std::make_pair(std::fabs(_phi[i - 1][j]), ijToId(i - 1, j)));
@@ -304,11 +313,18 @@ void LevelSet2::redistance() {
   for (int j = 0; j < _resolution.y(); j++) {
     for (int i = 0; i < _resolution.x(); i++) {
       _phi[i][j] = tempPhi[i][j];
-      std::cerr << tempPhi[i][j] << ' ';
     }
-    std::cerr << '\n';
   }
-} // namespace Ramuh
+}
+
+void LevelSet2::printLevelSetValue() {
+  for (int j = _resolution.y() - 1; j >= 0; j--) {
+    for (int i = 0; i < _resolution.x(); i++) {
+      std::cout << _phi[i][j] << ' ';
+    }
+    std::cout << std::endl;
+  }
+}
 
 std::vector<double> &LevelSet2::operator[](const int i) { return _phi[i]; }
 
