@@ -57,10 +57,8 @@ void LevelSet2::addSphereSurface(Vector2d center, double radius) {
   for (int j = 0; j < _resolution.y(); j++)
     for (int i = 0; i < _resolution.x(); i++) {
       Vector2d position(Vector2i(i, j) * _h + _h / 2);
-      position = position - center;
-      double value = position.dot(position) - radius * radius;
-      int sign = value / std::fabs(value);
-      _phi[i][j] = sign * std::min(std::fabs(_phi[i][j]), std::fabs(value));
+      double distance = (position - center).length() - radius;
+      _phi[i][j] = distance;
     }
   checkCellMaterial();
 }
@@ -73,8 +71,8 @@ void LevelSet2::addCubeSurface(Vector2d lower, Vector2d upper) {
       Vector2d distanceLower = (position - lower).abs();
       Vector2d distanceUpper = (position - upper).abs();
       if (position > lower && position < upper) {
-        _phi[i][j] = std::min(
-            _phi[i][j], -std::min(distanceLower.min(), distanceUpper.min()));
+        _phi[i][j] = -std::min(
+            _phi[i][j], std::min(distanceLower.min(), distanceUpper.min()));
       } else {
         _phi[i][j] = std::min(
             _phi[i][j], std::min(distanceLower.min(), distanceUpper.min()));
@@ -110,7 +108,7 @@ void LevelSet2::integrateLevelSet() {
     for (int j = 0; j < _resolution.y(); j++)
       oldPhi[i][j] = _phi[i][j];
 
-#pragma omp for
+#pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++) {
       Vector2d position, backPosition, velocity, h(_h.x(), _h.y()), cellCenter;
@@ -189,37 +187,37 @@ void LevelSet2::redistance() {
       Material::FluidMaterial cellMaterial;
       cellMaterial = _material[i][j];
       cellPhi = _phi[i][j];
-      cellSign = (cellPhi < 0.0) ? -1 : 1;
+      cellSign = cellPhi / std::fabs(cellPhi);
 
       // Look for surface cells and compute distance over them
       if (i < _resolution.x() - 1 &&
           std::signbit(cellPhi) != std::signbit(_phi[i + 1][j])) {
         // compute distance to the surface
-        double distance = 1e8;
-        double theta = cellSign * _phi[i][j] / (_phi[i][j] - _phi[i + 1][j]);
-        tempPhi[i][j] = std::min(tempPhi[i][j], theta * _h.x());
+        double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i + 1][j]));
+        tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
+                                            std::fabs(theta * _h.x()));
         processed[i][j] = true;
       }
       if (i > 0 && std::signbit(cellPhi) != std::signbit(_phi[i - 1][j])) {
         // compute distance to the surface
-        double distance = 1e8;
-        double theta = cellSign * _phi[i][j] / (_phi[i][j] - _phi[i - 1][j]);
-        tempPhi[i][j] = std::min(tempPhi[i][j], theta * _h.x());
+        double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i - 1][j]));
+        tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
+                                            std::fabs(theta * _h.x()));
         processed[i][j] = true;
       }
       if (j < _resolution.y() - 1 &&
           std::signbit(cellPhi) != std::signbit(_phi[i][j + 1])) {
         // compute distance to the surface
-        double distance = 1e8;
-        double theta = cellSign * _phi[i][j] / (_phi[i][j] - _phi[i][j + 1]);
-        tempPhi[i][j] = std::min(tempPhi[i][j], theta * _h.x());
+        double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i][j + 1]));
+        tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
+                                            std::fabs(theta * _h.x()));
         processed[i][j] = true;
       }
       if (j > 0 && std::signbit(cellPhi) != std::signbit(_phi[i][j - 1])) {
         // compute distance to the surface
-        double distance = 1e8;
-        double theta = cellSign * _phi[i][j] / (_phi[i][j] - _phi[i][j - 1]);
-        tempPhi[i][j] = std::min(tempPhi[i][j], theta * _h.x());
+        double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i][j - 1]));
+        tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
+                                            std::fabs(theta * _h.x()));
         processed[i][j] = true;
       }
 
@@ -243,25 +241,31 @@ void LevelSet2::redistance() {
     if (!processed[i][j]) {
       processed[i][j] = true;
       double distances[2] = {1e8, 1e8};
-      distances[0] = std::min(tempPhi[std::max(0, i - 1)][j],
-                              tempPhi[std::min(_resolution.x() - 1, i + 1)][j]);
-      distances[1] = std::min(tempPhi[i][std::max(0, j - 1)],
-                              tempPhi[i][std::min(_resolution.y() - 1, j + 1)]);
-      if (std::fabs(distances[0]) > std::fabs(distances[1])) {
+      int distanceSignal = _phi[i][j] / std::fabs(_phi[i][j]);
+      distances[0] =
+          std::min(std::fabs(tempPhi[std::max(0, i - 1)][j]),
+                   std::fabs(tempPhi[std::min(_resolution.x() - 1, i + 1)][j]));
+      distances[1] =
+          std::min(std::fabs(tempPhi[i][std::max(0, j - 1)]),
+                   std::fabs(tempPhi[i][std::min(_resolution.y() - 1, j + 1)]));
+      if (distances[0] > distances[1]) {
         double aux = distances[0];
         distances[0] = distances[1];
         distances[1] = aux;
       }
       // std::cerr << "Distances " << distances[0] << ' ' << distances[1]
       // << std::endl;
-      double newPhi = distances[0] + ((distances[0] < 0) ? -_h.x() : _h.x());
-      if (newPhi > distances[1]) {
+      double newPhi = distances[0] + _h.x();
+      if (std::signbit(distances[0]) == std::signbit(distances[1]) &&
+          std::fabs(newPhi) > std::fabs(distances[1])) {
+        double h = _h.x() * _h.x();
         newPhi =
             0.5 *
             (distances[0] + distances[1] +
              std::sqrt(2 * _h.x() * _h.x() - ((distances[1] - distances[0]) *
                                               (distances[1] - distances[0]))));
       }
+      newPhi *= distanceSignal;
       if (newPhi < tempPhi[i][j])
         tempPhi[i][j] = newPhi;
     }
