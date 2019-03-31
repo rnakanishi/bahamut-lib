@@ -66,32 +66,29 @@ void LevelSet3::addSphereSurface(Vector3d center, double radius) {
     for (int j = 0; j < _resolution.y(); j++)
       for (int i = 0; i < _resolution.x(); i++) {
         Vector3d position(Vector3i(i, j, k) * _h + _h / 2);
-        position = position - center;
-        _phi[i][j][k] =
-            std::min(_phi[i][j][k], position.dot(position) - radius * radius);
+        double distance = (position - center).length() - radius;
+        _phi[i][j][k] = distance;
       }
   checkCellMaterial();
 }
 
 void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
-  // for (int k = 0; k < _resolution.z(); k++)
-  for (int j = 0; j < _resolution.y(); j++)
-    for (int i = 0; i < _resolution.x(); i++) {
-      Vector3d position(Vector3i(i, j, 0) * _h + _h / 2);
-      Vector3d distanceLower = (position - lower).abs();
-      Vector3d distanceUpper = (position - upper).abs();
-      if (position > lower && position < upper) {
-        _phi[i][j][0] = std::min(
-            _phi[i][j][0], -std::min(distanceLower.min(), distanceUpper.min()));
-      } else {
-        _phi[i][j][0] = std::min(
-            _phi[i][j][0], std::min(distanceLower.min(), distanceUpper.min()));
+  for (int k = 0; k < _resolution.z(); k++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int i = 0; i < _resolution.x(); i++) {
+        Vector3d position(Vector3i(i, j, 0) * _h + _h / 2);
+        Vector3d distanceLower = (position - lower).abs();
+        Vector3d distanceUpper = (position - upper).abs();
+        if (position > lower && position < upper) {
+          _phi[i][j][k] =
+              -std::min(_phi[i][j][k],
+                        std::min(distanceLower.min(), distanceUpper.min()));
+        } else {
+          _phi[i][j][k] =
+              std::min(_phi[i][j][k],
+                       std::min(distanceLower.min(), distanceUpper.min()));
+        }
       }
-      if (_phi[i][j][0] == 0) {
-        std::cerr << '[' << i << ',' << j << ']';
-        std::cerr << position << distanceLower << distanceUpper << std::endl;
-      }
-    }
   checkCellMaterial();
 }
 
