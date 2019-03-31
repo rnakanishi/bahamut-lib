@@ -110,136 +110,86 @@ void RegularGrid2::advectGridVelocity() {
 #pragma omp parallel for
   for (int i = 1; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++) {
-      Vector2d h(_h.x(), _h.y());
-      Vector2d backPosition,
-          velPosition = Vector2d(i, j) * h + Vector2d(0, h.y() / 2);
-      backPosition = velPosition - utemp[i][j] * _dt;
-
-      // Velocity Linear interpolation
+      Vector2d position, backPosition, velocity, h(_h.x(), _h.y()), cellCenter;
       Vector2i index;
-      double newVel = 0.0;
-      double distanceCount = 0.;
-      double distance = 0.0;
+      Vector2d newVelocity = _u[i][j];
+      double distanceCount = 0.0, distance = 0.0;
+
+      velocity = utemp[i][j];
+      position = Vector2d(i, j) * h + Vector2d(0, h.y() / 2);
+      backPosition = position - velocity * _dt;
       index.x(std::floor(backPosition.x() / h.x()));
       index.y(std::floor(backPosition.y() / h.y()));
-      if (index >= Vector2i(0, 0) &&
+
+      if (velocity.length() > 1e-8 && index >= Vector2i(0, 0) &&
           index < Vector2i(_resolution.x(), _resolution.y())) {
-        Material::FluidMaterial centerMaterial =
-            _material[index.x()][index.y()];
-        Vector2d position;
-        // double distance = (backPosition - position).length();
-        // distanceCount += distance;
+        // Inside simulation domain
+        cellCenter = Vector2d(index.x(), index.y()) * h + h / 2.0;
+        std::vector<int> iCandidates, jCandidates;
+        iCandidates.push_back(index.x());
+        iCandidates.push_back(index.x() + 1);
+        jCandidates.push_back(index.y());
+        if (backPosition.y() > cellCenter.y() &&
+            index.y() < _resolution.y() - 1)
+          jCandidates.push_back(index.y() + 1);
+        else if (backPosition.y() < cellCenter.y() && index.y() > 0)
+          jCandidates.push_back(index.y() - 1);
 
-        if (index.y() >= 0) {
-          if (index.x() >= 0) {
-            // && _material[index.x()][index.y()][0] == centerMaterial) {
-            position = index * h + (h * Vector2i(0, 0.5));
+        newVelocity = 0.0;
+        for (auto u : iCandidates)
+          for (auto v : jCandidates) {
+            position = Vector2i(u, v) * h + Vector2d(0, h.y() / 2);
             distance = (backPosition - position).length();
-            distanceCount += distance;
-            newVel += distance * utemp[index.x()][index.y()].x();
+            distanceCount += 1. / distance;
+            newVelocity = newVelocity + (_u[u][v] * (1. / distance));
           }
-          if (index.x() < _resolution.x() - 1) {
-            // && _material[index.x() + 1][index.y()][0] == centerMaterial) {
-            position = (index + Vector2i(1, 0)) * h + (h * Vector2i(0, 0.5));
-            distance = (backPosition - position).length();
-            distanceCount += distance;
-            newVel += distance * utemp[index.x() + 1][index.y()].x();
-          }
-        }
-        if (index.y() < _resolution.y() - 1) {
-          if (index.x() >= 0) {
-            // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
-            position = (index + Vector2i(0, 1)) * h + (h * Vector2i(0, 0.5));
-            distance = (backPosition - position).length();
-            distanceCount += distance;
-            newVel += distance * utemp[index.x()][index.y() + 1].x();
-          }
-
-          if (index.x() < _resolution.x() - 1) {
-            // && _material[index.x() + 1][index.y() + 1][0] == centerMaterial)
-            // {
-            position = (index + Vector2i(1, 1)) * h + (h * Vector2i(0, 0.5));
-            distance = (backPosition - position).length();
-            distanceCount += distance;
-            newVel += distance * utemp[index.x() + 1][index.y() + 1].x();
-          }
-        }
-      } else {
-        newVel = utemp[i][j].x();
-        distanceCount = 1;
+        newVelocity = newVelocity / distanceCount;
       }
-      // TODO: Add verification for z axis
-      if (distanceCount <= 1e-8)
-        _u[i][j].x(utemp[i][j].x());
-      else
-        _u[i][j].x(newVel / distanceCount);
+      _u[i][j] = newVelocity;
     }
+
 // Solve convection term (material derivative) - v velocities
-#pragma omp parallel for
+#pragma omp for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 1; j < _resolution.y(); j++) {
-      Vector2d h(_h.x(), _h.y());
-      Vector2d backPosition,
-          velPosition = Vector2d(i, j) * h + Vector2d(h.x() / 2, 0);
-      backPosition = velPosition - vtemp[i][j] * _dt;
-
-      // Velocity Linear interpolation
+      Vector2d position, backPosition, velocity, h(_h.x(), _h.y()), cellCenter;
       Vector2i index;
-      double newVel = 0.0;
-      int distanceCount = 0;
-      double distance = 0.0; //= (backPosition - position).length();
-      index.x(std::floor(backPosition.x() / _h.x()));
-      index.y(std::floor(backPosition.y() / _h.y()));
-      // if (index.x() >= 0 || index.x() < _resolution.x() - 1) {
-      if (index >= Vector2i(0, 0) &&
+      double newVelocity = _v[i][j].y();
+      double distanceCount = 0.0, distance = 0.0;
+
+      velocity = vtemp[i][j];
+      position = Vector2d(i, j) * h + Vector2d(h.x() / 2, 0);
+      backPosition = position - velocity * _dt;
+      index.x(std::floor(backPosition.x() / h.x()));
+      index.y(std::floor(backPosition.y() / h.y()));
+
+      if (velocity.length() > 1e-8 && index >= Vector2i(0, 0) &&
           index < Vector2i(_resolution.x(), _resolution.y())) {
-        Material::FluidMaterial centerMaterial =
-            _material[index.x()][index.y()];
-        Vector2d position;
-        // distanceCount += distance;
+        // Inside simulation domain
+        cellCenter = Vector2d(index.x(), index.y()) * h + h / 2.0;
+        std::vector<int> iCandidates, jCandidates;
+        iCandidates.push_back(index.x());
+        jCandidates.push_back(index.y());
+        jCandidates.push_back(index.y() + 1);
 
-        if (index.x() >= 0) {
-          if (index.y() >= 0) {
-            // && _material[index.x()][index.y()][0] == centerMaterial) {
-            position = index * h + (h * Vector2i(0.5, 0));
+        if (backPosition.x() > cellCenter.x() &&
+            index.x() < _resolution.x() - 1)
+          iCandidates.push_back(index.x() + 1);
+        else if (backPosition.x() < cellCenter.x() && index.x() > 0)
+          iCandidates.push_back(index.x() - 1);
+
+        newVelocity = 0.0;
+        for (auto u : iCandidates)
+          for (auto v : jCandidates) {
+            position = Vector2i(u, v) * h + Vector2d(h.x() / 2, 0);
             distance = (backPosition - position).length();
-            distanceCount += distance;
-            newVel += distance * vtemp[index.x()][index.y()].y();
+            distanceCount += 1. / distance;
+            newVelocity += (vtemp[u][v].y() * (1. / distance));
           }
-          if (index.y() < _resolution.y() - 1) {
-            // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
-            position = (index + Vector2i(0, 1)) * h + (h * Vector2i(0.5, 0));
-            distance = (backPosition - position).length();
-            distanceCount += distance;
-            newVel += distance * vtemp[index.x()][index.y() + 1].y();
-          }
-        }
-        if (index.x() < _resolution.x() - 1) {
-          if (index.y() >= 0) {
-            // && _material[index.x() + 1][index.y()][0] == centerMaterial) {
-            position = (index + Vector2i(1, 0)) * h + (h * Vector2i(0.5, 0));
-            distance = (backPosition - position).length();
-            distanceCount += distance;
-            newVel += distance * vtemp[index.x() + 1][index.y()].y();
-          }
-          if (index.y() < _resolution.y() - 1) {
-            // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
-            position = (index + Vector2i(1, 1)) * h + (h * Vector2i(0.5, 0));
-            distance = (backPosition - position).length();
-            distanceCount += distance;
-            newVel += distance * vtemp[index.x() + 1][index.y() + 1].y();
-          }
-        }
-      } else {
-        newVel = vtemp[i][j].y();
-        distanceCount = 1;
+        newVelocity /= distanceCount;
       }
-      if (distanceCount == 0)
-        _v[i][j].y(vtemp[i][j].y());
-      else
-        _v[i][j].y(newVel / distanceCount);
+      _v[i][j].y(newVelocity);
     }
-
   // TODO: add convective term for z axis
 }
 
@@ -267,16 +217,16 @@ Vector2i RegularGrid2::idToij(int id) { NOT_IMPLEMENTED(); }
 void RegularGrid2::printFaceVelocity() {
 
   std::cerr << "==== u: \n";
-  for (int j = 0; j < _resolution.y(); j++) {
+  for (int j = _resolution.y() - 1; j >= 0; j--) {
     for (int i = 0; i < _resolution.x() + 1; i++) {
-      std::cerr << _u[i][j] << " ";
+      std::cerr << _u[i][j].x() << " ";
     }
     std::cerr << std::endl;
   }
   std::cerr << "==== v: \n";
-  for (int j = 0; j < _resolution.y() + 1; j++) {
+  for (int j = _resolution.y() - 1; j >= 0; j--) {
     for (int i = 0; i < _resolution.x(); i++) {
-      std::cerr << _v[i][j] << " ";
+      std::cerr << _v[i][j].y() << " ";
     }
     std::cerr << std::endl;
   }

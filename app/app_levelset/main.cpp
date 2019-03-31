@@ -34,9 +34,10 @@ int main(void) {
   sim.setVelocity();
   // sim.printVertexVelocity();
   writer.writeLevelSet(sim, "data/0");
-  for (int frame = 1; frame < 49; frame++) {
+  for (int frame = 1; frame < 400; frame++) {
     sim.checkCellMaterial();
     sim.addGravity();
+    // sim.printFaceVelocity();
     sim.advectGridVelocity();
     // sim.printFaceVelocity();
     sim.boundaryVelocities();

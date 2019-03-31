@@ -127,6 +127,7 @@ void LevelSet2::integrateLevelSet() {
       if (velocity.length() > 1e-8 && index >= Vector2i(0, 0) &&
           index < Vector2(_resolution.x(), _resolution.y())) {
         // If inside simulation domain
+        cellCenter = Vector2d(index.x(), index.y()) * h + h / 2.0;
         std::vector<int> iCandidates, jCandidates;
         iCandidates.push_back(index.x());
         jCandidates.push_back(index.y());
