@@ -12,6 +12,8 @@ public:
 
   Matrix3(Vector3i size);
 
+  void changeSize(Vector3i size);
+
   std::vector<std::vector<T>> operator[](int i);
 
 protected:
@@ -25,8 +27,11 @@ protected:
 template <typename T> Matrix3<T>::Matrix3() {}
 
 template <typename T> Matrix3<T>::Matrix3(Vector3i size) {
+  this->changeSize(size);
+}
 
-  _data.resize(size.x() + 1);
+template <typename T> void Matrix3<T>::changeSize(Vector3i size) {
+  _data.resize(size.x());
   for (auto &row : _data) {
     row.resize(size.y());
     for (auto &depth : row)
