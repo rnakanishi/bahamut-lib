@@ -1,7 +1,10 @@
 #include <structures/levelset3.h>
+#include <geometry/matrix.h>
 #include <utils/macros.h>
 #include <omp.h>
+#include <queue>
 #include <cmath>
+#include <set>
 
 namespace Ramuh {
 
@@ -204,84 +207,85 @@ void LevelSet3::integrateLevelSet() {
   int cellCount;
   cellCount = _resolution.x() * _resolution.y();
   // std::vector<std::vector<double>> oldPhi;
-  double **oldPhi;
-  oldPhi = new double *[_resolution.x()];
-  for (int i = 0; i < _resolution.x(); i++) {
-    oldPhi[i] = new double[_resolution.y()];
-  }
+  Matrix3<double> oldPhi(_resolution);
 
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
-      oldPhi[i][j] = _phi[i][j][0];
+      for (int k = 0; j < _resolution.z(); k++)
+        oldPhi[i][j][k] = _phi[i][j][k];
 
 #pragma omp for
   for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++) {
-      Vector2d position, backPosition, velocity, h(_h.x(), _h.y());
-      Vector2i index;
-      double newPhi = 0.0;
-      double distanceCount = 0.0, distance = 0.0;
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        Vector3d position, backPosition, velocity, h(_h.x(), _h.y(), _h.z()),
+            cellCenter;
+        Vector3i index;
+        double newPhi = oldPhi[i][j][k];
+        double distanceCount = 0.0, distance = 0.0;
 
-      position = Vector2d(i, j) * h + h / 2.0;
-      velocity.x((_u[i][j][0].x() + _u[i + 1][j][0].x()) / 2.0);
-      velocity.y((_v[i][j][0].y() + _v[i][j + 1][0].y()) / 2.0);
-      backPosition = position - velocity * _dt;
+        position = Vector3d(i, j, k) * h + h / 2.0;
+        velocity.x((_u[i][j][k].x() + _u[i + 1][j][k].x()) / 2.0);
+        velocity.y((_v[i][j][k].y() + _v[i][j + 1][k].y()) / 2.0);
+        velocity.z((_w[i][j][k].z() + _w[i][j][k + 1].z()) / 2.0);
+        backPosition = position - (velocity * _dt);
+        index.x(std::floor(backPosition.x() / h.x()));
+        index.y(std::floor(backPosition.y() / h.y()));
+        index.z(std::floor(backPosition.z() / h.z()));
 
-      index.x(std::floor(backPosition.x() / h.x()));
-      index.y(std::floor(backPosition.y() / h.y()));
+        if (velocity.length() > 1e-8 && index >= Vector3i(0) &&
+            index < _resolution) {
+          cellCenter = Vector3d(index.x(), index.y(), index.z()) * h + h / 2.0;
+          std::vector<int> iCandidates, jCandidates, kCandidates;
+          iCandidates.push_back(index.x());
+          jCandidates.push_back(index.y());
+          kCandidates.push_back(index.z());
+          if (backPosition.x() > cellCenter.x() &&
+              index.x() < _resolution.x() - 1)
+            iCandidates.push_back(index.x() - 1);
+          else if (backPosition.x() < cellCenter.x() && index.x() > 0)
+            iCandidates.push_back(index.x() + 1);
+          if (backPosition.y() > cellCenter.y() &&
+              index.y() < _resolution.y() - 1)
+            jCandidates.push_back(index.y() + 1);
+          else if (backPosition.y() < cellCenter.y() && index.y() > 0)
+            jCandidates.push_back(index.y() - 1);
+          if (backPosition.z() > cellCenter.z() &&
+              index.z() < _resolution.z() - 1)
+            kCandidates.push_back(index.z() + 1);
+          else if (backPosition.z() < cellCenter.z() && index.z() > 0)
+            kCandidates.push_back(index.z() - 1);
 
-      if (index >= Vector2i(0, 0) &&
-          index < Vector2(_resolution.x(), _resolution.y())) {
-        Material::FluidMaterial centerMaterial =
-            _material[index.x()][index.y()][0];
-        position = index * h + h / 2.0;
-        distance = (backPosition - position).length();
-        distanceCount += distance;
-        newPhi += distance * oldPhi[index.x()][index.y()];
-        if (index.x() > 0) {
-          //  && _material[index.x() - 1][index.y()][0] == centerMaterial) {
-          distance = (backPosition - position).length();
-          distanceCount += distance;
-          newPhi += distance * oldPhi[index.x() - 1][index.y()];
+          newPhi = 0.;
+          for (auto u : iCandidates)
+            for (auto v : jCandidates)
+              for (auto w : kCandidates) {
+                position = Vector3d(u, v, w) * h + h / 2.0;
+                distance = (backPosition - position).length();
+                distanceCount += 1. / distance;
+                newPhi += (1. / distance) * oldPhi[u][v][w];
+              }
+          newPhi /= distanceCount;
         }
-        if (index.x() < _resolution.x() - 1) {
-          //  && _material[index.x() + 1][index.y()][0] == centerMaterial) {
-          distance = (backPosition - position).length();
-          distanceCount += distance;
-          newPhi += distance * oldPhi[index.x() + 1][index.y()];
-        }
-        if (index.y() > 0) {
-          // && _material[index.x()][index.y() - 1][0] == centerMaterial) {
-          distance = (backPosition - position).length();
-          distanceCount += distance;
-          newPhi += distance * oldPhi[index.x()][index.y() - 1];
-        }
-        if (index.y() < _resolution.y() - 1) {
-          // && _material[index.x()][index.y() + 1][0] == centerMaterial) {
-          distance = (backPosition - position).length();
-          distanceCount += distance;
-          newPhi += distance * oldPhi[index.x()][index.y() + 1];
-        }
-        // TODO: Do the same for z axis
-      } else {
-        newPhi = oldPhi[i][j];
-        distanceCount += 1.0;
+        _phi[i][j][k] = newPhi;
       }
-      if (distanceCount == 0.0) {
-        _phi[i][j][0] = oldPhi[i][j];
-      } else
-        _phi[i][j][0] = newPhi / distanceCount;
-    }
-
-  for (int i = 0; i < _resolution.y(); ++i) {
-    delete[] oldPhi[i];
-  }
-  delete[] oldPhi;
 }
 
 std::vector<std::vector<double>> &LevelSet3::operator[](const int i) {
   return _phi[i];
+}
+
+void LevelSet3::redistance() {
+  Matrix3<double> tempPhi;
+  Matrix3<bool> processed;
+  std::priority_queue<std::pair<double, int>,
+                      std::vector<std::pair<double, int>>,
+                      std::greater<std::pair<double, int>>>
+      cellsQueue;
+  std::set<int> cellsAdded;
+
+  tempPhi.changeSize(_resolution);
 }
 
 } // namespace Ramuh

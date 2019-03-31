@@ -64,7 +64,6 @@ void LevelSet2::addSphereSurface(Vector2d center, double radius) {
 }
 
 void LevelSet2::addCubeSurface(Vector2d lower, Vector2d upper) {
-  // for (int k = 0; k < _resolution.z(); k++)
   for (int j = 0; j < _resolution.y(); j++)
     for (int i = 0; i < _resolution.x(); i++) {
       Vector2d position(Vector2i(i, j) * _h + _h / 2);
@@ -200,7 +199,6 @@ void LevelSet2::redistance() {
         processed[i][j] = true;
       }
       if (i > 0 && std::signbit(cellPhi) != std::signbit(_phi[i - 1][j])) {
-        // compute distance to the surface
         double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i - 1][j]));
         tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
                                             std::fabs(theta * _h.x()));
@@ -208,14 +206,12 @@ void LevelSet2::redistance() {
       }
       if (j < _resolution.y() - 1 &&
           std::signbit(cellPhi) != std::signbit(_phi[i][j + 1])) {
-        // compute distance to the surface
         double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i][j + 1]));
         tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
                                             std::fabs(theta * _h.x()));
         processed[i][j] = true;
       }
       if (j > 0 && std::signbit(cellPhi) != std::signbit(_phi[i][j - 1])) {
-        // compute distance to the surface
         double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i][j - 1]));
         tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
                                             std::fabs(theta * _h.x()));

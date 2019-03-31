@@ -20,6 +20,12 @@ public:
   void interpolateVelocitiesToVertices();
 
   ///
+  /// Level set often gets unusual beahvior when advected. To avoid unphysical
+  /// behavior, a redistancing function is applied so the level set keep its
+  /// property as signed distance
+  void redistance();
+
+  ///
   /// Advect level set according to \f$\phi_t + u\cdot\nabla\phi = 0\f$. This
   /// method assumes that a velocity field is already defined over cell corners
   /// TODO: Change to semi lagrangean method
