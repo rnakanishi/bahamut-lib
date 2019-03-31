@@ -112,7 +112,7 @@ void RegularGrid2::advectGridVelocity() {
     for (int j = 0; j < _resolution.y(); j++) {
       Vector2d position, backPosition, velocity, h(_h.x(), _h.y()), cellCenter;
       Vector2i index;
-      Vector2d newVelocity = _u[i][j];
+      double newVelocity = _u[i][j].x();
       double distanceCount = 0.0, distance = 0.0;
 
       velocity = utemp[i][j];
@@ -141,11 +141,11 @@ void RegularGrid2::advectGridVelocity() {
             position = Vector2i(u, v) * h + Vector2d(0, h.y() / 2);
             distance = (backPosition - position).length();
             distanceCount += 1. / distance;
-            newVelocity = newVelocity + (_u[u][v] * (1. / distance));
+            newVelocity += (utemp[u][v].x() * (1. / distance));
           }
-        newVelocity = newVelocity / distanceCount;
+        newVelocity /= distanceCount;
       }
-      _u[i][j] = newVelocity;
+      _u[i][j].x(newVelocity);
     }
 
 // Solve convection term (material derivative) - v velocities
@@ -171,7 +171,6 @@ void RegularGrid2::advectGridVelocity() {
         iCandidates.push_back(index.x());
         jCandidates.push_back(index.y());
         jCandidates.push_back(index.y() + 1);
-
         if (backPosition.x() > cellCenter.x() &&
             index.x() < _resolution.x() - 1)
           iCandidates.push_back(index.x() + 1);
