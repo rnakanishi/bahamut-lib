@@ -263,7 +263,7 @@ void LevelSet2::redistance() {
                                               (distances[1] - distances[0]))));
       }
       newPhi *= distanceSignal;
-      if (newPhi < tempPhi[i][j])
+      if (std::fabs(newPhi) < std::fabs(tempPhi[i][j]))
         tempPhi[i][j] = newPhi;
     }
     // Compute neighbor distance to the levelset and add it to queue

@@ -43,6 +43,8 @@ public:
 
   void printVertexVelocity();
 
+  void printLevelSetValue();
+
   void setResolution(Vector3i newResolution) override;
 
   std::vector<std::vector<double>> &operator[](const int i);

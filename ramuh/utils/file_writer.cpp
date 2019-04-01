@@ -30,4 +30,29 @@ void FileWriter::writeLevelSet(LevelSet2 data, const std::string &filename) {
   file.close();
 }
 
+void FileWriter::writeLevelSet(LevelSet3 data, const std::string &filename) {
+  std::ofstream file;
+  file.open(filename, std::ofstream::out);
+
+  if (!file.is_open()) {
+    std::cerr << "Failed to open " << filename << std::endl;
+    return;
+  }
+
+  std::cout << "Writing to " << filename << std::endl;
+  for (int k = 0; k < data.resolution().z(); k++) {
+    for (int i = 0; i < data.resolution().x(); i++) {
+      for (int j = 0; j < data.resolution().y(); j++) {
+        file << data[i][j][k] << " ";
+        if (_stdout)
+          std::cout << data[i][j][k] << " ";
+      }
+      // file << std::endl;
+      if (_stdout)
+        std::cout << std::endl;
+    }
+  }
+  file.close();
+}
+
 } // namespace Ramuh

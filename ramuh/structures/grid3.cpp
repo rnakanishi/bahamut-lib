@@ -103,11 +103,11 @@ void RegularGrid3::advectGridVelocity() {
         utemp[i][j][k].z(wVel / wCount);
       }
 
-#pragma omp parallel for
+#pragma omp for
   // y faces - all velocities components
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y() + 1; j++)
-      for (int k = 0; k < _resolution.z() + 1; k++) {
+      for (int k = 0; k < _resolution.z(); k++) {
         double uVel = 0.0, wVel = 0.0;
         int uCount = 0, wCount = 0;
 
@@ -131,7 +131,7 @@ void RegularGrid3::advectGridVelocity() {
 #pragma omp parallel for
   // z faces - all velocities components
   for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y() + 1; j++)
+    for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z() + 1; k++) {
         double uVel = 0.0, vVel = 0.0;
         int uCount = 0, vCount = 0;
@@ -216,7 +216,7 @@ void RegularGrid3::advectGridVelocity() {
         double newVelocity = _v[i][j][k].y();
 
         velocity = _v[i][j][k];
-        position = Vector3d(i, j, k) * h + Vector3d(h.x(), 0, h.y()) / 2;
+        position = Vector3d(i, j, k) * h + Vector3d(h.x() / 2, 0, h.z() / 2);
         backPosition = position - velocity * _dt;
         index.x(std::floor(backPosition.x() / h.x()));
         index.y(std::floor(backPosition.y() / h.y()));
@@ -233,9 +233,9 @@ void RegularGrid3::advectGridVelocity() {
           kCand.push_back(index.z());
           if (backPosition.x() > cellCenter.x() &&
               index.x() < _resolution.x() - 1)
-            iCand.push_back(index.x() - 1);
-          else if (backPosition.x() < cellCenter.x() && index.x() > 0)
             iCand.push_back(index.x() + 1);
+          else if (backPosition.x() < cellCenter.x() && index.x() > 0)
+            iCand.push_back(index.x() - 1);
           if (backPosition.z() > cellCenter.z() &&
               index.z() < _resolution.z() - 1)
             kCand.push_back(index.z() + 1);
@@ -248,7 +248,7 @@ void RegularGrid3::advectGridVelocity() {
             for (auto v : jCand)
               for (auto w : kCand) {
                 position =
-                    Vector3i(u, v, w) * h + Vector3d(h.x(), 0, h.z()) / 2;
+                    Vector3i(u, v, w) * h + Vector3d(h.x() / 2, 0, h.z() / 2);
                 distance = (backPosition - position).length();
                 distanceCount += 1. / distance;
                 newVelocity += (vtemp[u][v][w].y() / distance);
@@ -284,9 +284,9 @@ void RegularGrid3::advectGridVelocity() {
           kCand.push_back(index.z() + 1);
           if (backPosition.x() > cellCenter.x() &&
               index.x() < _resolution.x() - 1)
-            iCand.push_back(index.x() - 1);
-          else if (backPosition.x() < cellCenter.x() && index.x() > 0)
             iCand.push_back(index.x() + 1);
+          else if (backPosition.x() < cellCenter.x() && index.x() > 0)
+            iCand.push_back(index.x() - 1);
           if (backPosition.y() > cellCenter.y() &&
               index.y() < _resolution.y() - 1)
             jCand.push_back(index.y() + 1);
