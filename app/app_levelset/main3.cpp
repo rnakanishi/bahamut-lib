@@ -11,7 +11,7 @@ int main(void) {
   LevelSetFluid3 sim;
   Ramuh::FileWriter writer;
   //   writer.setDebug(true);
-  int resolution = 32;
+  int resolution = 64;
   sim.setResolution(Ramuh::Vector3i(resolution));
   sim.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0));
 
@@ -21,11 +21,11 @@ int main(void) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.75, 0.5), 0.15);
-  sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
-                     Ramuh::Vector3d(0.75, 0.75, 0.75));
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.65, 0.5), 0.15);
+  // sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
+  //  Ramuh::Vector3d(0.75, 0.75, 0.75));
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
-                     Ramuh::Vector3d(15, 0.3, 15));
+                     Ramuh::Vector3d(15, 0.4, 15));
   // sim.addCubeSurface(Ramuh::Vector3d(0, 0, 0),
   //  Ramuh::Vector3d(0.2, 0.8, 2.0 / resolution));
 
@@ -34,26 +34,26 @@ int main(void) {
   //   sim.redistance();
   //   sim.printLevelSetValue();
   sim.setVelocity();
-  sim.redistance();
+  // sim.redistance();
   // sim.printVertexVelocity();
   writer.writeLevelSet(sim, "data/0");
-  for (int frame = 1; frame < 30; frame++) {
+  for (int frame = 1; frame <= 100; frame++) {
     sim.checkCellMaterial();
     sim.addGravity();
+    sim.boundaryVelocities();
     // sim.printFaceVelocity();
     sim.advectGridVelocity();
     // sim.printFaceVelocity();
-    sim.boundaryVelocities();
     sim.solvePressure();
     // sim.printFaceVelocity();
-    sim.extrapolateVelocity();
+    // sim.extrapolateVelocity();
     // sim.printFaceVelocity();
     // sim.printLevelSetValue();
-    // sim.printLevelSetValue();
     sim.integrateLevelSet();
+    // sim.printLevelSetValue();
     // std::cout << "plo" << std::endl;
     // if (!(frame % 5))
-    // sim.redistance();
+    sim.redistance();
     std::ostringstream filename;
     // filename << "data/" << std::setw(4) << std::setfill('0') << frame;
     filename << "data/" << frame;

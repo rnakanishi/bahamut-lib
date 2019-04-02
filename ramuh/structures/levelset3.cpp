@@ -426,11 +426,14 @@ void LevelSet3::printLevelSetValue() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = _resolution.y() - 1; j >= 0; j--) {
       for (int i = 0; i < _resolution.x(); i++) {
-        std::cout << _phi[i][j][k] << ' ';
+        if (k == 15)
+          std::cout << _phi[i][j][k] << ' ';
       }
-      std::cout << std::endl;
+      if (k == 15)
+        std::cout << std::endl;
     }
-    std::cout << std::endl;
+    if (k == 15)
+      std::cout << std::endl;
   }
 }
 

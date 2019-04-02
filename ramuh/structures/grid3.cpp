@@ -154,7 +154,7 @@ void RegularGrid3::advectGridVelocity() {
       }
 
 // Solve convection term (material derivative) - u velocities
-#pragma omp parallel for
+#pragma omp for
   for (int i = 1; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
@@ -171,7 +171,7 @@ void RegularGrid3::advectGridVelocity() {
         index.z(std::floor(backPosition.z() / h.z()));
 
         if (velocity.length() > 1e-8 && index > Vector3i(0) &&
-            index < _resolution) {
+            index < _resolution - Vector3i(1)) {
           // back position fall inside domain
           cellCenter = Vector3d(index.x(), index.y(), index.z()) * h + h / 2.0;
           std::vector<int> iCand, jCand, kCand;
@@ -196,7 +196,7 @@ void RegularGrid3::advectGridVelocity() {
             for (auto v : jCand)
               for (auto w : kCand) {
                 position =
-                    Vector3i(u, v, w) * h + Vector3d(0, h.y() / 2, h.z() / 2);
+                    Vector3d(u, v, w) * h + Vector3d(0, h.y() / 2, h.z() / 2);
                 distance = (backPosition - position).length();
                 distanceCount += 1. / distance;
                 newVelocity += (utemp[u][v][w].x() / distance);
@@ -223,7 +223,7 @@ void RegularGrid3::advectGridVelocity() {
         index.z(std::floor(backPosition.z() / h.z()));
 
         if (velocity.length() > 1e-8 && index > Vector3i(0) &&
-            index < _resolution) {
+            index < _resolution - Vector3i(1)) {
           // back position fall inside domain
           cellCenter = Vector3d(index.x(), index.y(), index.z()) * h + h / 2.0;
           std::vector<int> iCand, jCand, kCand;
@@ -275,7 +275,7 @@ void RegularGrid3::advectGridVelocity() {
         index.z(std::floor(backPosition.z() / h.z()));
 
         if (velocity.length() > 1e-8 && index > Vector3i(0) &&
-            index < _resolution) {
+            index < _resolution - Vector3i(1)) {
           cellCenter = Vector3d(index.x(), index.y(), index.z()) * h + h / 2.0;
           std::vector<int> iCand, jCand, kCand;
           iCand.push_back(index.x());
@@ -350,22 +350,32 @@ void RegularGrid3::printFaceVelocity() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x() + 1; i++) {
-        std::cerr << _u[i][j][0] << " ";
+        std::cerr << _u[i][j][k].x() << " ";
       }
       std::cerr << std::endl;
     }
     std::cerr << std::endl;
   }
-  std::cerr << "==== v: \n";
-  for (int k = 0; k < _resolution.z(); k++) {
-    for (int j = 0; j < _resolution.y() + 1; j++) {
-      for (int i = 0; i < _resolution.x(); i++) {
-        std::cerr << _v[i][j][0] << " ";
-      }
-      std::cerr << std::endl;
-    }
-    std::cerr << std::endl;
-  }
+  // std::cerr << "==== v: \n";
+  // for (int k = 0; k < _resolution.z(); k++) {
+  //   for (int j = 0; j < _resolution.y() + 1; j++) {
+  //     for (int i = 0; i < _resolution.x(); i++) {
+  //       std::cerr << _v[i][j][k].y() << " ";
+  //     }
+  //     std::cerr << std::endl;
+  //   }
+  //   std::cerr << std::endl;
+  // }
+  // std::cerr << "==== w: \n";
+  // for (int k = 0; k < _resolution.z(); k++) {
+  //   for (int j = 0; j < _resolution.y() + 1; j++) {
+  //     for (int i = 0; i < _resolution.x(); i++) {
+  //       std::cerr << _w[i][j][k].z() << " ";
+  //     }
+  //     std::cerr << std::endl;
+  //   }
+  //   std::cerr << std::endl;
+  // }
 }
 
 void RegularGrid3::boundaryVelocities() {
@@ -394,10 +404,9 @@ void RegularGrid3::addGravity() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        if (_material[i][j - 1][k] == Material::FluidMaterial::FLUID) {
-          double vel = _v[i][j][k].y() - 9.81 * _dt;
-          _v[i][j][k].y(vel);
-        }
+        // if (_material[i][j - 1][k] == Material::FluidMaterial::FLUID) {
+        double vel = _v[i][j][k].y() - 9.81 * _dt;
+        _v[i][j][k].y(vel);
       }
     }
   }
@@ -511,79 +520,72 @@ void RegularGrid3::solvePressure() {
   divergent = Eigen::VectorXd::Zero(nCells + 1);
   pressure = Eigen::VectorXd::Zero(nCells + 1);
 
-#pragma omp parallel
-  // Solve pressure Poisson equation
-  {
-    for (int k = 0; k < _resolution.z(); k++) {
-#pragma omp for
-      for (int j = 0; j < _resolution.y(); j++) {
-        for (int i = 0; i < _resolution.x(); i++) {
-          if (_material[i][j][k] != Material::FluidMaterial::FLUID)
-            continue;
+// Solve pressure Poisson equation
 
-          int validCells = 0;
-          int id = ijkToId(i, j, k);
-          std::vector<Eigen::Triplet<double>> threadTriplet;
+#pragma omp parallel for
+  for (int k = 0; k < _resolution.z(); k++) {
+    for (int j = 0; j < _resolution.y(); j++) {
+      for (int i = 0; i < _resolution.x(); i++) {
+        if (_material[i][j][k] != Material::FluidMaterial::FLUID)
+          continue;
 
-          if (i > 0 || i < _resolution.x() - 1) {
-            if (i > 0) {
-              validCells++;
-              if (_material[i - 1][j][k] != Material::FluidMaterial::AIR)
-                threadTriplet.emplace_back(id, ijkToId(i - 1, j, k),
-                                           -1 / (_h.x() * _h.x()));
-            }
-            if (i < _resolution.x() - 1) {
-              validCells++;
-              if (_material[i + 1][j][k] != Material::FluidMaterial::AIR)
-                threadTriplet.emplace_back(id, ijkToId(i + 1, j, k),
-                                           -1 / (_h.x() * _h.x()));
-            }
-          }
-          if (j > 0 || j < _resolution.y() - 1) {
-            if (j > 0) {
-              validCells++;
-              if (_material[i][j - 1][k] != Material::FluidMaterial::AIR)
-                threadTriplet.emplace_back(id, ijkToId(i, j - 1, k),
-                                           -1 / (_h.x() * _h.x()));
-            }
-            if (j < _resolution.y() - 1) {
-              validCells++;
-              if (_material[i][j + 1][k] != Material::FluidMaterial::AIR)
-                threadTriplet.emplace_back(id, ijkToId(i, j + 1, k),
-                                           -1 / (_h.x() * _h.x()));
-            }
-          }
-          if (k > 0 || k < _resolution.z() - 1) {
-            if (k > 0) {
-              validCells++;
-              if (_material[i][j][k - 1] != Material::FluidMaterial::AIR)
-                threadTriplet.emplace_back(id, ijkToId(i, j, k - 1),
-                                           -1 / (_h.x() * _h.x()));
-            }
-            if (k < _resolution.z() - 1) {
-              validCells++;
-              if (_material[i][j][k + 1] != Material::FluidMaterial::AIR)
-                threadTriplet.emplace_back(id, ijkToId(i, j, k + 1),
-                                           -1 / (_h.x() * _h.x()));
-            }
-          }
-          threadTriplet.emplace_back(id, ijkToId(i, j, k),
-                                     validCells / (_h.x() * _h.x()));
-#pragma omp critical
-          {
-            triplets.insert(triplets.end(), threadTriplet.begin(),
-                            threadTriplet.end());
-          }
+        int validCells = 0;
+        int id = ijkToId(i, j, k);
+        std::vector<Eigen::Triplet<double>> threadTriplet;
 
-          divergent[ijkToId(i, j, k)] = 0;
-          divergent[ijkToId(i, j, k)] -=
-              (_u[i + 1][j][k].x() - _u[i][j][k].x()) / _h.x();
-          divergent[ijkToId(i, j, k)] -=
-              (_v[i][j + 1][k].y() - _v[i][j][k].y()) / _h.y();
-          divergent[ijkToId(i, j, k)] -=
-              (_w[i][j][k + 1].z() - _w[i][j][k].z()) / _h.z();
-          divergent[id] /= _dt;
+        if (i > 0) {
+          validCells++;
+          if (_material[i - 1][j][k] != Material::FluidMaterial::AIR)
+            threadTriplet.emplace_back(id, ijkToId(i - 1, j, k),
+                                       -1 / (_h.x() * _h.x()));
         }
+        if (i < _resolution.x() - 1) {
+          validCells++;
+          if (_material[i + 1][j][k] != Material::FluidMaterial::AIR)
+            threadTriplet.emplace_back(id, ijkToId(i + 1, j, k),
+                                       -1 / (_h.x() * _h.x()));
+        }
+        if (j > 0) {
+          validCells++;
+          if (_material[i][j - 1][k] != Material::FluidMaterial::AIR)
+            threadTriplet.emplace_back(id, ijkToId(i, j - 1, k),
+                                       -1 / (_h.x() * _h.x()));
+        }
+        if (j < _resolution.y() - 1) {
+          validCells++;
+          if (_material[i][j + 1][k] != Material::FluidMaterial::AIR)
+            threadTriplet.emplace_back(id, ijkToId(i, j + 1, k),
+                                       -1 / (_h.x() * _h.x()));
+        }
+        if (k > 0) {
+          validCells++;
+          if (_material[i][j][k - 1] != Material::FluidMaterial::AIR)
+            threadTriplet.emplace_back(id, ijkToId(i, j, k - 1),
+                                       -1 / (_h.x() * _h.x()));
+        }
+        if (k < _resolution.z() - 1) {
+          validCells++;
+          if (_material[i][j][k + 1] != Material::FluidMaterial::AIR)
+            threadTriplet.emplace_back(id, ijkToId(i, j, k + 1),
+                                       -1 / (_h.x() * _h.x()));
+        }
+
+        threadTriplet.emplace_back(id, ijkToId(i, j, k),
+                                   validCells / (_h.x() * _h.x()));
+#pragma omp critical
+        {
+          triplets.insert(triplets.end(), threadTriplet.begin(),
+                          threadTriplet.end());
+        }
+
+        divergent[ijkToId(i, j, k)] = 0;
+        divergent[ijkToId(i, j, k)] -=
+            (_u[i + 1][j][k].x() - _u[i][j][k].x()) / _h.x();
+        divergent[ijkToId(i, j, k)] -=
+            (_v[i][j + 1][k].y() - _v[i][j][k].y()) / _h.y();
+        divergent[ijkToId(i, j, k)] -=
+            (_w[i][j][k + 1].z() - _w[i][j][k].z()) / _h.z();
+        divergent[id] /= _dt;
       }
     }
   }
@@ -598,34 +600,37 @@ void RegularGrid3::solvePressure() {
   solver.compute(pressureMatrix);
   pressure = solver.solve(divergent);
 
-  // Correct velocity through pressure gradient
+// Correct velocity through pressure gradient
+#pragma omp parallel for
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 1; i < _resolution.x(); i++) {
-        _u[i][j][k].x(_u[i][j][k].x() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i - 1, j, k)]) /
-                                            _h.x());
+        _u[i][j][k].x(_u[i][j][k].x() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i - 1, j, k)]) /
+                          _h.x());
       }
     }
   }
+#pragma omp parallel for
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _v[i][j][k].y(_v[i][j][k].y() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i, j - 1, k)]) /
-                                            _h.y());
+        _v[i][j][k].y(_v[i][j][k].y() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i, j - 1, k)]) /
+                          _h.y());
       }
     }
   }
+#pragma omp parallel for
   for (int k = 1; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _w[i][j][k].z(_w[i][j][k].z() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i, j, k - 1)]) /
-                                            _h.z());
+        _w[i][j][k].z(_w[i][j][k].z() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i, j, k - 1)]) /
+                          _h.z());
       }
     }
   }
