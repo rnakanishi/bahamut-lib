@@ -84,14 +84,15 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
         Vector3d position(Vector3i(i, j, k) * _h + _h / 2);
         Vector3d distanceLower = (position - lower).abs();
         Vector3d distanceUpper = (position - upper).abs();
+        double phi;
         if (position > lower && position < upper) {
-          _phi[i][j][k] =
-              -std::min(_phi[i][j][k],
-                        std::min(distanceLower.min(), distanceUpper.min()));
+          phi = std::min(std::fabs(_phi[i][j][k]),
+                         std::min(distanceLower.min(), distanceUpper.min()));
+          _phi[i][j][k] = -std::min(std::fabs(_phi[i][j][k]), phi);
         } else {
-          _phi[i][j][k] =
-              std::min(_phi[i][j][k],
-                       std::min(distanceLower.min(), distanceUpper.min()));
+          phi = std::min(_phi[i][j][k],
+                         std::min(distanceLower.min(), distanceUpper.min()));
+          _phi[i][j][k] = std::min(std::fabs(_phi[i][j][k]), phi);
         }
       }
   checkCellMaterial();
@@ -202,8 +203,7 @@ void LevelSet3::interpolateVelocitiesToVertices() {
           _velocity[i][j][k] = vel;
         }
   }
-
-} // namespace Ramuh
+}
 
 void LevelSet3::integrateLevelSet() {
   // std::vector<std::vector<double>> oldPhi;
@@ -265,7 +265,7 @@ void LevelSet3::integrateLevelSet() {
                 position = Vector3d(u, v, w) * h + h / 2.0;
                 distance = (backPosition - position).length();
                 distanceCount += 1. / distance;
-                newPhi += (1. / distance) * oldPhi[u][v][w];
+                newPhi += oldPhi[u][v][w] / distance;
               }
           newPhi /= distanceCount;
         }
@@ -350,71 +350,75 @@ void LevelSet3::redistance() {
       processed[i][j][k] = true;
       std::vector<double> distances;
       int distanceSignal = _phi[i][j][k] / std::fabs(_phi[i][j][k]);
-      distances[0] = std::min(
+      distances.push_back(std::min(
           std::fabs(tempPhi[std::max(0, i - 1)][j][k]),
-          std::fabs(tempPhi[std::min(_resolution.x() - 1, i + 1)][j][k]));
-      distances[1] = std::min(
+          std::fabs(tempPhi[std::min(_resolution.x() - 1, i + 1)][j][k])));
+      distances.push_back(std::min(
           std::fabs(tempPhi[i][std::max(0, j - 1)][k]),
-          std::fabs(tempPhi[i][std::min(_resolution.y() - 1, j + 1)][k]));
-      distances[2] = std::min(
+          std::fabs(tempPhi[i][std::min(_resolution.y() - 1, j + 1)][k])));
+      distances.push_back(std::min(
           std::fabs(tempPhi[i][j][std::max(0, k - 1)]),
-          std::fabs(tempPhi[i][j][std::min(_resolution.z() - 1, k + 1)]));
+          std::fabs(tempPhi[i][j][std::min(_resolution.z() - 1, k + 1)])));
       std::sort(distances.begin(), distances.end());
 
       // Checking each component and redistancing
       double newPhi = distances[0] + _h.x();
       if (newPhi > distances[1]) {
-        double h = _h.x() * _h.x();
-        newPhi =
-            0.5 *
-            (distances[0] + distances[1] +
-             std::sqrt(2 * _h.x() * _h.x() - ((distances[1] - distances[0]) *
-                                              (distances[1] - distances[0]))));
+        double h2 = _h.x() * _h.x();
+        newPhi = 0.5 * (distances[0] + distances[1] +
+                        std::sqrt(2 * h2 - ((distances[1] - distances[0]) *
+                                            (distances[1] - distances[0]))));
         if (std::fabs(newPhi) > distances[2]) {
-          // TODO: check calculations from Bridson's book
-          newPhi = 0.0;
+          newPhi = (distances[0] + distances[1] + distances[2]);
+          newPhi += std::sqrt(std::max(
+              0.0, (distances[0] + distances[1] + distances[2]) *
+                           (distances[0] + distances[1] + distances[2]) -
+                       3 * (distances[0] * distances[0] +
+                            distances[1] * distances[1] +
+                            distances[2] * distances[2] - h2)));
+          newPhi /= 3;
         }
       }
 
       if (newPhi < std::fabs(tempPhi[i][j][k]))
         tempPhi[i][j][k] = distanceSignal * newPhi;
-
-      // Add all neighbors of the cell to queue
-      if (i > 0 && cellsAdded.find(ijkToId(i - 1, j, k)) == cellsAdded.end()) {
-        cellsQueue.push(
-            std::make_pair(std::fabs(_phi[i - 1][j][k]), ijkToId(i - 1, j, k)));
-        cellsAdded.insert(ijkToId(i - 1, j, k));
-      }
-      if (i < _resolution.x() - 1 &&
-          cellsAdded.find(ijkToId(i + 1, j, k)) == cellsAdded.end()) {
-        cellsQueue.push(
-            std::make_pair(std::fabs(_phi[i + 1][j][k]), ijkToId(i + 1, j, k)));
-        cellsAdded.insert(ijkToId(i + 1, j, k));
-      }
-      if (j > 0 && cellsAdded.find(ijkToId(i, j - 1, k)) == cellsAdded.end()) {
-        cellsQueue.push(
-            std::make_pair(std::fabs(_phi[i][j - 1][k]), ijkToId(i, j - 1, k)));
-        cellsAdded.insert(ijkToId(i, j - 1, k));
-      }
-      if (j < _resolution.y() - 1 &&
-          cellsAdded.find(ijkToId(i, j + 1, k)) == cellsAdded.end()) {
-        cellsQueue.push(
-            std::make_pair(std::fabs(_phi[i][j + 1][k]), ijkToId(i, j + 1, k)));
-        cellsAdded.insert(ijkToId(i, j + 1, k));
-      }
-      if (k > 0 && cellsAdded.find(ijkToId(i, j, k - 1)) == cellsAdded.end()) {
-        cellsQueue.push(
-            std::make_pair(std::fabs(_phi[i][j][k - 1]), ijkToId(i, j, k - 1)));
-        cellsAdded.insert(ijkToId(i, j, k - 1));
-      }
-      if (k < _resolution.z() - 1 &&
-          cellsAdded.find(ijkToId(i, j, k + 1)) == cellsAdded.end()) {
-        cellsQueue.push(
-            std::make_pair(std::fabs(_phi[i][j][k + 1]), ijkToId(i, j, k + 1)));
-        cellsAdded.insert(ijkToId(i, j, k + 1));
-      }
+    }
+    // Add all neighbors of the cell to queue
+    if (i > 0 && cellsAdded.find(ijkToId(i - 1, j, k)) == cellsAdded.end()) {
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i - 1][j][k]), ijkToId(i - 1, j, k)));
+      cellsAdded.insert(ijkToId(i - 1, j, k));
+    }
+    if (i < _resolution.x() - 1 &&
+        cellsAdded.find(ijkToId(i + 1, j, k)) == cellsAdded.end()) {
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i + 1][j][k]), ijkToId(i + 1, j, k)));
+      cellsAdded.insert(ijkToId(i + 1, j, k));
+    }
+    if (j > 0 && cellsAdded.find(ijkToId(i, j - 1, k)) == cellsAdded.end()) {
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i][j - 1][k]), ijkToId(i, j - 1, k)));
+      cellsAdded.insert(ijkToId(i, j - 1, k));
+    }
+    if (j < _resolution.y() - 1 &&
+        cellsAdded.find(ijkToId(i, j + 1, k)) == cellsAdded.end()) {
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i][j + 1][k]), ijkToId(i, j + 1, k)));
+      cellsAdded.insert(ijkToId(i, j + 1, k));
+    }
+    if (k > 0 && cellsAdded.find(ijkToId(i, j, k - 1)) == cellsAdded.end()) {
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i][j][k - 1]), ijkToId(i, j, k - 1)));
+      cellsAdded.insert(ijkToId(i, j, k - 1));
+    }
+    if (k < _resolution.z() - 1 &&
+        cellsAdded.find(ijkToId(i, j, k + 1)) == cellsAdded.end()) {
+      cellsQueue.push(
+          std::make_pair(std::fabs(_phi[i][j][k + 1]), ijkToId(i, j, k + 1)));
+      cellsAdded.insert(ijkToId(i, j, k + 1));
     }
   }
+
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++)

@@ -103,7 +103,7 @@ void RegularGrid3::advectGridVelocity() {
         utemp[i][j][k].z(wVel / wCount);
       }
 
-#pragma omp for
+#pragma omp parallel for
   // y faces - all velocities components
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y() + 1; j++)
@@ -154,8 +154,8 @@ void RegularGrid3::advectGridVelocity() {
       }
 
 // Solve convection term (material derivative) - u velocities
-#pragma omp for
-  for (int i = 1; i < _resolution.x(); i++)
+#pragma omp parallel for
+  for (int i = 1; i < _resolution.x() + 1; i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
         Vector3d position, backPosition, velocity, cellCenter;
@@ -208,7 +208,7 @@ void RegularGrid3::advectGridVelocity() {
 
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 1; j < _resolution.y(); j++)
+    for (int j = 1; j < _resolution.y() + 1; j++)
       for (int k = 0; k < _resolution.z(); k++) {
         Vector3d position, backPosition, velocity, cellCenter;
         Vector3d h(_h.x(), _h.y(), _h.z());
@@ -261,7 +261,7 @@ void RegularGrid3::advectGridVelocity() {
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 1; k < _resolution.z(); k++) {
+      for (int k = 1; k < _resolution.z() + 1; k++) {
         Vector3d position, backPosition, velocity, cellCenter;
         Vector3d h(_h.x(), _h.y(), _h.z());
         Vector3i index;
@@ -346,25 +346,26 @@ Vector3i RegularGrid3::idToijk(int id) { NOT_IMPLEMENTED(); }
 
 void RegularGrid3::printFaceVelocity() {
 
-  std::cerr << "==== u: \n";
-  for (int k = 0; k < _resolution.z(); k++) {
-    for (int j = 0; j < _resolution.y(); j++) {
-      for (int i = 0; i < _resolution.x() + 1; i++) {
-        std::cerr << _u[i][j][k].x() << " ";
-      }
-      std::cerr << std::endl;
-    }
-    std::cerr << std::endl;
-  }
-  // std::cerr << "==== v: \n";
+  // std::cerr << "==== u: \n";
   // for (int k = 0; k < _resolution.z(); k++) {
-  //   for (int j = 0; j < _resolution.y() + 1; j++) {
-  //     for (int i = 0; i < _resolution.x(); i++) {
-  //       std::cerr << _v[i][j][k].y() << " ";
+  //   for (int j = 0; j < _resolution.y(); j++) {
+  //     for (int i = 0; i < _resolution.x() + 1; i++) {
+  //       std::cerr << _u[i][j][k].x() << " ";
   //     }
   //     std::cerr << std::endl;
   //   }
   //   std::cerr << std::endl;
+  // }
+  std::cerr << "==== v: \n";
+  int k = _resolution.y() / 2;
+  // for (int k = 0; k < _resolution.z(); k++) {
+  for (int j = 0; j < _resolution.y() + 1; j++) {
+    for (int i = 0; i < _resolution.x(); i++) {
+      std::cerr << _v[i][j][k].y() << " ";
+    }
+    std::cerr << std::endl;
+  }
+  std::cerr << std::endl;
   // }
   // std::cerr << "==== w: \n";
   // for (int k = 0; k < _resolution.z(); k++) {
@@ -414,49 +415,77 @@ void RegularGrid3::addGravity() {
 
 void RegularGrid3::extrapolateVelocity() {
   std::queue<Vector3i> processingCells;
-  std::vector<std::vector<int>> processedCells;
+  // TODO: Change processed cells to check phi instead of construct distance vec
+  Matrix3<int> processedCells;
+  processedCells.changeSize(_resolution);
 
-  processedCells.resize(_resolution.x());
-  for (auto &row : processedCells)
-    row.resize(_resolution.y(), _resolution.x() * _resolution.y());
+  // Extrapolate velocity from fluid to air cells
 
   for (int i = 0; i < _resolution.x(); i++) {
-    for (int j = 0; j < _resolution.x(); j++) {
-      // Extrapolate velocity from fluid to air cells
-      // Check if is a air surface cell
-      if (_material[i][j][0] == Material::FluidMaterial::FLUID) {
-        processedCells[i][j] = 0;
-        // Look for air neighbors
-        // Add air cells to processing queue
-        if (i > 0 && _material[i - 1][j][0] == Material::FluidMaterial::AIR) {
-          processedCells[i - 1][j] = 1;
-          processingCells.push(Vector3i(i - 1, j, 0));
-          _u[i - 1][j][0].x(_u[i][j][0].x());
-          _v[i - 1][j][0].y(_v[i][j][0].y());
-          _v[i - 1][j + 1][0].y(_v[i][j + 1][0].y());
-        }
-        if (i < _resolution.x() - 1 &&
-            _material[i + 1][j][0] == Material::FluidMaterial::AIR) {
-          processedCells[i + 1][j] = 1;
-          processingCells.push(Vector3i(i + 1, j, 0));
-          _u[i + 2][j][0].x(_u[i + 1][j][0].x());
-          _v[i + 1][j][0].y(_v[i][j][0].y());
-          _v[i + 1][j + 1][0].y(_v[i][j + 1][0].y());
-        }
-        if (j > 0 && _material[i][j - 1][0] == Material::FluidMaterial::AIR) {
-          processedCells[i][j - 1] = 1;
-          processingCells.push(Vector3i(i, j - 1, 0));
-          _v[i][j - 1][0].y(_v[i][j][0].y());
-          _u[i][j - 1][0].x(_u[i][j][0].x());
-          _u[i + 1][j - 1][0].x(_u[i + 1][j][0].x());
-        }
-        if (j < _resolution.y() - 1 &&
-            _material[i][j + 1][0] == Material::FluidMaterial::AIR) {
-          processedCells[i][j + 1] = 1;
-          processingCells.push(Vector3i(i, j + 1, 0));
-          _v[i][j + 2][0].y(_v[i][j + 1][0].y());
-          _u[i][j + 1][0].x(_u[i][j][0].x());
-          _u[i + 1][j + 1][0].x(_u[i + 1][j][0].x());
+    for (int j = 0; j < _resolution.y(); j++) {
+      for (int k = 0; k < _resolution.z(); k++) {
+        // Check if is a air surface cell
+        if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
+          processedCells[i][j][k] = 0;
+          // Look for air neighbors
+          // Add air cells to processing queue
+          if (i > 0 && _material[i - 1][j][k] == Material::FluidMaterial::AIR) {
+            processedCells[i - 1][j][k] = 1;
+            processingCells.push(Vector3i(i - 1, j, k));
+            _u[i - 1][j][k].x(_u[i][j][k].x());
+            _v[i - 1][j][k].y(_v[i][j][k].y());
+            _v[i - 1][j + 1][k].y(_v[i][j + 1][k].y());
+            _w[i - 1][j][k].z(_w[i][j][k].z());
+            _w[i - 1][j][k + 1].z(_w[i][j][k + 1].z());
+          }
+          if (i < _resolution.x() - 1 &&
+              _material[i + 1][j][k] == Material::FluidMaterial::AIR) {
+            processedCells[i + 1][j][k] = 1;
+            processingCells.push(Vector3i(i + 1, j, k));
+            _u[i + 2][j][k].x(_u[i + 1][j][k].x());
+            _v[i + 1][j][k].y(_v[i][j][k].y());
+            _v[i + 1][j + 1][k].y(_v[i][j + 1][k].y());
+            _w[i + 1][j][k].z(_w[i][j][k].z());
+            _w[i + 1][j][k + 1].z(_w[i][j][k + 1].z());
+          }
+          if (j > 0 && _material[i][j - 1][k] == Material::FluidMaterial::AIR) {
+            processedCells[i][j - 1][k] = 1;
+            processingCells.push(Vector3i(i, j - 1, k));
+            _v[i][j - 1][k].y(_v[i][j][k].y());
+            _u[i][j - 1][k].x(_u[i][j][k].x());
+            _u[i + 1][j - 1][k].x(_u[i + 1][j][k].x());
+            _w[i][j - 1][k].z(_w[i][j][k].z());
+            _w[i][j - 1][k + 1].z(_w[i][j][k + 1].z());
+          }
+          if (j < _resolution.y() - 1 &&
+              _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
+            processedCells[i][j + 1][k] = 1;
+            processingCells.push(Vector3i(i, j + 1, k));
+            _v[i][j + 2][k].y(_v[i][j + 1][k].y());
+            _u[i][j + 1][k].x(_u[i][j][k].x());
+            _u[i + 1][j + 1][k].x(_u[i + 1][j][k].x());
+            _w[i][j + 1][k].z(_w[i][j][k].z());
+            _w[i][j + 1][k + 1].z(_w[i][j][k + 1].z());
+          }
+          if (k > 0 && _material[i][j][k - 1] == Material::FluidMaterial::AIR) {
+            processedCells[i][j][k - 1] = 1;
+            processingCells.push(Vector3i(i, j, k - 1));
+            _w[i][j][k - 1].z(_w[i][j][k].z());
+            _u[i][j][k - 1].x(_u[i][j][k].x());
+            _u[i + 1][j][k - 1].x(_u[i + 1][j][k].x());
+            _v[i][j][k - 1].y(_v[i][j][k].y());
+            _v[i][j + 1][k - 1].y(_v[i][j + 1][k].y());
+          }
+          if (k < _resolution.y() - 1 &&
+              _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
+            processedCells[i][j][k + 1] = 1;
+            processingCells.push(Vector3i(i, j, k + 1));
+            _w[i][j][k + 2].z(_w[i][j][k + 1].z());
+            _u[i][j][k + 1].x(_u[i][j][k].x());
+            _u[i + 1][j][k + 1].x(_u[i + 1][j][k].x());
+            _v[i][j][k + 1].y(_v[i][j][k].y());
+            _v[i][j + 1][k + 1].y(_v[i][j + 1][k].y());
+          }
         }
       }
     }
@@ -464,45 +493,76 @@ void RegularGrid3::extrapolateVelocity() {
   while (!processingCells.empty()) {
     Vector3i currCell = processingCells.front();
     processingCells.pop();
-    int i = currCell.x(), j = currCell.y();
+    int i = currCell.x(), j = currCell.y(), k = currCell.z();
 
     // Check for neighbor airs
-    if (i > 0 && _material[i - 1][j][0] == Material::FluidMaterial::AIR) {
-      if (processedCells[i - 1][j] > processedCells[i][j] + 1) {
-        processedCells[i - 1][j] = processedCells[i][j] + 1;
+    if (i > 0 && _material[i - 1][j][k] == Material::FluidMaterial::AIR) {
+      if (processedCells[i - 1][j][k] > processedCells[i][j][k] + 1) {
+        processedCells[i - 1][j][k] = processedCells[i][j][k] + 1;
         processingCells.push(Vector3i(i - 1, j, 0));
-        _u[i - 1][j][0].x(_u[i][j][0].x());
-        _v[i - 1][j][0].y(_v[i][j][0].y());
-        _v[i - 1][j + 1][0].y(_v[i][j + 1][0].y());
+        _u[i - 1][j][k].x(_u[i][j][k].x());
+        _v[i - 1][j][k].y(_v[i][j][k].y());
+        _v[i - 1][j + 1][k].y(_v[i][j + 1][k].y());
+        _w[i - 1][j][k].z(_w[i][j][k].z());
+        _w[i - 1][j][k + 1].z(_w[i][j][k + 1].z());
       }
     }
     if (i < _resolution.x() - 1 &&
-        _material[i + 1][j][0] == Material::FluidMaterial::AIR) {
-      if (processedCells[i + 1][j] > processedCells[i][j] + 1) {
-        processedCells[i + 1][j] = processedCells[i][j] + 1;
+        _material[i + 1][j][k] == Material::FluidMaterial::AIR) {
+      if (processedCells[i + 1][j][k] > processedCells[i][j][k] + 1) {
+        processedCells[i + 1][j][k] = processedCells[i][j][k] + 1;
         processingCells.push(Vector3i(i + 1, j, 0));
-        _u[i + 2][j][0].x(_u[i + 1][j][0].x());
-        _v[i + 1][j][0].y(_v[i][j][0].y());
-        _v[i + 1][j + 1][0].y(_v[i][j + 1][0].y());
+        _u[i + 2][j][k].x(_u[i + 1][j][k].x());
+        _v[i + 1][j][k].y(_v[i][j][k].y());
+        _v[i + 1][j + 1][k].y(_v[i][j + 1][k].y());
+        _w[i + 1][j][k].z(_w[i][j][k].z());
+        _w[i + 1][j][k + 1].z(_w[i][j][k + 1].z());
       }
     }
-    if (j > 0 && _material[i][j - 1][0] == Material::FluidMaterial::AIR) {
-      if (processedCells[i][j - 1] > processedCells[i][j] + 1) {
-        processedCells[i][j - 1] = processedCells[i][j] + 1;
+    if (j > 0 && _material[i][j - 1][k] == Material::FluidMaterial::AIR) {
+      if (processedCells[i][j - 1][k] > processedCells[i][j][k] + 1) {
+        processedCells[i][j - 1][k] = processedCells[i][j][k] + 1;
         processingCells.push(Vector3i(i, j - 1, 0));
-        _v[i][j - 1][0].y(_v[i][j][0].y());
-        _u[i][j - 1][0].x(_u[i][j][0].x());
-        _u[i + 1][j - 1][0].x(_u[i + 1][j][0].x());
+        _v[i][j - 1][k].y(_v[i][j][k].y());
+        _u[i][j - 1][k].x(_u[i][j][k].x());
+        _u[i + 1][j - 1][k].x(_u[i + 1][j][k].x());
+        _w[i][j - 1][k].z(_w[i][j][k].z());
+        _w[i][j - 1][k + 1].z(_w[i][j][k + 1].z());
       }
     }
     if (j < _resolution.y() - 1 &&
-        _material[i][j + 1][0] == Material::FluidMaterial::AIR) {
-      if (processedCells[i][j + 1] > processedCells[i][j] + 1) {
-        processedCells[i][j + 1] = processedCells[i][j] + 1;
+        _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
+      if (processedCells[i][j + 1][k] > processedCells[i][j][k] + 1) {
+        processedCells[i][j + 1][k] = processedCells[i][j][k] + 1;
         processingCells.push(Vector3i(i, j + 1, 0));
-        _v[i][j + 2][0].y(_v[i][j + 1][0].y());
-        _u[i][j + 1][0].x(_u[i][j][0].x());
-        _u[i + 1][j + 1][0].x(_u[i + 1][j][0].x());
+        _v[i][j + 2][k].y(_v[i][j + 1][k].y());
+        _u[i][j + 1][k].x(_u[i][j][k].x());
+        _u[i + 1][j + 1][k].x(_u[i + 1][j][k].x());
+        _w[i][j + 1][k].z(_w[i][j][k].z());
+        _w[i][j + 1][k + 1].z(_w[i][j][k + 1].z());
+      }
+      if (k > 0 && _material[i][j][k - 1] == Material::FluidMaterial::AIR) {
+        if (processedCells[i][j][k + 1] > processedCells[i][j][k] + 1) {
+          processedCells[i][j][k - 1] = 1;
+          processingCells.push(Vector3i(i, j, k - 1));
+          _w[i][j][k - 1].z(_w[i][j][k].z());
+          _u[i][j][k - 1].x(_u[i][j][k].x());
+          _u[i + 1][j][k - 1].x(_u[i + 1][j][k].x());
+          _v[i][j][k - 1].y(_v[i][j][k].y());
+          _v[i][j + 1][k - 1].y(_v[i][j + 1][k].y());
+        }
+      }
+      if (k < _resolution.y() - 1 &&
+          _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
+        if (processedCells[i][j][k + 1] > processedCells[i][j][k] + 1) {
+          processedCells[i][j][k + 1] = 1;
+          processingCells.push(Vector3i(i, j, k + 1));
+          _w[i][j][k + 2].z(_w[i][j][k + 1].z());
+          _u[i][j][k + 1].x(_u[i][j][k].x());
+          _u[i + 1][j][k + 1].x(_u[i + 1][j][k].x());
+          _v[i][j][k + 1].y(_v[i][j][k].y());
+          _v[i][j + 1][k + 1].y(_v[i][j + 1][k].y());
+        }
       }
     }
   }
@@ -520,7 +580,7 @@ void RegularGrid3::solvePressure() {
   divergent = Eigen::VectorXd::Zero(nCells + 1);
   pressure = Eigen::VectorXd::Zero(nCells + 1);
 
-// Solve pressure Poisson equation
+  // Solve pressure Poisson equation
 
 #pragma omp parallel for
   for (int k = 0; k < _resolution.z(); k++) {
@@ -570,21 +630,17 @@ void RegularGrid3::solvePressure() {
                                        -1 / (_h.x() * _h.x()));
         }
 
-        threadTriplet.emplace_back(id, ijkToId(i, j, k),
-                                   validCells / (_h.x() * _h.x()));
+        threadTriplet.emplace_back(id, id, validCells / (_h.x() * _h.x()));
 #pragma omp critical
         {
           triplets.insert(triplets.end(), threadTriplet.begin(),
                           threadTriplet.end());
         }
 
-        divergent[ijkToId(i, j, k)] = 0;
-        divergent[ijkToId(i, j, k)] -=
-            (_u[i + 1][j][k].x() - _u[i][j][k].x()) / _h.x();
-        divergent[ijkToId(i, j, k)] -=
-            (_v[i][j + 1][k].y() - _v[i][j][k].y()) / _h.y();
-        divergent[ijkToId(i, j, k)] -=
-            (_w[i][j][k + 1].z() - _w[i][j][k].z()) / _h.z();
+        divergent[id] = 0;
+        divergent[id] -= (_u[i + 1][j][k].x() - _u[i][j][k].x()) / _h.x();
+        divergent[id] -= (_v[i][j + 1][k].y() - _v[i][j][k].y()) / _h.y();
+        divergent[id] -= (_w[i][j][k + 1].z() - _w[i][j][k].z()) / _h.z();
         divergent[id] /= _dt;
       }
     }
@@ -605,10 +661,10 @@ void RegularGrid3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 1; i < _resolution.x(); i++) {
-        _u[i][j][k].x(_u[i][j][k].x() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i - 1, j, k)]) /
-                          _h.x());
+        _u[i][j][k].x(_u[i][j][k].x() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i - 1, j, k)]) /
+                                            _h.x());
       }
     }
   }
@@ -616,10 +672,10 @@ void RegularGrid3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _v[i][j][k].y(_v[i][j][k].y() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i, j - 1, k)]) /
-                          _h.y());
+        _v[i][j][k].y(_v[i][j][k].y() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i, j - 1, k)]) /
+                                            _h.y());
       }
     }
   }
@@ -627,10 +683,10 @@ void RegularGrid3::solvePressure() {
   for (int k = 1; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _w[i][j][k].z(_w[i][j][k].z() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i, j, k - 1)]) /
-                          _h.z());
+        _w[i][j][k].z(_w[i][j][k].z() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i, j, k - 1)]) /
+                                            _h.z());
       }
     }
   }
