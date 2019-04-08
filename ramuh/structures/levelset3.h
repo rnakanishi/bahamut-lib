@@ -2,6 +2,7 @@
 #define __RAMUH_LEVELSET3_H__
 
 #include <structures/grid3.h>
+#include <structures/mesh_model.h>
 #include <utils/material.h>
 
 namespace Ramuh {
@@ -39,6 +40,15 @@ public:
   void addSphereSurface(Vector3d center, double radius);
   void addCubeSurface(Vector3d lower, Vector3d upper);
 
+  /**
+   * @brief Perform marching tetrahedra algorithm looking for zero level set.
+   * The coordinates of the vertices correspond to the cell center. Possibly,
+   * created vertices may be doubled and faces completely independent
+   *
+   * @return MeshModel3 full model with vertices and faces of the zero levelset
+   **/
+  MeshModel3 marchingTetrahedra();
+
   void checkCellMaterial();
 
   void printVertexVelocity();
@@ -52,6 +62,12 @@ public:
   Vector3d operator()(int i, int j, int k);
 
 protected:
+  /**
+   * @brief Auxiliary functino for marching tetrahedra
+   * TODO: Check parameters and return value accordingly
+   **/
+  void triangulate();
+
   // TODO: Change to Matrix3 type
   std::vector<std::vector<std::vector<Vector3d>>> _gradPhi,
       _velocity; // level set gradient and velocity on the corners

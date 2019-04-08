@@ -55,7 +55,7 @@ public:
   ///
   /// Computes velocities divergent in cell center and then solves pressure
   /// Poisson equation. After, updates the velocity values.
-  void solvePressure();
+  virtual void solvePressure();
 
   ///
   /// Check boundary velocities and set them to the solid velocity (free slip)

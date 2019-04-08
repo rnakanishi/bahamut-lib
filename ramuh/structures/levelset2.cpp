@@ -1,4 +1,7 @@
 #include <structures/levelset2.h>
+#include <Eigen/Core>
+#include <Eigen/SparseCore>
+#include <Eigen/IterativeLinearSolvers>
 #include <utils/macros.h>
 #include <omp.h>
 #include <cmath>
@@ -308,5 +311,108 @@ void LevelSet2::printLevelSetValue() {
 }
 
 std::vector<double> &LevelSet2::operator[](const int i) { return _phi[i]; }
+
+void LevelSet2::solvePressure() {
+  // Compute velocity divergent over cell center
+  // std::vector<double> divergent(cellCount(), 0.0);
+  int nCells = cellCount();
+  Eigen::VectorXd divergent, pressure;
+  Eigen::SparseMatrix<double> pressureMatrix(nCells + 1, nCells + 1);
+  std::vector<Eigen::Triplet<double>> triplets;
+
+  divergent = Eigen::VectorXd::Zero(nCells + 1);
+  pressure = Eigen::VectorXd::Zero(nCells + 1);
+
+// Solve pressure Poisson equation
+#pragma omp parallel for
+  // Assemble Laplacian matrix
+  for (int j = 0; j < _resolution.y(); j++) {
+    for (int i = 0; i < _resolution.x(); i++) {
+      if (_material[i][j] != Material::FluidMaterial::FLUID)
+        continue;
+
+      int validCells = 0;
+      int id = ijToId(i, j);
+      std::vector<Eigen::Triplet<double>> threadTriplet;
+
+      // TODO: impose second order boundary condition for pressure
+      if (i > 0) {
+        validCells++;
+        if (_material[i - 1][j] != Material::FluidMaterial::AIR)
+          threadTriplet.emplace_back(id, ijToId(i - 1, j),
+                                     -1 / (_h.x() * _h.x()));
+        else {
+          double theta = _phi[i][j] / (_phi[i][j] - _phi[i - 1][j]);
+        }
+      }
+      if (i < _resolution.x() - 1) {
+        validCells++;
+        if (_material[i + 1][j] != Material::FluidMaterial::AIR)
+          threadTriplet.emplace_back(id, ijToId(i + 1, j),
+                                     -1 / (_h.x() * _h.x()));
+        else {
+          double theta = _phi[i][j] / (_phi[i][j] - _phi[i + 1][j]);
+        }
+      }
+      if (j > 0) {
+        validCells++;
+        if (_material[i][j - 1] != Material::FluidMaterial::AIR)
+          threadTriplet.emplace_back(id, ijToId(i, j - 1),
+                                     -1 / (_h.x() * _h.x()));
+        else {
+          double theta = _phi[i][j] / (_phi[i][j] - _phi[i][j - 1]);
+        }
+      }
+      if (j < _resolution.y() - 1) {
+        validCells++;
+        if (_material[i][j + 1] != Material::FluidMaterial::AIR)
+          threadTriplet.emplace_back(id, ijToId(i, j + 1),
+                                     -1 / (_h.x() * _h.x()));
+        else {
+          double theta = _phi[i][j] / (_phi[i][j] - _phi[i][j + 1]);
+        }
+      }
+      threadTriplet.emplace_back(id, ijToId(i, j),
+                                 validCells / (_h.x() * _h.x()));
+#pragma omp critical
+      {
+        triplets.insert(triplets.end(), threadTriplet.begin(),
+                        threadTriplet.end());
+      }
+
+      divergent[ijToId(i, j)] = 0;
+      divergent[ijToId(i, j)] -= (_u[i + 1][j].x() - _u[i][j].x()) / _h.x();
+      divergent[ijToId(i, j)] -= (_v[i][j + 1].y() - _v[i][j].y()) / _h.y();
+      divergent[id] /= _dt;
+    }
+  }
+  triplets.emplace_back(nCells, nCells, 1);
+  pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
+
+  // SOlve pressure Poisson system
+  Eigen::ConjugateGradient<Eigen::SparseMatrix<double>,
+                           Eigen::Lower | Eigen::Upper>
+      solver;
+  solver.compute(pressureMatrix);
+  pressure = solver.solve(divergent);
+  // std::cerr << divergent.transpose() << std::endl;
+  // std::cerr << pressure.transpose() << std::endl;
+  // Correct velocity through pressure gradient
+  for (int j = 0; j < _resolution.y(); j++) {
+    for (int i = 1; i < _resolution.x(); i++) {
+      _u[i][j].x(_u[i][j].x() -
+                 _dt * (pressure[ijToId(i, j)] - pressure[ijToId(i - 1, j)]) /
+                     _h.x());
+    }
+  }
+
+  for (int j = 1; j < _resolution.y(); j++) {
+    for (int i = 0; i < _resolution.x(); i++) {
+      _v[i][j].y(_v[i][j].y() -
+                 _dt * (pressure[ijToId(i, j)] - pressure[ijToId(i, j - 1)]) /
+                     _h.y());
+    }
+  }
+}
 
 } // namespace Ramuh

@@ -441,4 +441,14 @@ void LevelSet3::printLevelSetValue() {
   }
 }
 
+MeshModel3 LevelSet3::marchingTetrahedra() {
+  MeshModel3 mesh;
+
+  // Look for octants that have different levelset signal
+
+  // Prepare tetrahedra decomposition and triangulate them
+
+  return mesh;
+}
+
 } // namespace Ramuh

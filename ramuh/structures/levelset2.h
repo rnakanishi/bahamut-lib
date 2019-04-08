@@ -2,6 +2,7 @@
 #define __RAMUH_LEVELSET2_H__
 
 #include <structures/grid2.h>
+#include <structures/mesh_model.h>
 #include <utils/material.h>
 
 namespace Ramuh {
@@ -26,18 +27,21 @@ public:
   /// property as signed distance
   void redistance();
 
-  ///
-  /// Define a value for each vertex of the grid correspnoding to the isocontour
-  /// of a sphere given its center and radius
-  /// \param center center of the sphere
-  /// \param radius radius of the sphere
+  /**
+   * @brief Define a value for each vertex of the grid correspnoding to the
+   * isocontour of a sphere given its center and radius \param center center of
+   * the sphere \param radius radius of the sphere
+   *
+   **/
   void addSphereSurface(Vector2d center, double radius);
   void addCubeSurface(Vector2d lower, Vector2d upper);
 
-  ///
-  /// Walks by all level set values (distance field) and check its signal. If
-  /// negative, the cell is marked as a fluid cell. This procedure improves
-  /// computation of the pressure Poisson system.
+  /**
+   * @brief Walks by all level set values (distance field) and check its signal.
+   * If negative, the cell is marked as a fluid cell. This procedure improves
+   * computation of the pressure Poisson system.
+   *
+   **/
   void checkCellMaterial();
 
   void printVertexVelocity();
@@ -49,6 +53,8 @@ public:
   std::vector<double> &operator[](const int i);
 
   Vector2d operator()(int i, int j);
+
+  void solvePressure() override;
 
 protected:
   // TODO: Change to Matrix3 type
