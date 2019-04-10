@@ -3,6 +3,7 @@ build/*
 .vscode
 .vscode/*
 animation/*
+animation3d/*
 data/*
 octave-workspace
 *.m

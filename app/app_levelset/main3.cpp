@@ -6,15 +6,18 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <sstream>
 #include <utils/file_writer.h>
 
 int main(int argc, char const *argv[]) {
   LevelSetFluid3 sim;
   Ramuh::FileWriter writer;
+  int resolution;
+  std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    int resolution = 256;
-    std::string folderName;
+    resolution = 32;
+    folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution
   }
@@ -27,11 +30,11 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.6, 0.5), 0.15);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.3);
   // sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
   //  Ramuh::Vector3d(0.75, 0.75, 0.75));
-  sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
-                     Ramuh::Vector3d(15, 0.3, 15));
+  // sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
+  //  Ramuh::Vector3d(15, 0.3, 15));
   // sim.addCubeSurface(Ramuh::Vector3d(-5, -5, -5),
   //  Ramuh::Vector3d(0.2, 0.8, 0.2));
 
@@ -40,9 +43,11 @@ int main(int argc, char const *argv[]) {
   //   sim.redistance();
   //   sim.printLevelSetValue();
   sim.setVelocity();
+  writer.writeMeshModel(sim.marchingTetrahedra(), "data/model/0.obj");
   sim.redistance();
+  return 1;
   // sim.printVertexVelocity();
-  writer.writeLevelSet(sim, "data128/0");
+  writer.writeLevelSet(sim, "data/0");
   for (int frame = 1; frame <= 500; frame++) {
     sim.checkCellMaterial();
     sim.addGravity();

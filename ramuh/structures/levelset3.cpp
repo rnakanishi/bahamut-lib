@@ -445,10 +445,151 @@ MeshModel3 LevelSet3::marchingTetrahedra() {
   MeshModel3 mesh;
 
   // Look for octants that have different levelset signal
+  for (int i = 0; i < _resolution.x() - 1; i++)
+    for (int j = 0; j < _resolution.y() - 1; j++)
+      for (int k = 0; k < _resolution.z() - 1; k++) {
+        std::vector<glm::ivec3> tetraIndex;
+        // Tetrahedron 0127
+        tetraIndex.clear();
+        tetraIndex.emplace_back(i, j, k);
+        tetraIndex.emplace_back(i + 1, j, k);
+        tetraIndex.emplace_back(i, j + 1, k);
+        tetraIndex.emplace_back(i + 1, j + 1, k + 1);
+        _triangulate(tetraIndex, mesh);
 
+        // Tetrahedron 0456
+        tetraIndex.clear();
+        tetraIndex.emplace_back(i, j, k);
+        tetraIndex.emplace_back(i, j, k + 1);
+        tetraIndex.emplace_back(i + 1, j, k + 1);
+        tetraIndex.emplace_back(i, j + 1, k + 1);
+        _triangulate(tetraIndex, mesh);
+
+        // Tetrahedron 0267
+        tetraIndex.clear();
+        tetraIndex.emplace_back(i, j, k);
+        tetraIndex.emplace_back(i, j + 1, k);
+        tetraIndex.emplace_back(i, j + 1, k + 1);
+        tetraIndex.emplace_back(i + 1, j + 1, k + 1);
+        _triangulate(tetraIndex, mesh);
+
+        // Tetrahedron 0157
+        tetraIndex.clear();
+        tetraIndex.emplace_back(i, j, k);
+        tetraIndex.emplace_back(i + 1, j, k);
+        tetraIndex.emplace_back(i + 1, j, k + 1);
+        tetraIndex.emplace_back(i + 1, j + 1, k + 1);
+        _triangulate(tetraIndex, mesh);
+
+        // Tetrahedron 1237
+        tetraIndex.clear();
+        tetraIndex.emplace_back(i + 1, j, k);
+        tetraIndex.emplace_back(i, j + 1, k);
+        tetraIndex.emplace_back(i + 1, j + 1, k);
+        tetraIndex.emplace_back(i + 1, j + 1, k + 1);
+        _triangulate(tetraIndex, mesh);
+
+        // Tetrahedron 0567
+        tetraIndex.clear();
+        tetraIndex.emplace_back(i, j, k);
+        tetraIndex.emplace_back(i + 1, j, k + 1);
+        tetraIndex.emplace_back(i, j + 1, k + 1);
+        tetraIndex.emplace_back(i + 1, j + 1, k + 1);
+        _triangulate(tetraIndex, mesh);
+      }
   // Prepare tetrahedra decomposition and triangulate them
 
   return mesh;
+}
+
+void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
+                             MeshModel3 &mesh) {
+  int triIndex = 0;
+  if (_phi[vertices[0][0]][vertices[0][1]][vertices[0][2]] < 0)
+    triIndex |= 1;
+  if (_phi[vertices[1][0]][vertices[1][1]][vertices[1][2]] < 0)
+    triIndex |= 2;
+  if (_phi[vertices[2][0]][vertices[2][1]][vertices[2][2]] < 0)
+    triIndex |= 4;
+  if (_phi[vertices[3][0]][vertices[3][1]][vertices[3][2]] < 0)
+    triIndex |= 8;
+
+  glm::vec3 vertex;
+  glm::ivec3 face;
+  // 15 total cases to check
+  // TODO: Check normal direction and change vertices order accordingly
+  switch (triIndex) {
+  case 0:
+  case 15:
+    break;
+  case 1:
+  case 14:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    mesh.addFace(face);
+    break;
+  case 2:
+  case 13:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[0]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    mesh.addFace(face);
+    break;
+  case 4:
+  case 11:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[0]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[1]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    mesh.addFace(face);
+    break;
+  case 8:
+  case 7:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[0]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[1]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[2]));
+    mesh.addFace(face);
+    break;
+  case 3:
+  case 12:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    mesh.addFace(face);
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    mesh.addFace(face);
+    break;
+  case 5:
+  case 10:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    mesh.addFace(face);
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    mesh.addFace(face);
+    break;
+  case 9:
+  case 6:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    mesh.addFace(face);
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    mesh.addFace(face);
+    break;
+  }
+}
+
+glm::vec3 LevelSet3::_findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2) {
+  glm::vec3 coord1, coord2, direction;
+  coord1 = glm::vec3(v1[0] * _h.x(), v1[1] * _h.y(), v1[2] * _h.z());
+  coord2 = glm::vec3(v2[0] * _h.x(), v2[1] * _h.y(), v2[2] * _h.z());
+  direction = coord2 - coord1;
+
+  float phi1, phi2;
+  phi1 = _phi[v1[0]][v1[1]][v1[2]];
+  phi2 = _phi[v2[0]][v2[1]][v2[2]];
+  return coord1 - phi1 * direction / (phi2 - phi1);
 }
 
 } // namespace Ramuh

@@ -17,7 +17,7 @@ public:
 
   void writeLevelSet(LevelSet3 data, const std::string &filename);
 
-  void writeMeshModel(MeshModel3 model);
+  void writeMeshModel(MeshModel3 model, const std::string &filename);
 
   void setDebug(bool out);
 

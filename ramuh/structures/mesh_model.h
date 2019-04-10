@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <vector>
+#include <glm/vec3.hpp>
 
 namespace Ramuh {
 class MeshModel3 {
@@ -11,19 +12,33 @@ public:
   ~MeshModel3();
 
   /**
+   * @brief Get the Vertices Size value
+   *
+   * @return uint
+   **/
+  uint getVerticesSize();
+
+  /**
+   * @brief Get the Faces Size
+   *
+   * @return uint
+   **/
+  uint getFacesSize();
+
+  /**
    * @brief Add a vertex to the MeshModel structure and return its index
    *
    * @param vertex
    * @return uint
    **/
-  uint addVertex(Eigen::Vector3d vertex);
+  uint addVertex(glm::vec3 vertex);
 
   /**
    * @brief  Add a bundle of vertices and return their respective indices
    *
    * @return std::vector<uint>
    **/
-  std::vector<uint> addVertices(std::vector<Eigen::Vector3d> vertices);
+  std::vector<uint> addVertices(std::vector<glm::vec3> vertices);
 
   /**
    * @brief Add A face, that corresponds to vertices indices that belong to face
@@ -31,7 +46,7 @@ public:
    * @param face
    * @return uint index of the added face
    **/
-  uint addFace(Eigen::Vector3i face);
+  uint addFace(glm::ivec3 face);
 
   /**
    * @brief Add faces bundle, where each face has their corresponding vertices
@@ -39,7 +54,7 @@ public:
    * @param faces
    * @return std::vector<uint> indices of the added faces
    **/
-  std::vector<uint> addFaces(Eigen::Vector3i faces);
+  std::vector<uint> addFaces(glm::ivec3 faces);
 
   /**
    * @brief Remove very vertices with the same coordinates and adjust their
@@ -54,21 +69,21 @@ public:
    * @brief Get the vertex object corresponding to index
    *
    * @param index of the desired vertex
-   * @return Eigen::Vector3d
+   * @return glm::vec3
    **/
-  Eigen::Vector3d getVertex(uint index);
+  glm::vec3 getVertex(uint index);
 
   /**
    * @brief Get the Face object corresponding to index
    *
    * @param index of the desired face
-   * @return Eigen::Vector3i
+   * @return glm::ivec3
    **/
-  Eigen::Vector3i getFace(uint index);
+  glm::ivec3 getFace(uint index);
 
 protected:
-  std::vector<Eigen::Vector3d> _vertices;
-  std::vector<Eigen::Vector3i> _faces; //!< Face composed by three vertices
+  std::vector<glm::vec3> _vertices;
+  std::vector<glm::ivec3> _faces; //!< Face composed by three vertices
   std::vector<std::vector<uint>> _usedVertices; //!< Map which faces use which
                                                 //!< vertices. First index
                                                 //!< correspond to vertex.

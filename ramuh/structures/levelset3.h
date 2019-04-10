@@ -4,6 +4,7 @@
 #include <structures/grid3.h>
 #include <structures/mesh_model.h>
 #include <utils/material.h>
+#include <glm/glm.hpp>
 
 namespace Ramuh {
 
@@ -66,7 +67,9 @@ protected:
    * @brief Auxiliary functino for marching tetrahedra
    * TODO: Check parameters and return value accordingly
    **/
-  void triangulate();
+  void _triangulate(std::vector<glm::ivec3> vertices, MeshModel3 &mesh);
+
+  glm::vec3 _findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2);
 
   // TODO: Change to Matrix3 type
   std::vector<std::vector<std::vector<Vector3d>>> _gradPhi,

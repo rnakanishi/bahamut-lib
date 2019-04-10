@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 include(ExternalProject)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external")
 include( glfw )
+include( glm )
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/glad" "external/glad")
 set(GLAD_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include")
