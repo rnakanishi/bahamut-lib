@@ -283,7 +283,7 @@ double LevelSet3::_solveEikonal(glm::ivec3 cellId) {
   i = cellId[0];
   j = cellId[1];
   k = cellId[2];
-  glm::dvec3 distances;
+  std::vector<double> distances(3, 0);
   distances[0] =
       std::min(std::fabs(_phi[std::max(0, i - 1)][j][k]),
                std::fabs(_phi[std::min(_resolution.x() - 1, i + 1)][j][k]));
@@ -293,6 +293,8 @@ double LevelSet3::_solveEikonal(glm::ivec3 cellId) {
   distances[2] =
       std::min(std::fabs(_phi[i][j][std::max(0, k - 1)]),
                std::fabs(_phi[i][j][std::min(_resolution.z() - 1, k + 1)]));
+
+  std::sort(distances.begin(), distances.end());
 
   double newPhi = distances[0] + _h.x();
   if (newPhi > distances[1]) {
@@ -311,7 +313,9 @@ double LevelSet3::_solveEikonal(glm::ivec3 cellId) {
       newPhi /= 3;
     }
   }
-
+  if (std::fabs(newPhi) < 1e-8 || std::isnan(newPhi) || newPhi == 0 ||
+      newPhi > 5)
+    float np = newPhi;
   return newPhi;
 }
 
@@ -337,54 +341,78 @@ void LevelSet3::redistance() {
         int nintersecs = 0;
         double cellPhi = _phi[i][j][k];
         int cellSign = cellPhi / std::fabs(cellPhi);
+        if (cellPhi == 0)
+          cellSign = 1;
 
-        // For each surface pair, compute their distance and add to queue
-        bool isSurface = false;
+        bool isSurface = false, intersected = false;
         double theta = 1e8;
         if (i < _resolution.x() - 1 &&
-            std::signbit(cellPhi) != std::signbit(_phi[i + 1][j][k])) {
+            std::signbit(cellSign) != std::signbit(_phi[i + 1][j][k])) {
           isSurface = true;
+          intersected = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i + 1][j][k])));
-          intersections[nintersecs++] =
+          intersections[nintersecs] =
               glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
-        } else if (i > 0 &&
-                   std::signbit(cellPhi) != std::signbit(_phi[i - 1][j][k])) {
+        }
+        if (i > 0 &&
+            std::signbit(cellSign) != std::signbit(_phi[i - 1][j][k])) {
           isSurface = true;
+          intersected = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i - 1][j][k])));
-          intersections[nintersecs++] =
+          intersections[nintersecs] =
               glm::vec3(position[0] - theta * _h.x(), position[1], position[2]);
         }
+        theta = 1e8;
+        if (intersected) {
+          intersected = false;
+          nintersecs++;
+        }
         if (j < _resolution.y() - 1 &&
-            std::signbit(cellPhi) != std::signbit(_phi[i][j + 1][k])) {
+            std::signbit(cellSign) != std::signbit(_phi[i][j + 1][k])) {
           isSurface = true;
+          intersected = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i][j + 1][k])));
-          intersections[nintersecs++] =
+          intersections[nintersecs] =
               glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
-        } else if (j > 0 &&
-                   std::signbit(cellPhi) != std::signbit(_phi[i][j - 1][k])) {
+        }
+        if (j > 0 &&
+            std::signbit(cellSign) != std::signbit(_phi[i][j - 1][k])) {
           isSurface = true;
+          intersected = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i][j - 1][k])));
-          intersections[nintersecs++] =
+          intersections[nintersecs] =
               glm::vec3(position[0], position[1] - theta * _h.y(), position[2]);
         }
+        theta = 1e8;
+        if (intersected) {
+          intersected = false;
+          nintersecs++;
+        }
         if (k < _resolution.z() - 1 &&
-            std::signbit(cellPhi) != std::signbit(_phi[i][j][k + 1])) {
+            std::signbit(cellSign) != std::signbit(_phi[i][j][k + 1])) {
           isSurface = true;
+          intersected = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i][j][k + 1])));
-          intersections[nintersecs++] =
+          intersections[nintersecs] =
               glm::vec3(position[0], position[1], position[2] + theta * _h.z());
-        } else if (k > 0 &&
-                   std::signbit(cellPhi) != std::signbit(_phi[i][j][k - 1])) {
+        }
+        if (k > 0 &&
+            std::signbit(cellSign) != std::signbit(_phi[i][j][k - 1])) {
           isSurface = true;
+          intersected = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i][j][k - 1])));
-          intersections[nintersecs++] =
+          intersections[nintersecs] =
               glm::vec3(position[0], position[1], position[2] - theta * _h.z());
+        }
+        if (intersected) {
+          intersected = false;
+          nintersecs++;
         }
 
         if (isSurface) {
@@ -392,23 +420,23 @@ void LevelSet3::redistance() {
           if (nintersecs == 1) {
             proj = intersections[0];
           } else if (nintersecs == 2) {
-            std::cout << position[0] << ' ' << position[1] << ' ' << position[2]
-                      << std::endl;
             proj = Geometry::closestPointPlane(position, intersections[0],
                                                intersections[1]);
           } else if (nintersecs == 3) {
             proj = Geometry::closestPointTriangle(
                 position, intersections[0], intersections[1], intersections[2]);
           }
-          float distance = glm::length(proj - position);
+          double distance = glm::length(proj - position);
+          if (std::isnan(distance) || distance == 0 || distance > 5)
+            float d = distance;
+          if (std::fabs(distance) < 1e-8)
+            distance = 0;
+
           tempPhi[i][j][k] = cellSign * distance;
           // _phi[i][j][k];
           // cellSign * _solveEikonal(glm::ivec3(i, j, k));
           // cellSign *std::min(std::fabs(tempPhi[i][j][k]), theta * _h.x());
           processed[i][j][k] = true;
-        }
-
-        if (processed[i][j][k]) {
 #pragma omp critical
           {
             cellsQueue.push(

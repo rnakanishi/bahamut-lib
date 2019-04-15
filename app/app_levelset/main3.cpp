@@ -30,7 +30,7 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0.5), 0.15);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0.5), 0.1671);
   // sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
   //  Ramuh::Vector3d(0.75, 0.75, 0.75));
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
@@ -67,11 +67,11 @@ int main(int argc, char const *argv[]) {
     // std::cout << "plo" << std::endl;
     // if (!(frame % 5))
     sim.redistance();
-    std::ostringstream filename;
-    filename << "data/model/" << std::setw(4) << std::setfill('0') << frame
-             << ".obj";
-    writer.writeMeshModel(sim.marchingTetrahedra(), filename.str());
-    // filename << "data128/" << frame;
+    std::ostringstream filename, objname;
+    objname << "data/model/" << std::setw(4) << std::setfill('0') << frame
+            << ".obj";
+    writer.writeMeshModel(sim.marchingTetrahedra(), objname.str());
+    // filename << "data32/" << frame;
     // writer.writeLevelSet(sim, std::string(filename.str()));
   }
   return 0;
