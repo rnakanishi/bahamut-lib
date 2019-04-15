@@ -64,6 +64,17 @@ public:
 
 protected:
   /**
+   * @brief Solve Eikonal equation for a given cell index. Look for all
+   * direction neighbors choosing those that are nearest to the surface (in each
+   * direction). solve linear, triangular or tetrahedral distance with chosen
+   * neighbors
+   *
+   * @param cell cell integer index
+   * @return double distance value to the levelset
+   **/
+  double _solveEikonal(glm::ivec3 cell);
+
+  /**
    * @brief Auxiliary functino for marching tetrahedra
    * TODO: Check parameters and return value accordingly
    **/

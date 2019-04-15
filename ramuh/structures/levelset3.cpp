@@ -1,5 +1,6 @@
 #include <structures/levelset3.h>
 #include <geometry/matrix.h>
+#include <geometry/geometry_utils.h>
 #include <utils/macros.h>
 #include <omp.h>
 #include <queue>
@@ -277,6 +278,43 @@ std::vector<std::vector<double>> &LevelSet3::operator[](const int i) {
   return _phi[i];
 }
 
+double LevelSet3::_solveEikonal(glm::ivec3 cellId) {
+  int i, j, k;
+  i = cellId[0];
+  j = cellId[1];
+  k = cellId[2];
+  glm::dvec3 distances;
+  distances[0] =
+      std::min(std::fabs(_phi[std::max(0, i - 1)][j][k]),
+               std::fabs(_phi[std::min(_resolution.x() - 1, i + 1)][j][k]));
+  distances[1] =
+      std::min(std::fabs(_phi[i][std::max(0, j - 1)][k]),
+               std::fabs(_phi[i][std::min(_resolution.y() - 1, j + 1)][k]));
+  distances[2] =
+      std::min(std::fabs(_phi[i][j][std::max(0, k - 1)]),
+               std::fabs(_phi[i][j][std::min(_resolution.z() - 1, k + 1)]));
+
+  double newPhi = distances[0] + _h.x();
+  if (newPhi > distances[1]) {
+    double h2 = _h.x() * _h.x();
+    newPhi = 0.5 * (distances[0] + distances[1] +
+                    std::sqrt(2 * h2 - ((distances[1] - distances[0]) *
+                                        (distances[1] - distances[0]))));
+    if (std::fabs(newPhi) > distances[2]) {
+      newPhi = (distances[0] + distances[1] + distances[2]);
+      newPhi += std::sqrt(
+          std::max(0.0, (distances[0] + distances[1] + distances[2]) *
+                                (distances[0] + distances[1] + distances[2]) -
+                            3 * (distances[0] * distances[0] +
+                                 distances[1] * distances[1] +
+                                 distances[2] * distances[2] - h2)));
+      newPhi /= 3;
+    }
+  }
+
+  return newPhi;
+}
+
 void LevelSet3::redistance() {
   Matrix3<double> tempPhi;
   Matrix3<bool> processed;
@@ -289,41 +327,84 @@ void LevelSet3::redistance() {
   tempPhi.changeSize(_resolution, 1e8);
   processed.changeSize(_resolution, false);
 
-#pragma omp parallel for
+#pragma omp for
   // Find surface cells adding them to queue
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
+        glm::vec3 position = glm::vec3(i * _h.x(), j * _h.y(), k * _h.z());
+        glm::vec3 intersections[3];
+        int nintersecs = 0;
         double cellPhi = _phi[i][j][k];
         int cellSign = cellPhi / std::fabs(cellPhi);
 
         // For each surface pair, compute their distance and add to queue
+        bool isSurface = false;
         double theta = 1e8;
         if (i < _resolution.x() - 1 &&
-            std::signbit(cellPhi) != std::signbit(_phi[i + 1][j][k]))
+            std::signbit(cellPhi) != std::signbit(_phi[i + 1][j][k])) {
+          isSurface = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i + 1][j][k])));
-        if (i > 0 && std::signbit(cellPhi) != std::signbit(_phi[i - 1][j][k]))
+          intersections[nintersecs++] =
+              glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
+        } else if (i > 0 &&
+                   std::signbit(cellPhi) != std::signbit(_phi[i - 1][j][k])) {
+          isSurface = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i - 1][j][k])));
+          intersections[nintersecs++] =
+              glm::vec3(position[0] - theta * _h.x(), position[1], position[2]);
+        }
         if (j < _resolution.y() - 1 &&
-            std::signbit(cellPhi) != std::signbit(_phi[i][j + 1][k]))
+            std::signbit(cellPhi) != std::signbit(_phi[i][j + 1][k])) {
+          isSurface = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i][j + 1][k])));
-        if (j > 0 && std::signbit(cellPhi) != std::signbit(_phi[i][j - 1][k]))
+          intersections[nintersecs++] =
+              glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
+        } else if (j > 0 &&
+                   std::signbit(cellPhi) != std::signbit(_phi[i][j - 1][k])) {
+          isSurface = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i][j - 1][k])));
+          intersections[nintersecs++] =
+              glm::vec3(position[0], position[1] - theta * _h.y(), position[2]);
+        }
         if (k < _resolution.z() - 1 &&
-            std::signbit(cellPhi) != std::signbit(_phi[i][j][k + 1]))
+            std::signbit(cellPhi) != std::signbit(_phi[i][j][k + 1])) {
+          isSurface = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i][j][k + 1])));
-        if (k > 0 && std::signbit(cellPhi) != std::signbit(_phi[i][j][k - 1]))
+          intersections[nintersecs++] =
+              glm::vec3(position[0], position[1], position[2] + theta * _h.z());
+        } else if (k > 0 &&
+                   std::signbit(cellPhi) != std::signbit(_phi[i][j][k - 1])) {
+          isSurface = true;
           theta = std::min(theta,
                            std::fabs(cellPhi / (cellPhi - _phi[i][j][k - 1])));
+          intersections[nintersecs++] =
+              glm::vec3(position[0], position[1], position[2] - theta * _h.z());
+        }
 
-        if (theta < 1e7) {
-          tempPhi[i][j][k] =
-              cellSign * std::min(std::fabs(tempPhi[i][j][k]), theta * _h.x());
+        if (isSurface) {
+          glm::vec3 proj;
+          if (nintersecs == 1) {
+            proj = intersections[0];
+          } else if (nintersecs == 2) {
+            std::cout << position[0] << ' ' << position[1] << ' ' << position[2]
+                      << std::endl;
+            proj = Geometry::closestPointPlane(position, intersections[0],
+                                               intersections[1]);
+          } else if (nintersecs == 3) {
+            proj = Geometry::closestPointTriangle(
+                position, intersections[0], intersections[1], intersections[2]);
+          }
+          float distance = glm::length(proj - position);
+          tempPhi[i][j][k] = cellSign * distance;
+          // _phi[i][j][k];
+          // cellSign * _solveEikonal(glm::ivec3(i, j, k));
+          // cellSign *std::min(std::fabs(tempPhi[i][j][k]), theta * _h.x());
           processed[i][j][k] = true;
         }
 
@@ -348,37 +429,8 @@ void LevelSet3::redistance() {
 
     if (!processed[i][j][k]) {
       processed[i][j][k] = true;
-      std::vector<double> distances;
       int distanceSignal = _phi[i][j][k] / std::fabs(_phi[i][j][k]);
-      distances.push_back(std::min(
-          std::fabs(tempPhi[std::max(0, i - 1)][j][k]),
-          std::fabs(tempPhi[std::min(_resolution.x() - 1, i + 1)][j][k])));
-      distances.push_back(std::min(
-          std::fabs(tempPhi[i][std::max(0, j - 1)][k]),
-          std::fabs(tempPhi[i][std::min(_resolution.y() - 1, j + 1)][k])));
-      distances.push_back(std::min(
-          std::fabs(tempPhi[i][j][std::max(0, k - 1)]),
-          std::fabs(tempPhi[i][j][std::min(_resolution.z() - 1, k + 1)])));
-      std::sort(distances.begin(), distances.end());
-
-      // Checking each component and redistancing
-      double newPhi = distances[0] + _h.x();
-      if (newPhi > distances[1]) {
-        double h2 = _h.x() * _h.x();
-        newPhi = 0.5 * (distances[0] + distances[1] +
-                        std::sqrt(2 * h2 - ((distances[1] - distances[0]) *
-                                            (distances[1] - distances[0]))));
-        if (std::fabs(newPhi) > distances[2]) {
-          newPhi = (distances[0] + distances[1] + distances[2]);
-          newPhi += std::sqrt(std::max(
-              0.0, (distances[0] + distances[1] + distances[2]) *
-                           (distances[0] + distances[1] + distances[2]) -
-                       3 * (distances[0] * distances[0] +
-                            distances[1] * distances[1] +
-                            distances[2] * distances[2] - h2)));
-          newPhi /= 3;
-        }
-      }
+      double newPhi = _solveEikonal(glm::ivec3(i, j, k));
 
       if (newPhi < std::fabs(tempPhi[i][j][k]))
         tempPhi[i][j][k] = distanceSignal * newPhi;

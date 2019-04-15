@@ -30,11 +30,11 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.3);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0.5), 0.15);
   // sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
   //  Ramuh::Vector3d(0.75, 0.75, 0.75));
-  // sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
-  //  Ramuh::Vector3d(15, 0.3, 15));
+  sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
+                     Ramuh::Vector3d(15, 0.3, 15));
   // sim.addCubeSurface(Ramuh::Vector3d(-5, -5, -5),
   //  Ramuh::Vector3d(0.2, 0.8, 0.2));
 
@@ -43,12 +43,12 @@ int main(int argc, char const *argv[]) {
   //   sim.redistance();
   //   sim.printLevelSetValue();
   sim.setVelocity();
-  writer.writeMeshModel(sim.marchingTetrahedra(), "data/model/0.obj");
+  // writer.writeMeshModel(sim.marchingTetrahedra(), "data/model/0000.obj");
   sim.redistance();
-  return 1;
+  writer.writeMeshModel(sim.marchingTetrahedra(), "data/model/0000.obj");
   // sim.printVertexVelocity();
-  writer.writeLevelSet(sim, "data/0");
-  for (int frame = 1; frame <= 500; frame++) {
+  // writer.writeLevelSet(sim, "data/0");
+  for (int frame = 1; frame <= 100; frame++) {
     sim.checkCellMaterial();
     sim.addGravity();
     sim.boundaryVelocities();
@@ -68,9 +68,11 @@ int main(int argc, char const *argv[]) {
     // if (!(frame % 5))
     sim.redistance();
     std::ostringstream filename;
-    // filename << "data/" << std::setw(4) << std::setfill('0') << frame;
-    filename << "data128/" << frame;
-    writer.writeLevelSet(sim, std::string(filename.str()));
+    filename << "data/model/" << std::setw(4) << std::setfill('0') << frame
+             << ".obj";
+    writer.writeMeshModel(sim.marchingTetrahedra(), filename.str());
+    // filename << "data128/" << frame;
+    // writer.writeLevelSet(sim, std::string(filename.str()));
   }
   return 0;
 }
