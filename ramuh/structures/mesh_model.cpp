@@ -5,8 +5,11 @@ MeshModel3::MeshModel3() {}
 MeshModel3::~MeshModel3() {}
 
 uint MeshModel3::addVertex(glm::vec3 vertex) {
-  _vertices.emplace_back(vertex);
-  return _vertices.size() - 1;
+  if (_vMap.find(vertex) == _vMap.end()) {
+    _vertices.emplace_back(vertex);
+    _vMap[vertex] = _vertices.size() - 1;
+  }
+  return _vMap[vertex];
 }
 
 uint MeshModel3::addFace(glm::ivec3 face) {

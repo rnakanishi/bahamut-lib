@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <vector>
+#include <map>
 #include <glm/vec3.hpp>
 
 namespace Ramuh {
@@ -82,6 +83,16 @@ public:
   glm::ivec3 getFace(uint index);
 
 protected:
+  class vec3Compare {
+  public:
+    bool operator()(const glm::vec3 v1, const glm::vec3 v2) const {
+      return v1[0] < v2[0] ||
+             (std::fabs(v1[0] - v2[0]) < 1e-8 && v1[1] < v2[1]) ||
+             (std::fabs(v1[0] - v2[0]) < 1e-8 &&
+              std::fabs(v1[1] - v2[1]) < 1e-8 && v1[2] < v2[2]);
+    }
+  };
+  std::map<glm::vec3, uint, vec3Compare> _vMap;
   std::vector<glm::vec3> _vertices;
   std::vector<glm::ivec3> _faces; //!< Face composed by three vertices
   std::vector<std::vector<uint>> _usedVertices; //!< Map which faces use which
