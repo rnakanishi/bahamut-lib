@@ -34,6 +34,8 @@ public:
    **/
   void macCormackAdvection();
 
+  void solvePressure() override;
+
   ///
   /// Define a value for each vertex of the grid correspnoding to the isocontour
   /// of a sphere given its center and radius
@@ -84,7 +86,7 @@ protected:
   double _interpolatePhi(Eigen::Array3d position);
 
   glm::vec3 _findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2);
-
+  Eigen::Array3d _findSurfaceCoordinate(Eigen::Array3i v1, Eigen::Array3i v2);
   // TODO: Change to Matrix3 type
   std::vector<std::vector<std::vector<Vector3d>>> _gradPhi,
       _velocity; // level set gradient and velocity on the corners

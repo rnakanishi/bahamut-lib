@@ -16,7 +16,7 @@ int main(int argc, char const *argv[]) {
   std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    resolution = 32;
+    resolution = 25;
     folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution
@@ -45,7 +45,7 @@ int main(int argc, char const *argv[]) {
   sim.setVelocity();
   // writer.writeMeshModel(sim.marchingTetrahedra(), "data/model/0000.obj");
   sim.redistance();
-  writer.writeMeshModel(sim.marchingTetrahedra(), "data/model/0000.obj");
+  writer.writeMeshModel(sim.marchingTetrahedra(), "obj/0000.obj");
   // sim.printVertexVelocity();
   // writer.writeLevelSet(sim, "data/0");
   for (int frame = 1; frame <= 100; frame++) {
@@ -70,8 +70,7 @@ int main(int argc, char const *argv[]) {
     // if (!(frame % 5))
     sim.redistance();
     std::ostringstream filename, objname;
-    objname << "data/model/" << std::setw(4) << std::setfill('0') << frame
-            << ".obj";
+    objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
     writer.writeMeshModel(sim.marchingTetrahedra(), objname.str());
     // filename << "data32/" << frame;
     // writer.writeLevelSet(sim, std::string(filename.str()));
