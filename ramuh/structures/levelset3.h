@@ -17,11 +17,6 @@ public:
   void addImplicitFunction();
 
   ///
-  /// As long as velocity field is defined over cell faces (MAC grid),
-  /// interpolate thos values to cell vertices
-  void interpolateVelocitiesToVertices();
-
-  ///
   /// Level set often gets unusual beahvior when advected. To avoid unphysical
   /// behavior, a redistancing function is applied so the level set keep its
   /// property as signed distance
@@ -32,6 +27,12 @@ public:
   /// method assumes that a velocity field is already defined over cell corners
   /// TODO: Change to semi lagrangean method
   void integrateLevelSet();
+
+  /**
+   * @brief Perform Mac Cormack advection method over levelset values
+   *
+   **/
+  void macCormackAdvection();
 
   ///
   /// Define a value for each vertex of the grid correspnoding to the isocontour
@@ -79,6 +80,8 @@ protected:
    * TODO: Check parameters and return value accordingly
    **/
   void _triangulate(std::vector<glm::ivec3> vertices, MeshModel3 &mesh);
+
+  double _interpolatePhi(Eigen::Array3d position);
 
   glm::vec3 _findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2);
 

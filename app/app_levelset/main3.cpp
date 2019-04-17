@@ -30,7 +30,7 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0.5), 0.1671);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0.5), 0.15);
   // sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
   //  Ramuh::Vector3d(0.75, 0.75, 0.75));
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
@@ -62,7 +62,8 @@ int main(int argc, char const *argv[]) {
     sim.extrapolateVelocity();
     // sim.printFaceVelocity();
     // sim.printLevelSetValue();
-    sim.integrateLevelSet();
+    // sim.integrateLevelSet();
+    sim.macCormackAdvection();
     // sim.printLevelSetValue();
     // std::cout << "plo" << std::endl;
     // if (!(frame % 5))

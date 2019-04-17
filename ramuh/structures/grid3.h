@@ -5,6 +5,7 @@
 #include <geometry/vector2.h>
 #include <utils/material.h>
 #include <vector>
+#include <Eigen/Dense>
 
 namespace Ramuh {
 
@@ -78,6 +79,10 @@ public:
   void printFaceVelocity();
 
 protected:
+  double _interpolateVelocityU(Eigen::Array3d position);
+  double _interpolateVelocityV(Eigen::Array3d position);
+  double _interpolateVelocityW(Eigen::Array3d position);
+
   ///
   /// Change values for spacing. This method is called only through
   /// setResolution(...) or setSize(...) methods

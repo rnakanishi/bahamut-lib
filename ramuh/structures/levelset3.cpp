@@ -112,100 +112,6 @@ void LevelSet3::checkCellMaterial() {
 
 void LevelSet3::addImplicitFunction() { NOT_IMPLEMENTED(); }
 
-void LevelSet3::interpolateVelocitiesToVertices() {
-
-// TODO: Improve this interpolation
-#pragma omp parallel
-  {
-    int id = omp_get_thread_num();
-    int nthreads = omp_get_num_threads();
-
-    // Iterate over all grid vertices interpolating faces velocities
-    for (int i = id; i < _resolution.x() + 1; i += nthreads)
-      for (int j = 0; j < _resolution.y() + 1; j++)
-        for (int k = 0; k < _resolution.z() + 1; k++) {
-          Vector3d vel;
-          // u component
-          if (i == 0 || i == _resolution.x())
-            vel.x(0.0);
-          else {
-            if (j > 0 && k > 0 && j < _resolution.y() && k < _resolution.z())
-              vel.x((_u[i][j][k].x() + _u[i][j - 1][k].x() +
-                     _u[i][j - 1][k - 1].x() + _u[i][j][k - 1].x()) /
-                    4.0);
-            else if (j == 0 && k == 0)
-              vel.x(_u[i][j][k].x());
-            else if (j == 0 && k > 0 && k < _resolution.z())
-              vel.x((_u[i][j][k].x() + _u[i][j][k - 1].x()) / 2.0);
-            else if (j == 0 && k == _resolution.z())
-              vel.x(_u[i][j][k - 1].x());
-            else if (k == 0 && j > 0 && j < _resolution.y())
-              vel.x((_u[i][j][k].x() + _u[i][j - 1][k].x()) / 2.0);
-            else if (k == 0 && j == _resolution.y())
-              vel.x(_u[i][j - 1][k].x());
-            else if (j == _resolution.y() && k > 0 && k < _resolution.z())
-              vel.x((_u[i][j - 1][k].x() + _u[i][j - 1][k - 1].x()) / 2.0);
-            else if (k == _resolution.z() && j > 0 && j < _resolution.y())
-              vel.x((_u[i][j - 1][k - 1].x() + _u[i][j][k - 1].x()) / 2.0);
-            else
-              vel.x(_u[i][j - 1][k - 1].x());
-          }
-          // v component
-          if (j == 0 || j == _resolution.y())
-            vel.y(0.0);
-          else {
-            if (i > 0 && k > 0 && i < _resolution.x() && k < _resolution.z())
-              vel.y((_v[i][j][k].y() + _v[i - 1][j][k].y() +
-                     _v[i - 1][j][k - 1].y() + _v[i][j][k - 1].y()) /
-                    4.0);
-            else if (i == 0 && k == 0)
-              vel.y(_v[i][j][k].y());
-            else if (i == 0 && k > 0 && k < _resolution.z())
-              vel.y((_v[i][j][k].y() + _v[i][j][k - 1].y()) / 2.0);
-            else if (i == 0 && k == _resolution.z())
-              vel.y((_v[i][j][k - 1].y()));
-            else if (k == 0 && i > 0 && i < _resolution.x())
-              vel.y((_v[i][j][k].y() + _v[i - 1][j][k].y()) / 2.0);
-            else if (k == 0 && i == _resolution.x())
-              vel.y((_v[i - 1][j][k].y()));
-            else if (i == _resolution.x() && k > 0 && k < _resolution.z())
-              vel.y((_v[i - 1][j][k].y() + _v[i - 1][j][k - 1].y()) / 2.0);
-            else if (k == _resolution.z() && i > 0 && i < _resolution.x())
-              vel.y((_v[i - 1][j][k - 1].y() + _v[i][j][k - 1].y()) / 2.0);
-            else
-              vel.y(_v[i - 1][j][k - 1].y());
-          }
-          // z component
-          if (k == 0 || k == _resolution.z())
-            vel.z(0);
-          else {
-            if (i > 0 && j > 0 && i < _resolution.x() && j < _resolution.y())
-              vel.z((_w[i][j][k].z() + _w[i - 1][j][k].z() +
-                     _w[i - 1][j - 1][k].z() + _w[i][j - 1][k].z()) /
-                    4.0);
-            else if (i == 0 && j == 0)
-              vel.z(_w[i][j][k].z());
-            else if (i == 0 && j > 0 && j < _resolution.y())
-              vel.z((_w[i][j][k].z() + _w[i][j - 1][k].z()) / 2.0);
-            else if (i == 0 && j == _resolution.y())
-              vel.z(_w[i][j - 1][k].z());
-            else if (j == 0 && i > 0 && i < _resolution.x())
-              vel.z((_w[i][j][k].z() + _w[i - 1][j][k].z()) / 2.0);
-            else if (j == 0 && i == _resolution.x())
-              vel.z(_w[i - 1][j][k].z());
-            else if (i == _resolution.x() && j > 0 && j < _resolution.y())
-              vel.z((_w[i - 1][j][k].z() + _w[i - 1][j - 1][k].z()) / 2.0);
-            else if (j == _resolution.y() && i > 0 && i < _resolution.x())
-              vel.z((_w[i - 1][j - 1][k].z() + _w[i][j - 1][k].z()) / 2.0);
-            else
-              vel.z(_w[i - 1][j - 1][k].z());
-          }
-
-          _velocity[i][j][k] = vel;
-        }
-  }
-}
-
 void LevelSet3::integrateLevelSet() {
   // std::vector<std::vector<double>> oldPhi;
   Matrix3<double> oldPhi;
@@ -214,17 +120,11 @@ void LevelSet3::integrateLevelSet() {
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++)
-        oldPhi[i][j][k] = _phi[i][j][k];
-
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
         Vector3d position, backPosition, velocity, h(_h.x(), _h.y(), _h.z()),
             cellCenter;
         Vector3i index;
-        double newPhi = oldPhi[i][j][k];
+        double newPhi = _phi[i][j][k];
         double distanceCount = 0.0, distance = 0.0;
 
         position = Vector3d(i, j, k) * h + h / 2.0;
@@ -236,42 +136,100 @@ void LevelSet3::integrateLevelSet() {
         index.y(std::floor(backPosition.y() / h.y()));
         index.z(std::floor(backPosition.z() / h.z()));
 
+        // Check if inside domain
         if (velocity.length() > 1e-8 && index >= Vector3i(0) &&
             index < _resolution) {
-          cellCenter = Vector3d(index.x(), index.y(), index.z()) * h + h / 2.0;
-          std::vector<int> iCandidates, jCandidates, kCandidates;
-          iCandidates.push_back(index.x());
-          jCandidates.push_back(index.y());
-          kCandidates.push_back(index.z());
-          if (backPosition.x() > cellCenter.x() &&
-              index.x() < _resolution.x() - 1)
-            iCandidates.push_back(index.x() + 1);
-          else if (backPosition.x() < cellCenter.x() && index.x() > 0)
-            iCandidates.push_back(index.x() - 1);
-          if (backPosition.y() > cellCenter.y() &&
-              index.y() < _resolution.y() - 1)
-            jCandidates.push_back(index.y() + 1);
-          else if (backPosition.y() < cellCenter.y() && index.y() > 0)
-            jCandidates.push_back(index.y() - 1);
-          if (backPosition.z() > cellCenter.z() &&
-              index.z() < _resolution.z() - 1)
-            kCandidates.push_back(index.z() + 1);
-          else if (backPosition.z() < cellCenter.z() && index.z() > 0)
-            kCandidates.push_back(index.z() - 1);
-
-          newPhi = 0.;
-          for (auto u : iCandidates)
-            for (auto v : jCandidates)
-              for (auto w : kCandidates) {
-                position = Vector3d(u, v, w) * h + h / 2.0;
-                distance = (backPosition - position).length();
-                distanceCount += 1. / distance;
-                newPhi += oldPhi[u][v][w] / distance;
-              }
-          newPhi /= distanceCount;
+          newPhi = _interpolatePhi(Eigen::Vector3d(
+              backPosition[0], backPosition[1], backPosition[2]));
         }
-        _phi[i][j][k] = newPhi;
+        oldPhi[i][j][k] = newPhi;
       }
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++)
+        _phi[i][j][k] = oldPhi[i][j][k];
+}
+
+void LevelSet3::macCormackAdvection() {
+  Matrix3<double> newPhi;
+  newPhi.changeSize(_resolution);
+  Eigen::Array3i resolution(_resolution[0], _resolution[1], _resolution[2]);
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
+        Eigen::Vector3d velocity;
+        Eigen::Array3i index;
+        // Find the point as if it was in previous timestep and work with it
+        position = Eigen::Array3d(i, j, k).cwiseProduct(h) + (h / 2.0);
+        velocity[0] = (_u[i][j][k].x() + _u[i + 1][j][k].x()) / 2.0;
+        velocity[1] = (_v[i][j][k].y() + _v[i][j + 1][k].y()) / 2.0;
+        velocity[2] = (_w[i][j][k].z() + _w[i][j][k + 1].z()) / 2.0;
+        position -= velocity.array() * _dt;
+        index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+        // TODO: look for a better solution
+        if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+            index[2] >= 0 && index[0] < _resolution[0] &&
+            index[1] < _resolution[1] && index[2] < _resolution[2]) {
+          double phi_n;
+          phi_n = _interpolatePhi(position);
+          // Advect forward in time the value there
+          velocity[0] = _interpolateVelocityU(position);
+          velocity[1] = _interpolateVelocityV(position);
+          velocity[2] = _interpolateVelocityW(position);
+          position += velocity.array() * _dt;
+          double phi_n1_hat = _interpolatePhi(position);
+          // Analyse the error from original to the forward advected
+          double error = 0.5 * (_phi[i][j][k] - phi_n1_hat);
+          newPhi[i][j][k] = phi_n + error;
+        } else
+          newPhi[i][j][k] = _phi[i][j][k];
+      }
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++)
+        _phi[i][j][k] = newPhi[i][j][k];
+}
+
+double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
+  Eigen::Array3d h(_h[0], _h[1], _h[2]);
+  Eigen::Array3i resolution(_resolution.x(), _resolution.y(), _resolution.z());
+  Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+  // Check if inside domain
+  Eigen::Array3d cellCenter = index.cast<double>().cwiseProduct(h) + h / 2.0;
+  std::vector<int> iCandidates, jCandidates, kCandidates;
+  iCandidates.push_back(index[0]);
+  jCandidates.push_back(index[1]);
+  kCandidates.push_back(index[2]);
+  if (position[0] > cellCenter[0] && index[0] < resolution[0] - 1)
+    iCandidates.push_back(index[0] + 1);
+  else if (position[0] < cellCenter[0] && index[0] > 0)
+    iCandidates.push_back(index[0] - 1);
+  if (position[1] > cellCenter[1] && index[1] < resolution[1] - 1)
+    jCandidates.push_back(index[1] + 1);
+  else if (position[1] < cellCenter[1] && index[1] > 0)
+    jCandidates.push_back(index[1] - 1);
+  if (position[2] > cellCenter[2] && index[2] < resolution[2] - 1)
+    kCandidates.push_back(index[2] + 1);
+  else if (position[2] < cellCenter[2] && index[2] > 0)
+    kCandidates.push_back(index[2] - 1);
+
+  // Catmull-Rom like interpolation
+  double newPhi = 0., distance = 0., distanceCount = 0.;
+  for (auto u : iCandidates)
+    for (auto v : jCandidates)
+      for (auto w : kCandidates) {
+        Eigen::Array3d centerPosition = Eigen::Array3d(u, v, w) * h + h / 2.0;
+        if (position.matrix().isApprox(centerPosition.matrix(), 1e-8))
+          return _phi[u][v][w];
+        distance = (position - centerPosition).matrix().norm();
+        distanceCount += 1. / distance;
+        newPhi += _phi[u][v][w] / distance;
+      }
+  return newPhi / distanceCount;
 }
 
 std::vector<std::vector<double>> &LevelSet3::operator[](const int i) {
@@ -331,7 +289,7 @@ void LevelSet3::redistance() {
   tempPhi.changeSize(_resolution, 1e8);
   processed.changeSize(_resolution, false);
 
-#pragma omp for
+#pragma omp parallel for
   // Find surface cells adding them to queue
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)

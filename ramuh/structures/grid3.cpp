@@ -580,7 +580,7 @@ void RegularGrid3::solvePressure() {
   divergent = Eigen::VectorXd::Zero(nCells + 1);
   pressure = Eigen::VectorXd::Zero(nCells + 1);
 
-  // Solve pressure Poisson equation
+// Solve pressure Poisson equation
 
 #pragma omp parallel for
   for (int k = 0; k < _resolution.z(); k++) {
@@ -661,10 +661,10 @@ void RegularGrid3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 1; i < _resolution.x(); i++) {
-        _u[i][j][k].x(_u[i][j][k].x() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i - 1, j, k)]) /
-                                            _h.x());
+        _u[i][j][k].x(_u[i][j][k].x() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i - 1, j, k)]) /
+                          _h.x());
       }
     }
   }
@@ -672,10 +672,10 @@ void RegularGrid3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _v[i][j][k].y(_v[i][j][k].y() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i, j - 1, k)]) /
-                                            _h.y());
+        _v[i][j][k].y(_v[i][j][k].y() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i, j - 1, k)]) /
+                          _h.y());
       }
     }
   }
@@ -683,13 +683,123 @@ void RegularGrid3::solvePressure() {
   for (int k = 1; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _w[i][j][k].z(_w[i][j][k].z() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i, j, k - 1)]) /
-                                            _h.z());
+        _w[i][j][k].z(_w[i][j][k].z() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i, j, k - 1)]) /
+                          _h.z());
       }
     }
   }
+}
+
+double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
+  Eigen::Array3d h(_h[0], _h[1], _h[2]);
+  Eigen::Array3i resolution(_resolution.x(), _resolution.y(), _resolution.z());
+  Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+  // Check if inside domain
+  Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
+  std::vector<int> iCandidates, jCandidates, kCandidates;
+  iCandidates.push_back(index[0]);
+  iCandidates.push_back(index[0] + 1);
+  jCandidates.push_back(index[1]);
+  kCandidates.push_back(index[2]);
+  if (position[1] > cellCenter[1] && index[1] < _resolution[1] - 1)
+    jCandidates.push_back(index[1] + 1);
+  else if (position[1] < cellCenter[1] && index[1] > 0)
+    jCandidates.push_back(index[1] - 1);
+  if (position[2] > cellCenter[2] && index[2] < _resolution[2] - 1)
+    kCandidates.push_back(index[2] + 1);
+  else if (position[2] < cellCenter[2] && index[2] > 0)
+    kCandidates.push_back(index[2] - 1);
+
+  double velocity(0);
+  // Catmull-Rom like interpolation of u
+  double distance = 0., distanceCount = 0., newVelocity = 1e8;
+  for (auto u : iCandidates)
+    for (auto v : jCandidates)
+      for (auto w : kCandidates) {
+        Eigen::Array3d centerPosition =
+            Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
+        if ((position - centerPosition).matrix().norm() < 1e-7)
+          return _u[u][v][w].x();
+        distance = (position - centerPosition).matrix().norm();
+        distanceCount += 1. / distance;
+        velocity += _u[u][v][w].x() / distance;
+      }
+  return velocity / distanceCount;
+}
+
+double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
+  Eigen::Array3d h(_h[0], _h[1], _h[2]);
+  Eigen::Array3i resolution(_resolution.x(), _resolution.y(), _resolution.z());
+  Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+  // Check if inside domain
+  Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
+  std::vector<int> iCandidates, jCandidates, kCandidates;
+  iCandidates.push_back(index[0]);
+  jCandidates.push_back(index[1]);
+  jCandidates.push_back(index[1] + 1);
+  kCandidates.push_back(index[2]);
+  if (position[0] > cellCenter[0] && index[0] < resolution[0] - 1)
+    iCandidates.push_back(index[0] + 1);
+  else if (position[0] < cellCenter[0] && index[0] > 0)
+    iCandidates.push_back(index[0] - 1);
+  if (position[2] > cellCenter[2] && index[2] < _resolution[2] - 1)
+    kCandidates.push_back(index[2] + 1);
+  else if (position[2] < cellCenter[2] && index[2] > 0)
+    kCandidates.push_back(index[2] - 1);
+
+  double velocity(0);
+  // Catmull-Rom like interpolation of v
+  double distance = 0., distanceCount = 0., newVelocity = 1e8;
+  for (auto u : iCandidates)
+    for (auto v : jCandidates)
+      for (auto w : kCandidates) {
+        Eigen::Array3d centerPosition =
+            Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
+        if ((position - centerPosition).matrix().norm() < 1e-7)
+          return _v[u][v][w].y();
+        distance = (position - centerPosition).matrix().norm();
+        distanceCount += 1. / distance;
+        velocity += _v[u][v][w].y() / distance;
+      }
+  return velocity / distanceCount;
+}
+
+double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
+  Eigen::Array3d h(_h[0], _h[1], _h[2]);
+  Eigen::Array3i resolution(_resolution.x(), _resolution.y(), _resolution.z());
+  Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+  // Check if inside domain
+  Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
+  std::vector<int> iCandidates, jCandidates, kCandidates;
+  iCandidates.push_back(index[0]);
+  jCandidates.push_back(index[1]);
+  kCandidates.push_back(index[2] + 1);
+  if (position[0] > cellCenter[0] && index[0] < resolution[0] - 1)
+    iCandidates.push_back(index[0] + 1);
+  else if (position[0] < cellCenter[0] && index[0] > 0)
+    iCandidates.push_back(index[0] - 1);
+  if (position[1] > cellCenter[1] && index[1] < _resolution[1] - 1)
+    jCandidates.push_back(index[1] + 1);
+  else if (position[1] < cellCenter[1] && index[1] > 0)
+    jCandidates.push_back(index[1] - 1);
+
+  double velocity(0);
+  // Catmull-Rom like interpolation of u
+  double distance = 0., distanceCount = 0., newVelocity = 1e8;
+  for (auto u : iCandidates)
+    for (auto v : jCandidates)
+      for (auto w : kCandidates) {
+        Eigen::Array3d centerPosition =
+            Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
+        if ((position - centerPosition).matrix().norm() < 1e-7)
+          return _w[u][v][w].z();
+        distance = (position - centerPosition).matrix().norm();
+        distanceCount += 1. / distance;
+        velocity += _w[u][v][w].z() / distance;
+      }
+  return velocity / distanceCount;
 }
 
 } // namespace Ramuh

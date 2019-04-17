@@ -41,6 +41,14 @@ public:
     return Vector3<double>(_x / s, _y / s, _z / s);
   }
 
+  T &operator[](int i) {
+    if (i == 0)
+      return _x;
+    if (i == 1)
+      return _y;
+    return _z;
+  }
+
   bool operator>(const Vector3<T> v) {
     if (_x <= v.x())
       return false;
