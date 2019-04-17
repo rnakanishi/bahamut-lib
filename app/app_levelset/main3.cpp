@@ -54,7 +54,8 @@ int main(int argc, char const *argv[]) {
     sim.boundaryVelocities();
     // if (frame >= 14)
     // sim.printFaceVelocity();
-    sim.advectGridVelocity();
+    // sim.advectGridVelocity();
+    sim.macComarckVelocityAdvection();
     // if (frame >= 14)
     // sim.printFaceVelocity();
     sim.solvePressure();

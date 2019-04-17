@@ -41,7 +41,7 @@ template <typename T> void Matrix3<T>::changeSize(Vector3i size) {
   for (auto &row : _data) {
     row.resize(size.y());
     for (auto &depth : row)
-      depth.resize(size.z());
+      depth.resize(size.z(), 0);
   }
 }
 

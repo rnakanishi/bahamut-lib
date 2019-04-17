@@ -70,6 +70,8 @@ public:
   /// Make grid velocity advection using a semi lagrangian mehtod
   void advectGridVelocity();
 
+  void macComarckVelocityAdvection();
+
   ///
   /// Initialize velocities
   void setVelocity();

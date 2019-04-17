@@ -66,6 +66,143 @@ void RegularGrid3::setResolution(Vector3i newResolution) {
 
 void RegularGrid3::setH(Vector3d newH) { _h = newH; }
 
+void RegularGrid3::macComarckVelocityAdvection() {
+  Matrix3<Vector3d> utemp, vtemp, wtemp;
+  utemp.changeSize(
+      Vector3i(_resolution[0] + 1, _resolution[1], _resolution[2]));
+  vtemp.changeSize(
+      Vector3i(_resolution[0], _resolution[1] + 1, _resolution[2]));
+  wtemp.changeSize(
+      Vector3i(_resolution[0], _resolution[1], _resolution[2] + 1));
+
+// Convective term for velocity U
+#pragma omp parellel for
+  for (int i = 1; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
+        Eigen::Vector3d velocity;
+        Eigen::Array3i index;
+        double newU = _u[i][j][k][0];
+
+        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+                   Eigen::Array3d(0, h[1] / 2, h[2] / 2);
+        velocity[0] = _u[i][j][k][0];
+        velocity[1] = _interpolateVelocityV(position);
+        velocity[2] = _interpolateVelocityW(position);
+        position -= velocity.array() * _dt;
+        index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+
+        if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+            index[2] >= 0 && index[0] < _resolution[0] &&
+            index[1] < _resolution[1] && index[2] < _resolution[2]) {
+          double u_n;
+          u_n = _interpolateVelocityU(position);
+          velocity[0] = _interpolateVelocityU(position);
+          velocity[1] = _interpolateVelocityV(position);
+          velocity[2] = _interpolateVelocityW(position);
+          position += velocity.array() * _dt;
+          double u_n1_hat = _interpolateVelocityU(position);
+          double error = 0.5 * (_u[i][j][k][0] - u_n1_hat);
+          newU = u_n + error;
+        } else {
+          newU = _u[i][j][k][0];
+        }
+        utemp[i][j][k] = newU;
+      }
+
+// Convective term for velocity V
+#pragma omp parellel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 1; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
+        Eigen::Vector3d velocity;
+        Eigen::Array3i index;
+        double newV = _v[i][j][k][1];
+
+        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+                   Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
+        velocity[0] = _interpolateVelocityU(position);
+        velocity[1] = _v[i][j][k][1];
+        velocity[2] = _interpolateVelocityW(position);
+        position -= velocity.array() * _dt;
+        index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+
+        if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+            index[2] >= 0 && index[0] < _resolution[0] &&
+            index[1] < _resolution[1] && index[2] < _resolution[2]) {
+          double v_n;
+          v_n = _interpolateVelocityV(position);
+          velocity[0] = _interpolateVelocityU(position);
+          velocity[1] = _interpolateVelocityV(position);
+          velocity[2] = _interpolateVelocityW(position);
+          position += velocity.array() * _dt;
+          double v_n1_hat = _interpolateVelocityV(position);
+          double error = 0.5 * (_v[i][j][k][1] - v_n1_hat);
+          newV = v_n + error;
+        } else {
+          newV = _v[i][j][k][1];
+        }
+        vtemp[i][j][k] = newV;
+      }
+
+// Convective term for velocity W
+#pragma omp parellel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 1; k < _resolution.z(); k++) {
+        Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
+        Eigen::Vector3d velocity;
+        Eigen::Array3i index;
+        double newW = _w[i][j][k][2];
+
+        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+                   Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
+        velocity[0] = _interpolateVelocityU(position);
+        velocity[1] = _interpolateVelocityV(position);
+        velocity[2] = _w[i][j][k][2];
+        position -= velocity.array() * _dt;
+        index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+
+        if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+            index[2] >= 0 && index[0] < _resolution[0] &&
+            index[1] < _resolution[1] && index[2] < _resolution[2]) {
+          double w_n;
+          w_n = _interpolateVelocityW(position);
+          velocity[0] = _interpolateVelocityU(position);
+          velocity[1] = _interpolateVelocityV(position);
+          velocity[2] = _interpolateVelocityW(position);
+          position += velocity.array() * _dt;
+          double w_n1_hat = _interpolateVelocityW(position);
+          double error = 0.5 * (_w[i][j][k][2] - w_n1_hat);
+          newW = w_n + error;
+        } else {
+          newW = _w[i][j][k][2];
+        }
+        wtemp[i][j][k] = newW;
+      }
+
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x() + 1; i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        _u[i][j][k][0] = utemp[i][j][k][0];
+      }
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y() + 1; j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        _v[i][j][k][1] = vtemp[i][j][k][1];
+      }
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z() + 1; k++) {
+        _w[i][j][k][2] = wtemp[i][j][k][2];
+      }
+}
+
 void RegularGrid3::advectGridVelocity() {
   // TODO: change to dynamic allocation
   Matrix3<Vector3d> utemp, vtemp, wtemp;
@@ -701,8 +838,10 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
   std::vector<int> iCandidates, jCandidates, kCandidates;
   iCandidates.push_back(index[0]);
   iCandidates.push_back(index[0] + 1);
-  jCandidates.push_back(index[1]);
-  kCandidates.push_back(index[2]);
+  if (index[1] < resolution[1])
+    jCandidates.push_back(index[1]);
+  if (index[2] < resolution[2])
+    kCandidates.push_back(index[2]);
   if (position[1] > cellCenter[1] && index[1] < _resolution[1] - 1)
     jCandidates.push_back(index[1] + 1);
   else if (position[1] < cellCenter[1] && index[1] > 0)
@@ -736,10 +875,12 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
   std::vector<int> iCandidates, jCandidates, kCandidates;
-  iCandidates.push_back(index[0]);
+  if (index[0] < resolution[0])
+    iCandidates.push_back(index[0]);
   jCandidates.push_back(index[1]);
   jCandidates.push_back(index[1] + 1);
-  kCandidates.push_back(index[2]);
+  if (index[2] < resolution[2])
+    kCandidates.push_back(index[2]);
   if (position[0] > cellCenter[0] && index[0] < resolution[0] - 1)
     iCandidates.push_back(index[0] + 1);
   else if (position[0] < cellCenter[0] && index[0] > 0)
@@ -773,8 +914,11 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
   std::vector<int> iCandidates, jCandidates, kCandidates;
-  iCandidates.push_back(index[0]);
-  jCandidates.push_back(index[1]);
+  if (index[0] < resolution[0])
+    iCandidates.push_back(index[0]);
+  if (index[1] < resolution[1])
+    jCandidates.push_back(index[1]);
+  kCandidates.push_back(index[2]);
   kCandidates.push_back(index[2] + 1);
   if (position[0] > cellCenter[0] && index[0] < resolution[0] - 1)
     iCandidates.push_back(index[0] + 1);
