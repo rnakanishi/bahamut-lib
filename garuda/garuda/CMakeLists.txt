@@ -3,11 +3,13 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/glad/include/glad/glad.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shader/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/graphics/*.hpp
         )
 file(GLOB SOURCES 
         ${CMAKE_CURRENT_SOURCE_DIR}/glad/*.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shader/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/graphics/*.cpp
         )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

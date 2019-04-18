@@ -8,15 +8,15 @@ namespace Garuda {
 Shader::Shader() {}
 
 Shader::Shader(const char *vertexShaderPath, const char *fragmentShaderPath) {
-  vertexShader = loadShader(vertexShaderPath, GL_VERTEX_SHADER);
-  fragmentShader = loadShader(fragmentShaderPath, GL_FRAGMENT_SHADER);
+  _vertexShader = loadShader(vertexShaderPath, GL_VERTEX_SHADER);
+  _fragmentShader = loadShader(fragmentShaderPath, GL_FRAGMENT_SHADER);
   _linkProgram();
 }
 
 void Shader::_linkProgram() {
   programId = glCreateProgram();
-  glAttachShader(programId, vertexShader);
-  glAttachShader(programId, fragmentShader);
+  glAttachShader(programId, _vertexShader);
+  glAttachShader(programId, _fragmentShader);
   glLinkProgram(programId);
 
   int success;
@@ -26,25 +26,30 @@ void Shader::_linkProgram() {
     glGetProgramInfoLog(programId, 512, NULL, infoLog);
     std::cerr << "Shader::_linkProgram: " << infoLog << std::endl;
   }
-  glDeleteShader(vertexShader);
-  glDeleteShader(fragmentShader);
+  glDeleteShader(_vertexShader);
+  glDeleteShader(_fragmentShader);
 }
 
-int Shader::loadShader(const char *shaderPath, unsigned int shaderType) {
+unsigned int Shader::loadShader(const char *shaderPath,
+                                unsigned int shaderType) {
   std::string code;
   const char *shaderCode;
   std::ifstream file;
   file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
   try {
     file.open(shaderPath);
-    std::stringstream stream;
-    stream << file.rdbuf();
-    file.close();
-    shaderCode = stream.str().c_str();
+    if (file.is_open()) {
+      std::stringstream stream;
+      stream << file.rdbuf();
+      file.close();
+      code = stream.str();
+    } else
+      std::cerr << "File not found\n";
   } catch (std::ifstream::failure err) {
     std::cerr << "Shader::loadShader: could not read " << shaderPath
               << std::endl;
   }
+  shaderCode = code.c_str();
 
   unsigned int shader = -1;
   shader = glCreateShader(shaderType);
@@ -60,21 +65,28 @@ int Shader::loadShader(const char *shaderPath, unsigned int shaderType) {
               << std::endl;
   }
 
+  _needsLink = true;
   return shader;
 }
 
-void Shader::useShader() { glUseProgram(programId); }
-
-int Shader::loadVertexShader(const char *vertexShaderPath) {
-  return loadShader(vertexShaderPath, GL_VERTEX_SHADER);
+void Shader::useShader() {
+  if (_needsLink) {
+    _linkProgram();
+    _needsLink = false;
+  }
+  glUseProgram(programId);
 }
 
-int Shader::loadFragmentShader(const char *fragmentShaderPath) {
-  return loadShader(fragmentShaderPath, GL_FRAGMENT_SHADER);
+void Shader::loadVertexShader(const char *vertexShaderPath) {
+  _vertexShader = loadShader(vertexShaderPath, GL_VERTEX_SHADER);
 }
 
-int Shader::loadGeometryShader(const char *geometryShaderPath) {
-  return loadShader(geometryShaderPath, GL_GEOMETRY_SHADER);
+void Shader::loadFragmentShader(const char *fragmentShaderPath) {
+  _fragmentShader = loadShader(fragmentShaderPath, GL_FRAGMENT_SHADER);
+}
+
+void Shader::loadGeometryShader(const char *geometryShaderPath) {
+  loadShader(geometryShaderPath, GL_GEOMETRY_SHADER);
 }
 
 } // namespace Garuda

@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <shader/shader.hpp>
+#include <graphics/triangle_mesh.hpp>
 
 namespace Garuda {
 
@@ -32,5 +33,6 @@ protected:
   int _viewPortSize;
   GLFWwindow *_window;
   Shader _shader;
+  TriangleMesh _objects;
 };
 }

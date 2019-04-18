@@ -12,7 +12,7 @@ GUI::GUI() {
 GUI::~GUI() { glfwTerminate(); }
 
 void GUI::createWindow() {
-  _window = glfwCreateWindow(800, 600, "CG 2019", NULL, NULL);
+  _window = glfwCreateWindow(800, 800, "CG 2019", NULL, NULL);
   if (_window == NULL) {
     std::cout << "Failed to create GLFW window\n";
     glfwTerminate();
@@ -23,7 +23,13 @@ void GUI::createWindow() {
     std::cout << "Failed to initialize GLAD\n";
     exit(-2);
   }
-  glViewport(0, 0, 800, 600);
+  glViewport(0, 0, 800, 800);
+
+  _shader.loadVertexShader("./assets/vertex_shader.vert");
+  _shader.loadFragmentShader("./assets/fragment_shader.frag");
+
+  _objects.initialize();
+  _objects.loadObjMesh();
 }
 
 void GUI::processInput(GLFWwindow *_window) {
@@ -42,10 +48,12 @@ void GUI::run() {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     // etc...
+    _shader.useShader();
+    _objects.draw();
 
     // Controla eventos e troca os buffers para renderizacao
     glfwSwapBuffers(_window);
     glfwPollEvents();
   }
 }
-}
+} // namespace Garuda

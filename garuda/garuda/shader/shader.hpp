@@ -15,19 +15,19 @@ public:
    **/
   void useShader();
 
-  int loadShader(const char *shaderPath, unsigned int shaderType);
+  unsigned int loadShader(const char *shaderPath, unsigned int shaderType);
 
-  int loadVertexShader(const char *geometryShaderPath);
+  void loadVertexShader(const char *geometryShaderPath);
 
-  int loadGeometryShader(const char *geometryShaderPath);
+  void loadGeometryShader(const char *geometryShaderPath);
 
-  int loadFragmentShader(const char *fragmentShaderPath);
+  void loadFragmentShader(const char *fragmentShaderPath);
 
 protected:
   void _linkProgram();
 
-  unsigned int programId, vertexShader, fragmentShader;
-  bool needLink;
+  unsigned int programId, _vertexShader, _fragmentShader;
+  bool _needsLink;
 };
 
 } // namespace Garuda
