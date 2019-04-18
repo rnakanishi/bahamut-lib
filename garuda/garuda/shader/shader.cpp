@@ -5,6 +5,7 @@
 #include <string>
 
 namespace Garuda {
+
 Shader::Shader() {}
 
 Shader::Shader(const char *vertexShaderPath, const char *fragmentShaderPath) {

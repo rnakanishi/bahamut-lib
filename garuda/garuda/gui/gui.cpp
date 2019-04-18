@@ -1,4 +1,5 @@
 #include <gui/gui.hpp>
+#include <gui/events.hpp>
 
 namespace Garuda {
 
@@ -32,17 +33,12 @@ void GUI::createWindow() {
   _objects.loadObjMesh();
 }
 
-void GUI::processInput(GLFWwindow *_window) {
-  if (glfwGetKey(_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-    glfwSetWindowShouldClose(_window, true);
-}
-
 void GUI::run() {
 
   while (!glfwWindowShouldClose(_window)) {
 
     // Comandos de entrada
-    processInput(_window);
+    EventHandler::processKeyboardInputs(_window);
 
     // Comandos de renderizacao vao aqui
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);

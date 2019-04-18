@@ -28,8 +28,6 @@ public:
   void run();
 
 protected:
-  void processInput(GLFWwindow *window);
-
   int _viewPortSize;
   GLFWwindow *_window;
   Shader _shader;

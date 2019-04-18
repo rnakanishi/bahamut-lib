@@ -29,6 +29,6 @@ void TriangleMesh::loadObjMesh() {
 
 void TriangleMesh::draw() {
   glBindVertexArray(_vao);
-  glDrawArrays(GL_TRIANGLES, 0, 3);
+  glDrawArrays(GL_TRIANGLES, 0, 3 * getVerticesSize());
 }
 } // namespace Garuda
