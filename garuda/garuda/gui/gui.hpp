@@ -2,7 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <shader/shader.hpp>
-#include <graphics/triangle_mesh.hpp>
+#include <graphics/mesh_object.hpp>
 
 namespace Garuda {
 

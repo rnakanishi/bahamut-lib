@@ -1,5 +1,5 @@
-#ifndef __RAMUH_MESH_MODEL_H__
-#define __RAMUH_MESH_MODEL_H__
+#ifndef __RAMUH_TRIANGLE_MESH_H__
+#define __RAMUH_TRIANGLE_MESH_H__
 
 #include <Eigen/Dense>
 #include <vector>
@@ -7,10 +7,10 @@
 #include <glm/vec3.hpp>
 
 namespace Ramuh {
-class MeshModel3 {
+class TriangleMesh {
 public:
-  MeshModel3();
-  ~MeshModel3();
+  TriangleMesh();
+  ~TriangleMesh();
 
   /**
    * @brief Get the Vertices Size value
@@ -94,6 +94,7 @@ protected:
   };
   std::map<glm::vec3, uint, vec3Compare> _vMap;
   std::vector<glm::vec3> _vertices;
+  std::vector<glm::vec3> _vertexNormal;
   std::vector<glm::ivec3> _faces; //!< Face composed by three vertices
   std::vector<std::vector<uint>> _usedVertices; //!< Map which faces use which
                                                 //!< vertices. First index

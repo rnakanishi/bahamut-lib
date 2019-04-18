@@ -55,7 +55,8 @@ void FileWriter::writeLevelSet(LevelSet3 data, const std::string &filename) {
   }
   file.close();
 }
-void FileWriter::writeMeshModel(MeshModel3 model, const std::string &filename) {
+void FileWriter::writeMeshModel(TriangleMesh model,
+                                const std::string &filename) {
   std::ofstream file;
   int nvertices, nfaces;
   nvertices = model.getVerticesSize();

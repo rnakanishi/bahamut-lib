@@ -1,4 +1,4 @@
-#include <gui/events.hpp>
+#include <gui/event_handler.hpp>
 
 namespace Garuda {
 void EventHandler::processKeyboardInputs(GLFWwindow *window) {

@@ -2,7 +2,6 @@
 #define __RAMUH_LEVELSET2_H__
 
 #include <structures/grid2.h>
-#include <structures/mesh_model.h>
 #include <utils/material.h>
 
 namespace Ramuh {

@@ -3,7 +3,7 @@
 
 #include <structures/levelset2.h>
 #include <structures/levelset3.h>
-#include <structures/mesh_model.h>
+#include <structures/triangle_mesh.h>
 #include <string>
 
 namespace Ramuh {
@@ -17,7 +17,7 @@ public:
 
   void writeLevelSet(LevelSet3 data, const std::string &filename);
 
-  void writeMeshModel(MeshModel3 model, const std::string &filename);
+  void writeMeshModel(TriangleMesh model, const std::string &filename);
 
   void setDebug(bool out);
 

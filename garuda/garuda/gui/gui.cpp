@@ -1,5 +1,5 @@
 #include <gui/gui.hpp>
-#include <gui/events.hpp>
+#include <gui/event_handler.hpp>
 
 namespace Garuda {
 
@@ -30,7 +30,7 @@ void GUI::createWindow() {
   _shader.loadFragmentShader("./assets/fragment_shader.frag");
 
   _objects.initialize();
-  _objects.loadObjMesh();
+  _objects.loadObjMesh("");
 }
 
 void GUI::run() {

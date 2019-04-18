@@ -2,7 +2,7 @@
 #define __RAMUH_LEVELSET3_H__
 
 #include <structures/grid3.h>
-#include <structures/mesh_model.h>
+#include <structures/triangle_mesh.h>
 #include <utils/material.h>
 #include <glm/glm.hpp>
 
@@ -49,9 +49,10 @@ public:
    * The coordinates of the vertices correspond to the cell center. Possibly,
    * created vertices may be doubled and faces completely independent
    *
-   * @return MeshModel3 full model with vertices and faces of the zero levelset
+   * @return TriangleMesh full model with vertices and faces of the zero
+   *levelset
    **/
-  MeshModel3 marchingTetrahedra();
+  TriangleMesh marchingTetrahedra();
 
   void checkCellMaterial();
 
@@ -81,7 +82,7 @@ protected:
    * @brief Auxiliary functino for marching tetrahedra
    * TODO: Check parameters and return value accordingly
    **/
-  void _triangulate(std::vector<glm::ivec3> vertices, MeshModel3 &mesh);
+  void _triangulate(std::vector<glm::ivec3> vertices, TriangleMesh &mesh);
 
   double _interpolatePhi(Eigen::Array3d position);
 

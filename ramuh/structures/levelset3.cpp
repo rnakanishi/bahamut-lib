@@ -373,10 +373,10 @@ void LevelSet3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 1; i < _resolution.x(); i++) {
-        _u[i][j][k].x(_u[i][j][k].x() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i - 1, j, k)]) /
-                          _h.x());
+        _u[i][j][k].x(_u[i][j][k].x() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i - 1, j, k)]) /
+                                            _h.x());
       }
     }
   }
@@ -384,10 +384,10 @@ void LevelSet3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _v[i][j][k].y(_v[i][j][k].y() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i, j - 1, k)]) /
-                          _h.y());
+        _v[i][j][k].y(_v[i][j][k].y() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i, j - 1, k)]) /
+                                            _h.y());
       }
     }
   }
@@ -395,10 +395,10 @@ void LevelSet3::solvePressure() {
   for (int k = 1; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _w[i][j][k].z(_w[i][j][k].z() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i, j, k - 1)]) /
-                          _h.z());
+        _w[i][j][k].z(_w[i][j][k].z() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i, j, k - 1)]) /
+                                            _h.z());
       }
     }
   }
@@ -647,8 +647,8 @@ void LevelSet3::printLevelSetValue() {
   }
 }
 
-MeshModel3 LevelSet3::marchingTetrahedra() {
-  MeshModel3 mesh;
+TriangleMesh LevelSet3::marchingTetrahedra() {
+  TriangleMesh mesh;
 
   // Look for octants that have different levelset signal
   for (int i = 0; i < _resolution.x() - 1; i++)
@@ -709,7 +709,7 @@ MeshModel3 LevelSet3::marchingTetrahedra() {
 }
 
 void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
-                             MeshModel3 &mesh) {
+                             TriangleMesh &mesh) {
   int triIndex = 0;
   if (_phi[vertices[0][0]][vertices[0][1]][vertices[0][2]] < 0)
     triIndex |= 1;

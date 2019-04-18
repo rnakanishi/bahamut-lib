@@ -11,11 +11,6 @@ public:
 
   static void processMouseInputs(GLFWwindow *window);
 };
-void EventHandler::processKeyboardInputs(GLFWwindow *window) {
-  // void EventHandler::processKeyboardInputs(GLFWwindow *window) {
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-    glfwSetWindowShouldClose(window, true);
-}
 
 } // namespace Garuda
 
