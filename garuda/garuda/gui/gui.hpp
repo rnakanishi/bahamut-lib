@@ -1,6 +1,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <shader/shader.hpp>
 
 namespace Garuda {
 
@@ -30,5 +31,6 @@ protected:
 
   int _viewPortSize;
   GLFWwindow *_window;
+  Shader _shader;
 };
 }

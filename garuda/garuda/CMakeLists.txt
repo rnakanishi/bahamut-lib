@@ -1,16 +1,18 @@
 file(GLOB HEADERS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/glad/include/glad/glad.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glad/include/glad/glad.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/shader/*.hpp
         )
 file(GLOB SOURCES 
         ${CMAKE_CURRENT_SOURCE_DIR}/glad/*.c
         ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/shader/*.cpp
         )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_library(Garuda STATIC ${SOURCES} ${HEADERS})
-target_link_libraries(Garuda PUBLIC ${GLFW_LIBRARIES} glad)
+target_link_libraries(Garuda PUBLIC ${GLFW_LIBRARIES} glad Ramuh)
 set_target_properties(Garuda PROPERTIES
         OUTPUT_NAME "Garuda"
         FOLDER "GARUDA")
