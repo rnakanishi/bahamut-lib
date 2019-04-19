@@ -30,7 +30,7 @@ void GUI::createWindow() {
   _shader.loadFragmentShader("./assets/fragment_shader.frag");
 
   _objects.initialize();
-  _objects.loadObjMesh("");
+  _objects.loadObjMesh("./assets/3d_models/dog2.obj");
 }
 
 void GUI::run() {
@@ -43,9 +43,9 @@ void GUI::run() {
     // Comandos de renderizacao vao aqui
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
     // etc...
-    _shader.useShader();
-    _objects.draw();
+    _objects.draw(_shader);
 
     // Controla eventos e troca os buffers para renderizacao
     glfwSwapBuffers(_window);

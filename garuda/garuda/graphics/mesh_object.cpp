@@ -1,26 +1,29 @@
 #include <graphics/mesh_object.hpp>
+#include <utils/mesh_reader.hpp>
 
 namespace Garuda {
-TriangleMesh::TriangleMesh() {}
+MeshObject::MeshObject() {}
 
-void TriangleMesh::initialize() {
+void MeshObject::initialize() {
   glGenVertexArrays(1, &_vao);
   glGenBuffers(2, _vbo);
   glGenBuffers(1, &_ebo);
 }
 
-void TriangleMesh::loadObjMesh(const char *objPath) {
-  glm::ivec3 face, color;
-  face[0] = addVertex(glm::vec3(-0.5, -0.286, 0.0));
-  face[1] = addVertex(glm::vec3(0.5, -0.286, 0.0));
-  face[2] = addVertex(glm::vec3(0.0, 0.574, 0.0));
-  addFace(face);
-  face[2] = addVertex(glm::vec3(0.0, -0.860, 0.0));
-  addFace(face);
+void MeshObject::loadObjMesh(const char *objPath) {
+  // glm::ivec3 face, color;
+  // face[0] = addVertex(glm::vec3(-0.5, -0.286, 0.0));
+  // face[1] = addVertex(glm::vec3(0.5, -0.286, 0.0));
+  // face[2] = addVertex(glm::vec3(0.0, 0.574, 0.0));
+  // addFace(face);
+  // face[2] = addVertex(glm::vec3(0.0, -0.860, 0.0));
+  // addFace(face);
   _vertexColor.emplace_back(glm::vec3(1.0, 0.0, 0.0));
   _vertexColor.emplace_back(glm::vec3(0.0, 1.0, 0.0));
   _vertexColor.emplace_back(glm::vec3(0.0, 0.0, 1.0));
   _vertexColor.emplace_back(glm::vec3(0.0, 1.0, 1.0));
+
+  MeshReader::readObj(*this, objPath);
 
   glBindVertexArray(_vao);
 
@@ -33,7 +36,7 @@ void TriangleMesh::loadObjMesh(const char *objPath) {
 
   // Assign vertices indices to triangles
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(glm::vec3) * getFacesSize(),
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(glm::ivec3) * getFacesSize(),
                _faces.data(), GL_STATIC_DRAW);
 
   // Assign color to each vertex
@@ -48,7 +51,8 @@ void TriangleMesh::loadObjMesh(const char *objPath) {
   glBindVertexArray(0);
 }
 
-void TriangleMesh::draw() {
+void MeshObject::draw(Shader shader) {
+  shader.useShader();
   glBindVertexArray(_vao);
   // glDrawArrays(GL_TRIANGLES, 0, 3 * getVerticesSize());
   glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);

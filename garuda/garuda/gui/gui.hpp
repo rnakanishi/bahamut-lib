@@ -31,6 +31,6 @@ protected:
   int _viewPortSize;
   GLFWwindow *_window;
   Shader _shader;
-  TriangleMesh _objects;
+  MeshObject _objects;
 };
 }
