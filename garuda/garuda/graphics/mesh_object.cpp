@@ -6,6 +6,7 @@ TriangleMesh::TriangleMesh() {}
 void TriangleMesh::initialize() {
   glGenVertexArrays(1, &_vao);
   glGenBuffers(2, _vbo);
+  glGenBuffers(1, &_ebo);
 }
 
 void TriangleMesh::loadObjMesh(const char *objPath) {
@@ -14,9 +15,12 @@ void TriangleMesh::loadObjMesh(const char *objPath) {
   face[1] = addVertex(glm::vec3(0.5, -0.286, 0.0));
   face[2] = addVertex(glm::vec3(0.0, 0.574, 0.0));
   addFace(face);
+  face[2] = addVertex(glm::vec3(0.0, -0.860, 0.0));
+  addFace(face);
   _vertexColor.emplace_back(glm::vec3(1.0, 0.0, 0.0));
   _vertexColor.emplace_back(glm::vec3(0.0, 1.0, 0.0));
   _vertexColor.emplace_back(glm::vec3(0.0, 0.0, 1.0));
+  _vertexColor.emplace_back(glm::vec3(0.0, 1.0, 1.0));
 
   glBindVertexArray(_vao);
 
@@ -26,6 +30,11 @@ void TriangleMesh::loadObjMesh(const char *objPath) {
                _vertices.data(), GL_STATIC_DRAW);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
   glEnableVertexAttribArray(0);
+
+  // Assign vertices indices to triangles
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(glm::vec3) * getFacesSize(),
+               _faces.data(), GL_STATIC_DRAW);
 
   // Assign color to each vertex
   glBindBuffer(GL_ARRAY_BUFFER, _vbo[1]);
@@ -41,7 +50,8 @@ void TriangleMesh::loadObjMesh(const char *objPath) {
 
 void TriangleMesh::draw() {
   glBindVertexArray(_vao);
-  glDrawArrays(GL_TRIANGLES, 0, 3 * getVerticesSize());
+  // glDrawArrays(GL_TRIANGLES, 0, 3 * getVerticesSize());
+  glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);
 }
 
 } // namespace Garuda
