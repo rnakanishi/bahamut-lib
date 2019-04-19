@@ -7,9 +7,14 @@ namespace Garuda {
 
 class EventHandler {
 public:
-  static void processKeyboardInputs(GLFWwindow *window);
+  EventHandler();
 
-  static void processMouseInputs(GLFWwindow *window);
+  void processKeyboardInputs(GLFWwindow *window);
+
+  void processMouseInputs(GLFWwindow *window);
+
+protected:
+  bool _drawPolygons;
 };
 
 } // namespace Garuda

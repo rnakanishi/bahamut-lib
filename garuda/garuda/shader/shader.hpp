@@ -23,10 +23,12 @@ public:
 
   void loadFragmentShader(const char *fragmentShaderPath);
 
+  unsigned int getId();
+
 protected:
   void _linkProgram();
 
-  unsigned int programId, _vertexShader, _fragmentShader;
+  unsigned int _programId, _vertexShader, _fragmentShader;
   bool _needsLink;
 };
 

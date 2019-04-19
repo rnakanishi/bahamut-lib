@@ -28,7 +28,11 @@ public:
    **/
   void loadObjMesh(const char *objPath);
 
+  glm::vec3 getCentroid();
+
 protected:
+  void _computeCentroid();
+
   /**
    * @brief This method do the reading function itself. Using tiny object
    *functions, assign properly the vertices coordinates and faces. If file
@@ -41,6 +45,8 @@ protected:
   unsigned int _vbo[2], _vao, _ebo;
   std::vector<glm::vec3> _vertexColor;
   std::vector<glm::vec3> _vertexTexture;
+
+  glm::vec3 _centroid;
 };
 
 } // namespace Garuda

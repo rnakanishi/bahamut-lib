@@ -2,7 +2,6 @@
 #include <gui/event_handler.hpp>
 
 namespace Garuda {
-
 GUI::GUI() {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -25,27 +24,19 @@ void GUI::createWindow() {
     exit(-2);
   }
   glViewport(0, 0, 800, 800);
-
-  _shader.loadVertexShader("./assets/vertex_shader.vert");
-  _shader.loadFragmentShader("./assets/fragment_shader.frag");
-
-  _objects.initialize();
-  _objects.loadObjMesh("./assets/3d_models/dog2.obj");
 }
 
 void GUI::run() {
 
+  EventHandler events;
   while (!glfwWindowShouldClose(_window)) {
 
     // Comandos de entrada
-    EventHandler::processKeyboardInputs(_window);
+    events.processKeyboardInputs(_window);
 
     // Comandos de renderizacao vao aqui
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-
-    // etc...
-    _objects.draw(_shader);
 
     // Controla eventos e troca os buffers para renderizacao
     glfwSwapBuffers(_window);

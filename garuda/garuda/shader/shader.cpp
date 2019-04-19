@@ -15,16 +15,16 @@ Shader::Shader(const char *vertexShaderPath, const char *fragmentShaderPath) {
 }
 
 void Shader::_linkProgram() {
-  programId = glCreateProgram();
-  glAttachShader(programId, _vertexShader);
-  glAttachShader(programId, _fragmentShader);
-  glLinkProgram(programId);
+  _programId = glCreateProgram();
+  glAttachShader(_programId, _vertexShader);
+  glAttachShader(_programId, _fragmentShader);
+  glLinkProgram(_programId);
 
   int success;
-  glGetProgramiv(programId, GL_LINK_STATUS, &success);
+  glGetProgramiv(_programId, GL_LINK_STATUS, &success);
   if (!success) {
     char infoLog[512];
-    glGetProgramInfoLog(programId, 512, NULL, infoLog);
+    glGetProgramInfoLog(_programId, 512, NULL, infoLog);
     std::cerr << "Shader::_linkProgram: " << infoLog << std::endl;
   }
   glDeleteShader(_vertexShader);
@@ -75,8 +75,10 @@ void Shader::useShader() {
     _linkProgram();
     _needsLink = false;
   }
-  glUseProgram(programId);
+  glUseProgram(_programId);
 }
+
+unsigned int Shader::getId() { return _programId; }
 
 void Shader::loadVertexShader(const char *vertexShaderPath) {
   _vertexShader = loadShader(vertexShaderPath, GL_VERTEX_SHADER);

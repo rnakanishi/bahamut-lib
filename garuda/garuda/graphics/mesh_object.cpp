@@ -11,19 +11,8 @@ void MeshObject::initialize() {
 }
 
 void MeshObject::loadObjMesh(const char *objPath) {
-  // glm::ivec3 face, color;
-  // face[0] = addVertex(glm::vec3(-0.5, -0.286, 0.0));
-  // face[1] = addVertex(glm::vec3(0.5, -0.286, 0.0));
-  // face[2] = addVertex(glm::vec3(0.0, 0.574, 0.0));
-  // addFace(face);
-  // face[2] = addVertex(glm::vec3(0.0, -0.860, 0.0));
-  // addFace(face);
-  _vertexColor.emplace_back(glm::vec3(1.0, 0.0, 0.0));
-  _vertexColor.emplace_back(glm::vec3(0.0, 1.0, 0.0));
-  _vertexColor.emplace_back(glm::vec3(0.0, 0.0, 1.0));
-  _vertexColor.emplace_back(glm::vec3(0.0, 1.0, 1.0));
-
   MeshReader::readObj(*this, objPath);
+  _computeCentroid();
 
   glBindVertexArray(_vao);
 
@@ -56,6 +45,15 @@ void MeshObject::draw(Shader shader) {
   glBindVertexArray(_vao);
   // glDrawArrays(GL_TRIANGLES, 0, 3 * getVerticesSize());
   glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);
+}
+
+glm::vec3 MeshObject::getCentroid() { return _centroid; }
+
+void MeshObject::_computeCentroid() {
+  _centroid = glm::vec3(0.0);
+  for (auto vertex : _vertices)
+    _centroid += vertex;
+  _centroid /= _vertices.size();
 }
 
 } // namespace Garuda

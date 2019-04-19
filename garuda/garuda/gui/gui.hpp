@@ -25,12 +25,10 @@ public:
 
   ///
   /// Run the application in a loop.
-  void run();
+  virtual void run();
 
 protected:
   int _viewPortSize;
   GLFWwindow *_window;
-  Shader _shader;
-  MeshObject _objects;
 };
 }
