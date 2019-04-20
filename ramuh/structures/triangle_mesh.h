@@ -32,14 +32,14 @@ public:
    * @param vertex
    * @return uint
    **/
-  uint addVertex(glm::vec3 vertex);
+  virtual uint addVertex(glm::vec3 vertex);
 
   /**
    * @brief  Add a bundle of vertices and return their respective indices
    *
    * @return std::vector<uint>
    **/
-  std::vector<uint> addVertices(std::vector<glm::vec3> vertices);
+  // virtual std::vector<uint> addVertices(std::vector<glm::vec3> vertices);
 
   /**
    * @brief Add A face, that corresponds to vertices indices that belong to face
@@ -47,7 +47,7 @@ public:
    * @param face
    * @return uint index of the added face
    **/
-  uint addFace(glm::ivec3 face);
+  virtual uint addFace(glm::ivec3 face);
 
   /**
    * @brief Add faces bundle, where each face has their corresponding vertices
@@ -55,7 +55,11 @@ public:
    * @param faces
    * @return std::vector<uint> indices of the added faces
    **/
-  std::vector<uint> addFaces(glm::ivec3 faces);
+  // virtual std::vector<uint> addFaces(glm::ivec3 faces);
+
+  virtual void addVertexNormal(uint vertexId, glm::vec3 normal) {}
+
+  // virtual void addFaceNormal(uint faceId, glm::vec3 normal);
 
   /**
    * @brief Remove very vertices with the same coordinates and adjust their
@@ -64,7 +68,7 @@ public:
    * @param vertices
    * @return uint
    **/
-  uint removeDoubles();
+  virtual uint removeDoubles() {}
 
   /**
    * @brief Get the vertex object corresponding to index

@@ -17,9 +17,10 @@ void MeshReader::readObj(MeshObject &structure, const char *path) {
   bool ret = tinyobj::LoadObj(&attributes, &shapes, &materials, &warning,
                               &error, path);
 
-  bool hasTexture, hasMaterial;
+  bool hasTexture, hasMaterial, hasNormal;
   hasTexture = (!attributes.texcoords.empty()) ? true : false;
   hasMaterial = (!materials.empty()) ? true : false;
+  hasNormal = (!attributes.normals.empty()) ? true : false;
 
   for (int i = 0; i < attributes.vertices.size() / 3; i++) {
     structure.addVertex(glm::vec3(attributes.vertices[3 * i + 0],
@@ -30,6 +31,11 @@ void MeshReader::readObj(MeshObject &structure, const char *path) {
           attributes.texcoords[3 * i + 0], attributes.texcoords[3 * i + 0]));
       structure.addTextureCoordinate(glm::vec2(
           attributes.texcoords[3 * i + 1], attributes.texcoords[3 * i + 1]));
+    }
+    if (hasNormal) {
+      structure.addVertexNormal(i, glm::vec3(attributes.normals[3 * i + 0],
+                                             attributes.normals[3 * i + 1],
+                                             attributes.normals[3 * i + 2]));
     }
   }
   for (auto shape : shapes)

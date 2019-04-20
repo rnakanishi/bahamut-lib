@@ -30,10 +30,10 @@ void MeshObject::loadObjMesh(const char *objPath) {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(glm::ivec3) * getFacesSize(),
                _faces.data(), GL_STATIC_DRAW);
 
-  // Assign color to each vertex
+  // Assign normal to each vertex
   glBindBuffer(GL_ARRAY_BUFFER, _vbo[1]);
   glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * getVerticesSize(),
-               _vertexColor.data(), GL_STATIC_DRAW);
+               _vertexNormal.data(), GL_STATIC_DRAW);
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
   glEnableVertexAttribArray(1);
 
@@ -51,6 +51,24 @@ void MeshObject::draw(Shader shader) {
 
 void MeshObject::addTextureCoordinate(glm::vec2 texCoord) {
   _vertexTexture.emplace_back(glm::vec3(texCoord, 0.0));
+}
+
+uint MeshObject::addVertex(glm::vec3 vertex) {
+  _vertices.emplace_back(vertex);
+  return _vertices.size() - 1;
+}
+
+void MeshObject::addVertexNormal(uint id, glm::vec3 normal) {
+  if (id >= _vertices.size()) {
+    std::cerr << "MeshObject::addVertexNormal: vertexId out of range.\n";
+    return;
+  }
+  if (id == _vertexNormal.size())
+    _vertexNormal.emplace_back(normal);
+  else if (id > _vertexNormal.size())
+    _vertexNormal.resize(id + 1);
+  else
+    _vertexNormal[id] = normal;
 }
 
 glm::vec3 MeshObject::getCentroid() { return _centroid; }
