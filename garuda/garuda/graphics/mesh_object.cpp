@@ -1,5 +1,7 @@
 #include <graphics/mesh_object.hpp>
 #include <utils/mesh_reader.hpp>
+#include <glm/vec2.hpp>
+#include <iostream>
 
 namespace Garuda {
 MeshObject::MeshObject() {}
@@ -47,13 +49,38 @@ void MeshObject::draw(Shader shader) {
   glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);
 }
 
+void MeshObject::addTextureCoordinate(glm::vec2 texCoord) {
+  _vertexTexture.emplace_back(glm::vec3(texCoord, 0.0));
+}
+
 glm::vec3 MeshObject::getCentroid() { return _centroid; }
+
+glm::vec3 MeshObject::getBBoxSize() { return _bboxMax - _bboxMin; }
+
+glm::vec3 MeshObject::getBboxCenter() { return (_bboxMax + _bboxMin) / 2.0f; }
 
 void MeshObject::_computeCentroid() {
   _centroid = glm::vec3(0.0);
-  for (auto vertex : _vertices)
+  _bboxMax = glm::vec3(-1e8);
+  _bboxMin = glm::vec3(1e8);
+  for (auto vertex : _vertices) {
     _centroid += vertex;
-  _centroid /= _vertices.size();
+
+    if (_bboxMax[0] < vertex[0])
+      _bboxMax[0] = vertex[0];
+    if (_bboxMax[1] < vertex[1])
+      _bboxMax[1] = vertex[1];
+    if (_bboxMax[2] < vertex[2])
+      _bboxMax[2] = vertex[2];
+
+    if (_bboxMin[0] > vertex[0])
+      _bboxMin[0] = vertex[0];
+    if (_bboxMin[1] > vertex[1])
+      _bboxMin[1] = vertex[1];
+    if (_bboxMin[2] > vertex[2])
+      _bboxMin[2] = vertex[2];
+  }
+  _centroid /= (float)_vertices.size();
 }
 
 } // namespace Garuda

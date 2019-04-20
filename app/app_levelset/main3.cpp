@@ -16,7 +16,7 @@ int main(int argc, char const *argv[]) {
   std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    resolution = 25;
+    resolution = 32;
     folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution
@@ -48,7 +48,7 @@ int main(int argc, char const *argv[]) {
   writer.writeMeshModel(sim.marchingTetrahedra(), "obj/0000.obj");
   // sim.printVertexVelocity();
   // writer.writeLevelSet(sim, "data/0");
-  for (int frame = 1; frame <= 100; frame++) {
+  for (int frame = 1; frame <= 300; frame++) {
     sim.checkCellMaterial();
     sim.addGravity();
     sim.boundaryVelocities();

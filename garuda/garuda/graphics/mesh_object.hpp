@@ -28,7 +28,13 @@ public:
    **/
   void loadObjMesh(const char *objPath);
 
+  void addTextureCoordinate(glm::vec2 texCoord);
+
   glm::vec3 getCentroid();
+
+  glm::vec3 getBboxCenter();
+
+  glm::vec3 getBBoxSize();
 
 protected:
   void _computeCentroid();
@@ -47,6 +53,7 @@ protected:
   std::vector<glm::vec3> _vertexTexture;
 
   glm::vec3 _centroid;
+  glm::vec3 _bboxMax, _bboxMin;
 };
 
 } // namespace Garuda
