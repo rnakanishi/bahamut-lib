@@ -4,20 +4,52 @@
 #include <iostream>
 
 namespace Garuda {
-MeshObject::MeshObject() {}
+MeshObject::MeshObject() { _hasTexture = _hasMaterial = _hasNormal = false; }
 
 void MeshObject::initialize() {
   glGenVertexArrays(1, &_vao);
-  glGenBuffers(2, _vbo);
+  glGenBuffers(3, _vbo);
   glGenBuffers(1, &_ebo);
 }
 
+Texture &MeshObject::getTexture() { return _textureImage; }
+
+void MeshObject::loadTexture() {
+  if (MeshReader::readTexture(*this, _textureImage.getFilename().c_str())) {
+    _hasTexture = true;
+    glBindVertexArray(_vao);
+
+    // Bind texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo[2]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * _vertexTexture.size(),
+                 _vertexTexture.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(glm::vec2), (void *)0);
+    glEnableVertexAttribArray(1);
+
+    // bind Texture image
+    glGenTextures(1, &_tex);
+    glBindTexture(GL_TEXTURE_2D, _tex);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    std::cout << "image: " << _textureImage.getWidth() << ' '
+              << _textureImage.getHeight() << std::endl;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, _textureImage.getWidth(),
+                 _textureImage.getHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE,
+                 _textureImage.getImageData());
+    glGenerateMipmap(GL_TEXTURE_2D);
+  }
+}
+
 void MeshObject::loadObjMesh(const char *objPath) {
+  // Read mesh from file
   MeshReader::readObj(*this, objPath);
   _computeCentroid();
 
   glBindVertexArray(_vao);
-
   // Assign vertex position buffer
   glBindBuffer(GL_ARRAY_BUFFER, _vbo[0]);
   glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * getVerticesSize(),
@@ -44,13 +76,14 @@ void MeshObject::loadObjMesh(const char *objPath) {
 
 void MeshObject::draw(Shader shader) {
   shader.useShader();
+  glBindTexture(GL_TEXTURE_2D, _tex);
   glBindVertexArray(_vao);
   // glDrawArrays(GL_TRIANGLES, 0, 3 * getVerticesSize());
   glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);
 }
 
 void MeshObject::addTextureCoordinate(glm::vec2 texCoord) {
-  _vertexTexture.emplace_back(glm::vec3(texCoord, 0.0));
+  _vertexTexture.emplace_back(texCoord);
 }
 
 uint MeshObject::addVertex(glm::vec3 vertex) {
@@ -76,6 +109,10 @@ glm::vec3 MeshObject::getCentroid() { return _centroid; }
 glm::vec3 MeshObject::getBBoxSize() { return _bboxMax - _bboxMin; }
 
 glm::vec3 MeshObject::getBboxCenter() { return (_bboxMax + _bboxMin) / 2.0f; }
+
+bool &MeshObject::hasTexture() { return _hasTexture; }
+bool &MeshObject::hasNormal() { return _hasNormal; }
+bool &MeshObject::hasMaterial() { return _hasMaterial; }
 
 void MeshObject::_computeCentroid() {
   _centroid = glm::vec3(0.0);

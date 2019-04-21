@@ -10,5 +10,5 @@ void main() {
   vec4 lightDirection = normalize(lightPosition - fragPos);
   float diff = max(dot(normal, lightDirection), 0.0);
 
-  FragColor = vec4(0.75, 0.75, 0.75, 1.0);
+  FragColor = diff * vec4(0.75, 0.75, 0.75, 1.0);
 }

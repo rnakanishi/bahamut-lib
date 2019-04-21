@@ -1,4 +1,5 @@
 #include <utils/mesh_reader.hpp>
+#include <utils/stb_image.hpp>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -14,25 +15,31 @@ void MeshReader::readObj(MeshObject &structure, const char *path) {
   std::vector<tinyobj::shape_t> shapes;
   std::vector<tinyobj::material_t> materials;
   tinyobj::attrib_t attributes;
-  bool ret = tinyobj::LoadObj(&attributes, &shapes, &materials, &warning,
-                              &error, path);
 
-  bool hasTexture, hasMaterial, hasNormal;
-  hasTexture = (!attributes.texcoords.empty()) ? true : false;
-  hasMaterial = (!materials.empty()) ? true : false;
-  hasNormal = (!attributes.normals.empty()) ? true : false;
+  std::string baseDir(path);
+  int lastSlash = baseDir.find_last_of("/\\");
 
+  bool ret =
+      tinyobj::LoadObj(&attributes, &shapes, &materials, &warning, &error, path,
+                       baseDir.substr(0, lastSlash).c_str(), true, false);
+  structure.hasTexture() = (!attributes.texcoords.empty()) ? true : false;
+  structure.hasMaterial() = (!materials.empty()) ? true : false;
+  structure.hasNormal() = (!attributes.normals.empty()) ? true : false;
+
+  if (structure.hasTexture())
+    structure.getTexture().setTextureFilename(
+        baseDir.substr(0, lastSlash + 1).append(materials[0].diffuse_texname));
+
+  // Load coordinates to MeshObject
   for (int i = 0; i < attributes.vertices.size() / 3; i++) {
     structure.addVertex(glm::vec3(attributes.vertices[3 * i + 0],
                                   attributes.vertices[3 * i + 1],
                                   attributes.vertices[3 * i + 2]));
-    if (hasTexture) {
+    if (structure.hasTexture()) {
       structure.addTextureCoordinate(glm::vec2(
-          attributes.texcoords[3 * i + 0], attributes.texcoords[3 * i + 0]));
-      structure.addTextureCoordinate(glm::vec2(
-          attributes.texcoords[3 * i + 1], attributes.texcoords[3 * i + 1]));
+          attributes.texcoords[2 * i + 0], attributes.texcoords[2 * i + 1]));
     }
-    if (hasNormal) {
+    if (structure.hasNormal()) {
       structure.addVertexNormal(i, glm::vec3(attributes.normals[3 * i + 0],
                                              attributes.normals[3 * i + 1],
                                              attributes.normals[3 * i + 2]));
@@ -51,4 +58,22 @@ void MeshReader::readObj(MeshObject &structure, const char *path) {
   // structure.addVertex(glm::vec3(vertex[0], vertex[1], vertex[2]));
   //   }
 }
+
+bool MeshReader::readTexture(MeshObject &structure, const char *path) {
+
+  int width, height, channels;
+  unsigned char *image;
+  Texture &texture = structure.getTexture();
+  image = stbi_load(path, &width, &height, &channels, 0);
+  if (image) {
+    texture.setImage(&image, width, height, channels);
+    std::cout << "Read texture file: " << path << std::endl;
+    std::cout << "Image: " << width << 'x' << height << std::endl;
+    return true;
+  } else {
+    std::cout << "Could not read texture: " << path << std::endl;
+    return false;
+  }
+}
+
 } // namespace Garuda

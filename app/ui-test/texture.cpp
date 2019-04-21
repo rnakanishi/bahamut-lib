@@ -35,7 +35,7 @@ public:
       glm::translate(trans, centroid);
       trans =
           glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
-      trans = glm::scale(trans, glm::vec3(2.0 / largerDimension));
+      trans = glm::scale(trans, glm::vec3(1.5 / largerDimension));
       trans = glm::translate(trans, -centroid);
 
       unsigned int transformLoc =
@@ -51,11 +51,12 @@ public:
   }
 
   void loadScene() {
-    _shader.loadVertexShader("./assets/shaders/diffuse.vert");
-    _shader.loadFragmentShader("./assets/shaders/diffuse.frag");
+    _shader.loadVertexShader("./assets/shaders/texture.vert");
+    _shader.loadFragmentShader("./assets/shaders/texture.frag");
 
     _objects.initialize();
-    _objects.loadObjMesh("./assets/3d_models/newdog.obj");
+    _objects.loadObjMesh("./assets/3d_models/test.obj");
+    _objects.loadTexture();
   }
 
 protected:
