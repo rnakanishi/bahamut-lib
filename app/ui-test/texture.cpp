@@ -20,16 +20,14 @@ public:
     std::cout << centroid[0] << ' ' << centroid[1] << ' ' << centroid[2]
               << std::endl;
     std::cout << largerDimension << std::endl;
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
-    glCullFace(GL_FRONT);
+
     while (!glfwWindowShouldClose(_window)) {
 
       // Comandos de entrada
       events.processKeyboardInputs(_window);
 
       // Comandos de renderizacao vao aqui
-      glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+      glClearColor(0.7f, 0.75f, 0.75f, 1.0f);
       // glClear(GL_COLOR_BUFFER_BIT);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -59,8 +57,8 @@ public:
     _shader.loadFragmentShader("./assets/shaders/texture.frag");
 
     _objects.initialize();
-    _objects.loadObjMesh("./assets/3d_models/lotus.obj");
-    _objects.loadTexture();
+    // _objects.loadTexture();
+    _objects.loadObjMesh("./assets/3d_models/dragonSimple.obj");
   }
 
 protected:

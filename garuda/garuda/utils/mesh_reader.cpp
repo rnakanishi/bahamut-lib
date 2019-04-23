@@ -30,9 +30,13 @@ void MeshReader::readObjWithTexture(MeshObject &structure, const char *path) {
   if (structure.hasTexture() && !materials.empty()) {
     structure.getTexture().setTextureFilename(
         baseDir.substr(0, lastSlash + 1).append(materials[0].diffuse_texname));
+  } else {
+    structure.hasTexture() = false;
   }
-
-  vertCoords.resize(attributes.texcoords.size() / 2);
+  if (structure.hasTexture())
+    vertCoords.resize(attributes.texcoords.size() / 2);
+  else
+    vertCoords.resize(attributes.vertices.size() / 3);
 
   std::cerr << "Vertices size: " << attributes.vertices.size() / 3
             << "\nTexcoords size " << attributes.texcoords.size() / 2
@@ -47,16 +51,18 @@ void MeshReader::readObjWithTexture(MeshObject &structure, const char *path) {
       glm::ivec3 face;
       for (int v = 0; v < 3; v++) {
         int vid = shape.mesh.indices[3 * i + v].vertex_index;
-        int texId = shape.mesh.indices[3 * i + v].texcoord_index;
+        face[v] = vid;
+        int texId = vid;
+        if (structure.hasTexture()) {
+          texId = shape.mesh.indices[3 * i + v].texcoord_index;
+          face[v] = texId;
+        }
         vertCoords[texId] = glm::vec3(attributes.vertices[3 * vid + 0],
                                       attributes.vertices[3 * vid + 1],
                                       attributes.vertices[3 * vid + 2]);
       }
 
-      structure.addFace(
-          glm::ivec3(shape.mesh.indices[3 * i + 0].texcoord_index,
-                     shape.mesh.indices[3 * i + 1].texcoord_index,
-                     shape.mesh.indices[3 * i + 2].texcoord_index));
+      structure.addFace(face);
     }
 
   structure.assignVertices(vertCoords);
