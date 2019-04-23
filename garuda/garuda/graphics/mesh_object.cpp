@@ -23,8 +23,8 @@ void MeshObject::loadTexture() {
     glBindBuffer(GL_ARRAY_BUFFER, _vbo[2]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * _vertexTexture.size(),
                  _vertexTexture.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
-                          sizeof(glm::vec2), (void *)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
+                          (void *)0);
     glEnableVertexAttribArray(1);
 
     // bind Texture image
@@ -46,7 +46,7 @@ void MeshObject::loadTexture() {
 
 void MeshObject::loadObjMesh(const char *objPath) {
   // Read mesh from file
-  MeshReader::readObj(*this, objPath);
+  MeshReader::readObjWithTexture(*this, objPath);
   _computeCentroid();
 
   glBindVertexArray(_vao);
@@ -89,6 +89,10 @@ void MeshObject::addTextureCoordinate(glm::vec2 texCoord) {
 uint MeshObject::addVertex(glm::vec3 vertex) {
   _vertices.emplace_back(vertex);
   return _vertices.size() - 1;
+}
+
+void MeshObject::assignVertices(std::vector<glm::vec3> &vertices) {
+  _vertices.assign(vertices.begin(), vertices.end());
 }
 
 void MeshObject::addVertexNormal(uint id, glm::vec3 normal) {

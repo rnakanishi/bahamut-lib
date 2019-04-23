@@ -36,6 +36,8 @@ public:
 
   uint addVertex(glm::vec3 vertex) override;
 
+  void assignVertices(std::vector<glm::vec3> &vertices);
+
   void addVertexNormal(uint vertexId, glm::vec3 normal) override;
 
   glm::vec3 getCentroid();

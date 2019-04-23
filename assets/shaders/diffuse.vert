@@ -8,6 +8,6 @@ uniform mat4 transform;
 
 void main() {
   gl_Position = transform * vec4(aPos, 1.0f);
-  fragPos = gl_Position;
+  fragPos = transform * gl_Position;
   vertexNormal = vec4(normal, 1.0);
 }
