@@ -16,7 +16,7 @@ int main(int argc, char const *argv[]) {
   std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    resolution = 32;
+    resolution = 24;
     folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution

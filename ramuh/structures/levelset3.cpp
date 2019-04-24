@@ -163,6 +163,34 @@ void LevelSet3::macCormackAdvection() {
         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
         Eigen::Vector3d velocity;
         Eigen::Array3i index;
+        // Find threshold values for clamping
+        Eigen::Array2d clamp; // 0: min, 1: max
+        clamp[0] = 1e8;
+        clamp[1] = 1e-8;
+        if (i > 0) {
+          clamp[0] = std::min(clamp[0], _phi[i - 1][j][k]);
+          clamp[1] = std::max(clamp[1], _phi[i - 1][j][k]);
+        }
+        if (i < resolution[0] - 1) {
+          clamp[0] = std::min(clamp[0], _phi[i + 1][j][k]);
+          clamp[1] = std::max(clamp[1], _phi[i + 1][j][k]);
+        }
+        if (j > 0) {
+          clamp[0] = std::min(clamp[0], _phi[i][j - 1][k]);
+          clamp[1] = std::max(clamp[1], _phi[i][j - 1][k]);
+        }
+        if (j < resolution[1] - 1) {
+          clamp[0] = std::min(clamp[0], _phi[i][j + 1][k]);
+          clamp[1] = std::max(clamp[1], _phi[i][j + 1][k]);
+        }
+        if (k > 0) {
+          clamp[0] = std::min(clamp[0], _phi[i][j][k - 1]);
+          clamp[1] = std::max(clamp[1], _phi[i][j][k - 1]);
+        }
+        if (k < resolution[2] - 1) {
+          clamp[0] = std::min(clamp[0], _phi[i][j][k + 1]);
+          clamp[1] = std::max(clamp[1], _phi[i][j][k + 1]);
+        }
         // Find the point as if it was in previous timestep and work with it
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) + (h / 2.0);
         velocity[0] = (_u[i][j][k].x() + _u[i + 1][j][k].x()) / 2.0;
@@ -184,7 +212,8 @@ void LevelSet3::macCormackAdvection() {
           double phi_n1_hat = _interpolatePhi(position);
           // Analyse the error from original to the forward advected
           double error = 0.5 * (_phi[i][j][k] - phi_n1_hat);
-          newPhi[i][j][k] = phi_n + error;
+          newPhi[i][j][k] =
+              std::max(clamp[0], std::min(clamp[1], phi_n + error));
         } else
           newPhi[i][j][k] = _phi[i][j][k];
       }
@@ -220,6 +249,9 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
 
   // Catmull-Rom like interpolation
   double newPhi = 0., distance = 0., distanceCount = 0.;
+  Eigen::Array2d clamp; // 0: min, 1: max
+  clamp[0] = 1e8;
+  clamp[1] = 1e-8;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
@@ -229,8 +261,10 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
         distance = (position - centerPosition).matrix().norm();
         distanceCount += 1. / distance;
         newPhi += _phi[u][v][w] / distance;
+        clamp[0] = std::min(clamp[0], _phi[u][v][w]);
+        clamp[1] = std::max(clamp[1], _phi[u][v][w]);
       }
-  return newPhi / distanceCount;
+  return std::max(clamp[0], std::min(clamp[1], newPhi / distanceCount));
 }
 
 std::vector<std::vector<double>> &LevelSet3::operator[](const int i) {

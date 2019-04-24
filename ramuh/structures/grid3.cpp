@@ -75,6 +75,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
   wtemp.changeSize(
       Vector3i(_resolution[0], _resolution[1], _resolution[2] + 1));
 
+  Eigen::Array2d clamp; // 0: min, 1: max
 // Convective term for velocity U
 #pragma omp parellel for
   for (int i = 1; i < _resolution.x(); i++)
@@ -84,6 +85,33 @@ void RegularGrid3::macComarckVelocityAdvection() {
         Eigen::Vector3d velocity;
         Eigen::Array3i index;
         double newU = _u[i][j][k][0];
+        // Find threshold values for clamping
+        clamp[0] = 1e8;
+        clamp[1] = 1e-8;
+        if (i > 0) {
+          clamp[0] = std::min(clamp[0], _u[i - 1][j][k][0]);
+          clamp[1] = std::max(clamp[1], _u[i - 1][j][k][0]);
+        }
+        if (i < _resolution[0] - 1) {
+          clamp[0] = std::min(clamp[0], _u[i + 1][j][k][0]);
+          clamp[1] = std::max(clamp[1], _u[i + 1][j][k][0]);
+        }
+        if (j > 0) {
+          clamp[0] = std::min(clamp[0], _u[i][j - 1][k][0]);
+          clamp[1] = std::max(clamp[1], _u[i][j - 1][k][0]);
+        }
+        if (j < _resolution[1] - 1) {
+          clamp[0] = std::min(clamp[0], _u[i][j + 1][k][0]);
+          clamp[1] = std::max(clamp[1], _u[i][j + 1][k][0]);
+        }
+        if (k > 0) {
+          clamp[0] = std::min(clamp[0], _u[i][j][k - 1][0]);
+          clamp[1] = std::max(clamp[1], _u[i][j][k - 1][0]);
+        }
+        if (k < _resolution[2] - 1) {
+          clamp[0] = std::min(clamp[0], _u[i][j][k + 1][0]);
+          clamp[1] = std::max(clamp[1], _u[i][j][k + 1][0]);
+        }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(0, h[1] / 2, h[2] / 2);
@@ -108,7 +136,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         } else {
           newU = _u[i][j][k][0];
         }
-        utemp[i][j][k] = newU;
+        utemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newU));
       }
 
 // Convective term for velocity V
@@ -120,6 +148,33 @@ void RegularGrid3::macComarckVelocityAdvection() {
         Eigen::Vector3d velocity;
         Eigen::Array3i index;
         double newV = _v[i][j][k][1];
+        // Find threshold values for clamping
+        clamp[0] = 1e8;
+        clamp[1] = 1e-8;
+        if (i > 0) {
+          clamp[0] = std::min(clamp[0], _v[i - 1][j][k][1]);
+          clamp[1] = std::max(clamp[1], _v[i - 1][j][k][1]);
+        }
+        if (i < _resolution[0] - 1) {
+          clamp[0] = std::min(clamp[0], _v[i + 1][j][k][1]);
+          clamp[1] = std::max(clamp[1], _v[i + 1][j][k][1]);
+        }
+        if (j > 0) {
+          clamp[0] = std::min(clamp[0], _v[i][j - 1][k][1]);
+          clamp[1] = std::max(clamp[1], _v[i][j - 1][k][1]);
+        }
+        if (j < _resolution[1] - 1) {
+          clamp[0] = std::min(clamp[0], _v[i][j + 1][k][1]);
+          clamp[1] = std::max(clamp[1], _v[i][j + 1][k][1]);
+        }
+        if (k > 0) {
+          clamp[0] = std::min(clamp[0], _v[i][j][k - 1][1]);
+          clamp[1] = std::max(clamp[1], _v[i][j][k - 1][1]);
+        }
+        if (k < _resolution[2] - 1) {
+          clamp[0] = std::min(clamp[0], _v[i][j][k + 1][1]);
+          clamp[1] = std::max(clamp[1], _v[i][j][k + 1][1]);
+        }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
@@ -144,7 +199,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         } else {
           newV = _v[i][j][k][1];
         }
-        vtemp[i][j][k] = newV;
+        vtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newV));
       }
 
 // Convective term for velocity W
@@ -156,6 +211,33 @@ void RegularGrid3::macComarckVelocityAdvection() {
         Eigen::Vector3d velocity;
         Eigen::Array3i index;
         double newW = _w[i][j][k][2];
+        // Find threshold values for clamping
+        clamp[0] = 1e8;
+        clamp[1] = 1e-8;
+        if (i > 0) {
+          clamp[0] = std::min(clamp[0], _w[i - 1][j][k][2]);
+          clamp[1] = std::max(clamp[1], _w[i - 1][j][k][2]);
+        }
+        if (i < _resolution[0] - 1) {
+          clamp[0] = std::min(clamp[0], _w[i + 1][j][k][2]);
+          clamp[1] = std::max(clamp[1], _w[i + 1][j][k][2]);
+        }
+        if (j > 0) {
+          clamp[0] = std::min(clamp[0], _w[i][j - 1][k][2]);
+          clamp[1] = std::max(clamp[1], _w[i][j - 1][k][2]);
+        }
+        if (j < _resolution[1] - 1) {
+          clamp[0] = std::min(clamp[0], _w[i][j + 1][k][2]);
+          clamp[1] = std::max(clamp[1], _w[i][j + 1][k][2]);
+        }
+        if (k > 0) {
+          clamp[0] = std::min(clamp[0], _w[i][j][k - 1][2]);
+          clamp[1] = std::max(clamp[1], _w[i][j][k - 1][2]);
+        }
+        if (k < _resolution[2] - 1) {
+          clamp[0] = std::min(clamp[0], _w[i][j][k + 1][2]);
+          clamp[1] = std::max(clamp[1], _w[i][j][k + 1][2]);
+        }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
@@ -180,7 +262,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         } else {
           newW = _w[i][j][k][2];
         }
-        wtemp[i][j][k] = newW;
+        wtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newW));
       }
 
 #pragma omp parallel for
@@ -853,6 +935,9 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
 
   double velocity(0);
   // Catmull-Rom like interpolation of u
+  Eigen::Array2d clamp; // 0: min, 1: max
+  clamp[0] = 1e8;
+  clamp[1] = 1e-8;
   double distance = 0., distanceCount = 0., newVelocity = 1e8;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
@@ -864,8 +949,10 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
         distance = (position - centerPosition).matrix().norm();
         distanceCount += 1. / distance;
         velocity += _u[u][v][w].x() / distance;
+        clamp[0] = std::min(clamp[0], _u[u][v][w][0]);
+        clamp[1] = std::max(clamp[1], _u[u][v][w][0]);
       }
-  return velocity / distanceCount;
+  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
 }
 
 double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
@@ -892,6 +979,9 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
 
   double velocity(0);
   // Catmull-Rom like interpolation of v
+  Eigen::Array2d clamp; // 0: min, 1: max
+  clamp[0] = 1e8;
+  clamp[1] = 1e-8;
   double distance = 0., distanceCount = 0., newVelocity = 1e8;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
@@ -903,8 +993,10 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
         distance = (position - centerPosition).matrix().norm();
         distanceCount += 1. / distance;
         velocity += _v[u][v][w].y() / distance;
+        clamp[0] = std::min(clamp[0], _v[u][v][w][1]);
+        clamp[1] = std::max(clamp[1], _v[u][v][w][1]);
       }
-  return velocity / distanceCount;
+  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
 }
 
 double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
@@ -930,20 +1022,25 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
     jCandidates.push_back(index[1] - 1);
 
   double velocity(0);
-  // Catmull-Rom like interpolation of u
+  // Catmull-Rom like interpolation of w
+  Eigen::Array2d clamp; // 0: min, 1: max
+  clamp[0] = 1e8;
+  clamp[1] = 1e-8;
   double distance = 0., distanceCount = 0., newVelocity = 1e8;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
         Eigen::Array3d centerPosition =
-            Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
+            Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
         if ((position - centerPosition).matrix().norm() < 1e-7)
           return _w[u][v][w].z();
         distance = (position - centerPosition).matrix().norm();
         distanceCount += 1. / distance;
         velocity += _w[u][v][w].z() / distance;
+        clamp[0] = std::min(clamp[0], _w[u][v][w][2]);
+        clamp[1] = std::max(clamp[1], _w[u][v][w][2]);
       }
-  return velocity / distanceCount;
+  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
 }
 
 } // namespace Ramuh
