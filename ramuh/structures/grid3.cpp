@@ -8,6 +8,7 @@
 #include <queue>
 #include <set>
 #include <omp.h>
+#include <utils/timer.hpp>
 
 namespace Ramuh {
 
@@ -799,8 +800,9 @@ void RegularGrid3::solvePressure() {
   divergent = Eigen::VectorXd::Zero(nCells + 1);
   pressure = Eigen::VectorXd::Zero(nCells + 1);
 
-// Solve pressure Poisson equation
+  Timer timer;
 
+// Solve pressure Poisson equation
 #pragma omp parallel for
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
@@ -867,6 +869,7 @@ void RegularGrid3::solvePressure() {
   triplets.emplace_back(nCells, nCells, 1);
 
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
+  timer.registerTime("Assembly");
 
   // SOlve pressure Poisson system
   Eigen::ConjugateGradient<Eigen::SparseMatrix<double>,
@@ -874,6 +877,7 @@ void RegularGrid3::solvePressure() {
       solver;
   solver.compute(pressureMatrix);
   pressure = solver.solve(divergent);
+  timer.registerTime("System solve");
 
 // Correct velocity through pressure gradient
 #pragma omp parallel for
@@ -909,6 +913,8 @@ void RegularGrid3::solvePressure() {
       }
     }
   }
+  timer.registerTime("Gradient");
+  timer.evaluateComponentsTime();
 }
 
 double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
@@ -933,7 +939,7 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
   else if (position[2] < cellCenter[2] && index[2] > 0)
     kCandidates.push_back(index[2] - 1);
 
-  double velocity(0);
+  double velocity = 0.0;
   // Catmull-Rom like interpolation of u
   Eigen::Array2d clamp; // 0: min, 1: max
   clamp[0] = 1e8;
@@ -944,14 +950,17 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
       for (auto w : kCandidates) {
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
-        if ((position - centerPosition).matrix().norm() < 1e-7)
-          return _u[u][v][w].x();
         distance = (position - centerPosition).matrix().norm();
+        if (distance < 1e-6)
+          return _u[u][v][w].x();
         distanceCount += 1. / distance;
         velocity += _u[u][v][w].x() / distance;
         clamp[0] = std::min(clamp[0], _u[u][v][w][0]);
         clamp[1] = std::max(clamp[1], _u[u][v][w][0]);
       }
+  if (distanceCount == 0 || distanceCount > 1e8)
+    throw(
+        "RegularGrid3::interpolateVelocityU: distanceCount zero or infinity\n");
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
 }
 
@@ -988,14 +997,17 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
       for (auto w : kCandidates) {
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
-        if ((position - centerPosition).matrix().norm() < 1e-7)
-          return _v[u][v][w].y();
         distance = (position - centerPosition).matrix().norm();
+        if (distance < 1e-7)
+          return _v[u][v][w].y();
         distanceCount += 1. / distance;
         velocity += _v[u][v][w].y() / distance;
         clamp[0] = std::min(clamp[0], _v[u][v][w][1]);
         clamp[1] = std::max(clamp[1], _v[u][v][w][1]);
       }
+  if (distanceCount == 0 || distanceCount > 1e8)
+    throw(
+        "RegularGrid3::interpolateVelocityV: distanceCount zero or infinity\n");
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
 }
 
@@ -1032,14 +1044,17 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
       for (auto w : kCandidates) {
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
-        if ((position - centerPosition).matrix().norm() < 1e-7)
-          return _w[u][v][w].z();
         distance = (position - centerPosition).matrix().norm();
+        if (distance < 1e-7)
+          return _w[u][v][w].z();
         distanceCount += 1. / distance;
         velocity += _w[u][v][w].z() / distance;
         clamp[0] = std::min(clamp[0], _w[u][v][w][2]);
         clamp[1] = std::max(clamp[1], _w[u][v][w][2]);
       }
+  if (distanceCount == 0 || distanceCount > 1e8)
+    throw(
+        "RegularGrid3::interpolateVelocityW: distanceCount zero or infinity\n");
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
 }
 

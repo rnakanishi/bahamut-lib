@@ -2,6 +2,7 @@
 #include <geometry/matrix.h>
 #include <geometry/geometry_utils.h>
 #include <utils/macros.h>
+#include <utils/timer.hpp>
 #include <omp.h>
 #include <queue>
 #include <cmath>
@@ -256,14 +257,16 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
         Eigen::Array3d centerPosition = Eigen::Array3d(u, v, w) * h + h / 2.0;
-        if (position.matrix().isApprox(centerPosition.matrix(), 1e-8))
-          return _phi[u][v][w];
         distance = (position - centerPosition).matrix().norm();
+        if (distance < 1e-6)
+          return _phi[u][v][w];
         distanceCount += 1. / distance;
         newPhi += _phi[u][v][w] / distance;
         clamp[0] = std::min(clamp[0], _phi[u][v][w]);
         clamp[1] = std::max(clamp[1], _phi[u][v][w]);
       }
+  if (distanceCount == 0 || distanceCount > 1e8)
+    throw("LevelSet3::interpolatePhi: distanceCount zero or infinity\n");
   return std::max(clamp[0], std::min(clamp[1], newPhi / distanceCount));
 }
 
@@ -275,6 +278,7 @@ void LevelSet3::solvePressure() {
   // Compute velocity divergent over cell center
   // std::vector<double> divergent(cellCount(), 0.0);
   int nCells = cellCount();
+  // TODO: Change to fluid cells count
   Eigen::VectorXd divergent, pressure;
   Eigen::SparseMatrix<double> pressureMatrix(nCells + 1, nCells + 1);
   std::vector<Eigen::Triplet<double>> triplets;
@@ -282,6 +286,7 @@ void LevelSet3::solvePressure() {
   divergent = Eigen::VectorXd::Zero(nCells + 1);
   pressure = Eigen::VectorXd::Zero(nCells + 1);
 
+  Timer timer;
 // Solve pressure Poisson equation
 #pragma omp parallel for
   for (int k = 0; k < _resolution.z(); k++) {
@@ -392,25 +397,24 @@ void LevelSet3::solvePressure() {
     }
   }
   triplets.emplace_back(nCells, nCells, 1);
+  timer.registerTime("Assembly");
 
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
-
   // SOlve pressure Poisson system
-  Eigen::ConjugateGradient<Eigen::SparseMatrix<double>,
-                           Eigen::Lower | Eigen::Upper>
-      solver;
+  Eigen::ConjugateGradient<Eigen::SparseMatrix<double>> solver;
   solver.compute(pressureMatrix);
   pressure = solver.solve(divergent);
+  timer.registerTime("System");
 
 // Correct velocity through pressure gradient
 #pragma omp parallel for
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 1; i < _resolution.x(); i++) {
-        _u[i][j][k].x(_u[i][j][k].x() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i - 1, j, k)]) /
-                                            _h.x());
+        _u[i][j][k].x(_u[i][j][k].x() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i - 1, j, k)]) /
+                          _h.x());
       }
     }
   }
@@ -418,10 +422,10 @@ void LevelSet3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _v[i][j][k].y(_v[i][j][k].y() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i, j - 1, k)]) /
-                                            _h.y());
+        _v[i][j][k].y(_v[i][j][k].y() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i, j - 1, k)]) /
+                          _h.y());
       }
     }
   }
@@ -429,13 +433,15 @@ void LevelSet3::solvePressure() {
   for (int k = 1; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _w[i][j][k].z(_w[i][j][k].z() - _dt *
-                                            (pressure[ijkToId(i, j, k)] -
-                                             pressure[ijkToId(i, j, k - 1)]) /
-                                            _h.z());
+        _w[i][j][k].z(_w[i][j][k].z() -
+                      _dt * (pressure[ijkToId(i, j, k)] -
+                             pressure[ijkToId(i, j, k - 1)]) /
+                          _h.z());
       }
     }
   }
+  timer.registerTime("Gradient");
+  // timer.evaluateComponentsTime();
 }
 
 double LevelSet3::_solveEikonal(glm::ivec3 cellId) {
@@ -489,6 +495,12 @@ void LevelSet3::redistance() {
   std::set<int> cellsAdded;
 
   tempPhi.changeSize(_resolution, 1e8);
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        tempPhi[i][j][k] = _phi[i][j][k];
+      }
+
   processed.changeSize(_resolution, false);
 
 #pragma omp parallel for
@@ -500,7 +512,7 @@ void LevelSet3::redistance() {
         glm::vec3 intersections[3];
         int nintersecs = 0;
         double cellPhi = _phi[i][j][k];
-        int cellSign = cellPhi / std::fabs(cellPhi);
+        int cellSign = (cellPhi >= 0) ? 1 : -1;
         if (cellPhi == 0)
           cellSign = 1;
 
@@ -595,7 +607,8 @@ void LevelSet3::redistance() {
           tempPhi[i][j][k] = cellSign * distance;
           // _phi[i][j][k];
           // cellSign * _solveEikonal(glm::ivec3(i, j, k));
-          // cellSign *std::min(std::fabs(tempPhi[i][j][k]), theta * _h.x());
+          // cellSign *std::min(std::fabs(tempPhi[i][j][k]), theta *
+          // _h.x());
           processed[i][j][k] = true;
 #pragma omp critical
           {
@@ -607,6 +620,7 @@ void LevelSet3::redistance() {
       }
 
   // Propagating distances
+  double maxDistance = 5 * _h[0];
   while (!cellsQueue.empty()) {
     int cellId = cellsQueue.top().second;
     cellsQueue.pop();
@@ -617,12 +631,16 @@ void LevelSet3::redistance() {
 
     if (!processed[i][j][k]) {
       processed[i][j][k] = true;
-      int distanceSignal = _phi[i][j][k] / std::fabs(_phi[i][j][k]);
+      int distanceSignal = (_phi[i][j][k] >= 0) ? 1 : -1;
+      if (std::fabs(_phi[i][j][k]) < 1e-7)
+        distanceSignal = 1;
       double newPhi = _solveEikonal(glm::ivec3(i, j, k));
 
       if (newPhi < std::fabs(tempPhi[i][j][k]))
         tempPhi[i][j][k] = distanceSignal * newPhi;
     }
+    if (tempPhi[i][j][k] > maxDistance)
+      continue;
     // Add all neighbors of the cell to queue
     if (i > 0 && cellsAdded.find(ijkToId(i - 1, j, k)) == cellsAdded.end()) {
       cellsQueue.push(
@@ -763,6 +781,11 @@ void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
   case 15:
     break;
   case 1:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
+    mesh.addFace(face);
+    break;
   case 14:
     face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
     face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
@@ -770,13 +793,23 @@ void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
     mesh.addFace(face);
     break;
   case 2:
-  case 13:
     face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[0]));
     face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
     face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
     mesh.addFace(face);
     break;
+  case 13:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[0]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    mesh.addFace(face);
+    break;
   case 4:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[0]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[1]));
+    mesh.addFace(face);
+    break;
   case 11:
     face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[0]));
     face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[1]));
@@ -784,10 +817,15 @@ void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
     mesh.addFace(face);
     break;
   case 8:
-  case 7:
     face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[0]));
     face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[1]));
     face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[2]));
+    mesh.addFace(face);
+    break;
+  case 7:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[0]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[2]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[1]));
     mesh.addFace(face);
     break;
   case 3:
@@ -830,6 +868,11 @@ glm::vec3 LevelSet3::_findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2) {
   float phi1, phi2;
   phi1 = _phi[v1[0]][v1[1]][v1[2]];
   phi2 = _phi[v2[0]][v2[1]][v2[2]];
+  if (std::isnan(phi1) || std::isnan(phi2) || std::isinf(phi1) ||
+      std::isinf(phi2)) {
+    std::cerr << "NOT VALID VALUE\n";
+    exit(-40);
+  }
   return coord1 - phi1 * direction / (phi2 - phi1);
 }
 
@@ -843,6 +886,13 @@ Eigen::Array3d LevelSet3::_findSurfaceCoordinate(Eigen::Array3i v1,
   float phi1, phi2;
   phi1 = _phi[v1[0]][v1[1]][v1[2]];
   phi2 = _phi[v2[0]][v2[1]][v2[2]];
+
+  if (std::isnan(phi1) || std::isnan(phi2) || std::isinf(phi1) ||
+      std::isinf(phi2)) {
+    std::cerr << "NOT VALID VALUE\n";
+    exit(-41);
+  }
+
   return coord1 - phi1 * direction / (phi2 - phi1);
 }
 

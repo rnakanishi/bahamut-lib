@@ -6,8 +6,11 @@ set(CMAKE_CXX_STANDARD 17)
 file(GLOB HEADERS 
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/structures/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/structures/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.hpp
         )
 file(GLOB SOURCES 
         ${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.cpp

@@ -8,6 +8,7 @@
 #include <string>
 #include <sstream>
 #include <utils/file_writer.h>
+#include <utils/timer.hpp>
 
 int main(int argc, char const *argv[]) {
   LevelSetFluid3 sim;
@@ -16,7 +17,7 @@ int main(int argc, char const *argv[]) {
   std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    resolution = 24;
+    resolution = 128;
     folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution
@@ -30,7 +31,7 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0.5), 0.15);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0.5), 0.1);
   // sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
   //  Ramuh::Vector3d(0.75, 0.75, 0.75));
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
@@ -47,33 +48,45 @@ int main(int argc, char const *argv[]) {
   sim.redistance();
   writer.writeMeshModel(sim.marchingTetrahedra(), "obj/0000.obj");
   // sim.printVertexVelocity();
-  // writer.writeLevelSet(sim, "data/0");
+  writer.writeLevelSet(sim, "data/0");
+
+  Ramuh::Timer stopwatch;
   for (int frame = 1; frame <= 300; frame++) {
-    sim.checkCellMaterial();
-    sim.addGravity();
-    sim.boundaryVelocities();
-    // if (frame >= 14)
-    // sim.printFaceVelocity();
-    // sim.advectGridVelocity();
-    sim.macComarckVelocityAdvection();
-    // if (frame >= 14)
-    // sim.printFaceVelocity();
-    sim.solvePressure();
-    // sim.printFaceVelocity();
-    sim.extrapolateVelocity();
-    // sim.printFaceVelocity();
-    // sim.printLevelSetValue();
-    // sim.integrateLevelSet();
-    sim.macCormackAdvection();
-    // sim.printLevelSetValue();
-    // std::cout << "plo" << std::endl;
-    // if (!(frame % 5))
-    sim.redistance();
+    Ramuh::TriangleMesh surface;
+    try {
+      sim.checkCellMaterial();
+      sim.addGravity();
+      sim.boundaryVelocities();
+
+      stopwatch.reset();
+      sim.macComarckVelocityAdvection();
+      stopwatch.registerTime("Velocity advection");
+
+      sim.solvePressure();
+      stopwatch.registerTime("Pressure");
+
+      sim.extrapolateVelocity();
+      stopwatch.registerTime("Extraploate velocity");
+
+      sim.macCormackAdvection();
+      stopwatch.registerTime("Levelset advection");
+
+      sim.redistance();
+      stopwatch.registerTime("Redistance");
+
+      surface = sim.marchingTetrahedra();
+      stopwatch.registerTime("Marching Tetrahedra");
+      stopwatch.evaluateComponentsTime();
+    } catch (const char *error) {
+      std::cerr << error << std::endl;
+      return -1;
+    }
+
     std::ostringstream filename, objname;
     objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
-    writer.writeMeshModel(sim.marchingTetrahedra(), objname.str());
-    // filename << "data32/" << frame;
-    // writer.writeLevelSet(sim, std::string(filename.str()));
+    writer.writeMeshModel(surface, objname.str());
+    filename << "data/" << frame;
+    writer.writeLevelSet(sim, std::string(filename.str()));
   }
   return 0;
 }
