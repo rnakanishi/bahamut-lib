@@ -17,7 +17,7 @@ int main(int argc, char const *argv[]) {
   std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    resolution = 128;
+    resolution = 20;
     folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution
@@ -31,7 +31,7 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.7, 0.5), 0.1);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.3, 0.5), 0.25);
   // sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
   //  Ramuh::Vector3d(0.75, 0.75, 0.75));
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),

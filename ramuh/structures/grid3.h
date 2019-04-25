@@ -40,7 +40,7 @@ public:
 
   int ijkToId(int i, int j, int k);
 
-  Vector3i idToijk(int id);
+  Eigen::Array3i idToijk(int id);
 
   ///
   /// Change grid size to the newSize. This method also updates grid spacing
@@ -56,7 +56,7 @@ public:
   ///
   /// Computes velocities divergent in cell center and then solves pressure
   /// Poisson equation. After, updates the velocity values.
-  virtual void solvePressure() ;
+  virtual void solvePressure();
 
   ///
   /// Check boundary velocities and set them to the solid velocity (free slip)

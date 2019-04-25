@@ -562,7 +562,13 @@ int RegularGrid3::ijkToId(int i, int j, int k) {
   return k * _resolution.x() * _resolution.y() + j * _resolution.x() + i;
 }
 
-Vector3i RegularGrid3::idToijk(int id) { NOT_IMPLEMENTED(); }
+Eigen::Array3i RegularGrid3::idToijk(int cellId) {
+  Eigen::Array3i index;
+  index[0] = cellId / (_resolution.x() * _resolution.y());
+  index[1] = (cellId % (_resolution.x() * _resolution.y())) / _resolution.x();
+  index[2] = (cellId % (_resolution.x() * _resolution.y())) % _resolution.x();
+  return index;
+}
 
 void RegularGrid3::printFaceVelocity() {
 
@@ -884,10 +890,10 @@ void RegularGrid3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 1; i < _resolution.x(); i++) {
-        _u[i][j][k].x(_u[i][j][k].x() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i - 1, j, k)]) /
-                          _h.x());
+        _u[i][j][k].x(_u[i][j][k].x() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i - 1, j, k)]) /
+                                            _h.x());
       }
     }
   }
@@ -895,10 +901,10 @@ void RegularGrid3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _v[i][j][k].y(_v[i][j][k].y() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i, j - 1, k)]) /
-                          _h.y());
+        _v[i][j][k].y(_v[i][j][k].y() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i, j - 1, k)]) /
+                                            _h.y());
       }
     }
   }
@@ -906,10 +912,10 @@ void RegularGrid3::solvePressure() {
   for (int k = 1; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _w[i][j][k].z(_w[i][j][k].z() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i, j, k - 1)]) /
-                          _h.z());
+        _w[i][j][k].z(_w[i][j][k].z() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i, j, k - 1)]) /
+                                            _h.z());
       }
     }
   }
