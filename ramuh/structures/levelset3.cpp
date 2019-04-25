@@ -280,11 +280,17 @@ void LevelSet3::solvePressure() {
   int nCells = cellCount();
   // TODO: Change to fluid cells count
   Eigen::VectorXd divergent, pressure;
-  Eigen::SparseMatrix<double> pressureMatrix(nCells + 1, nCells + 1);
   std::vector<Eigen::Triplet<double>> triplets;
 
   divergent = Eigen::VectorXd::Zero(nCells + 1);
   pressure = Eigen::VectorXd::Zero(nCells + 1);
+
+  std::map<int, int> idMap;
+  std::function<int(int)> _getMapId = [&](int cellId) {
+    if (idMap.find(cellId) == idMap.end())
+      idMap[cellId] = idMap.size() - 1;
+    return idMap[cellId];
+  };
 
   Timer timer;
 // Solve pressure Poisson equation
@@ -399,6 +405,7 @@ void LevelSet3::solvePressure() {
   triplets.emplace_back(nCells, nCells, 1);
   timer.registerTime("Assembly");
 
+  Eigen::SparseMatrix<double> pressureMatrix(nCells + 1, nCells + 1);
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
   // SOlve pressure Poisson system
   Eigen::ConjugateGradient<Eigen::SparseMatrix<double>> solver;
@@ -411,10 +418,10 @@ void LevelSet3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 1; i < _resolution.x(); i++) {
-        _u[i][j][k].x(_u[i][j][k].x() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i - 1, j, k)]) /
-                          _h.x());
+        _u[i][j][k].x(_u[i][j][k].x() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i - 1, j, k)]) /
+                                            _h.x());
       }
     }
   }
@@ -422,10 +429,10 @@ void LevelSet3::solvePressure() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _v[i][j][k].y(_v[i][j][k].y() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i, j - 1, k)]) /
-                          _h.y());
+        _v[i][j][k].y(_v[i][j][k].y() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i, j - 1, k)]) /
+                                            _h.y());
       }
     }
   }
@@ -433,10 +440,10 @@ void LevelSet3::solvePressure() {
   for (int k = 1; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        _w[i][j][k].z(_w[i][j][k].z() -
-                      _dt * (pressure[ijkToId(i, j, k)] -
-                             pressure[ijkToId(i, j, k - 1)]) /
-                          _h.z());
+        _w[i][j][k].z(_w[i][j][k].z() - _dt *
+                                            (pressure[ijkToId(i, j, k)] -
+                                             pressure[ijkToId(i, j, k - 1)]) /
+                                            _h.z());
       }
     }
   }
@@ -870,8 +877,9 @@ glm::vec3 LevelSet3::_findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2) {
   phi2 = _phi[v2[0]][v2[1]][v2[2]];
   if (std::isnan(phi1) || std::isnan(phi2) || std::isinf(phi1) ||
       std::isinf(phi2)) {
-    std::cerr << "NOT VALID VALUE\n";
-    exit(-40);
+    std::stringstream message;
+    message << "NOT VALID VALUE " << phi1 << " " << phi2 << "\n";
+    throw(message.str().c_str());
   }
   return coord1 - phi1 * direction / (phi2 - phi1);
 }
@@ -889,8 +897,9 @@ Eigen::Array3d LevelSet3::_findSurfaceCoordinate(Eigen::Array3i v1,
 
   if (std::isnan(phi1) || std::isnan(phi2) || std::isinf(phi1) ||
       std::isinf(phi2)) {
-    std::cerr << "NOT VALID VALUE\n";
-    exit(-41);
+    std::stringstream message;
+    message << "NOT VALID VALUE " << phi1 << " " << phi2 << "\n";
+    throw(message.str().c_str());
   }
 
   return coord1 - phi1 * direction / (phi2 - phi1);
