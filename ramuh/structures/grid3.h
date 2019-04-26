@@ -91,6 +91,7 @@ protected:
   /// \param newH
   void setH(Vector3d newH);
 
+  double _maxVelocity[3];
   double _dt;                      // Time step
   Vector3i _resolution;            // Number of cells in each dimension
   Vector3d _domainSize;            // domain size in units

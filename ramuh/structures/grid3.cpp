@@ -17,6 +17,7 @@ RegularGrid3::RegularGrid3() {
   _h = Vector3d(1. / 32);
   _domainSize = Vector3d(1.0);
   _dt = 0.01;
+  _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
 }
 
 Vector3d RegularGrid3::domainSize() { return _domainSize; }
@@ -76,7 +77,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
   wtemp.changeSize(
       Vector3i(_resolution[0], _resolution[1], _resolution[2] + 1));
 
-  Eigen::Array2d clamp; // 0: min, 1: max
+  double clamp[2]; // 0: min, 1: max
 // Convective term for velocity U
 #pragma omp parellel for
   for (int i = 1; i < _resolution.x(); i++)
@@ -88,7 +89,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         double newU = _u[i][j][k][0];
         // Find threshold values for clamping
         clamp[0] = 1e8;
-        clamp[1] = 1e-8;
+        clamp[1] = -1e8;
         if (i > 0) {
           clamp[0] = std::min(clamp[0], _u[i - 1][j][k][0]);
           clamp[1] = std::max(clamp[1], _u[i - 1][j][k][0]);
@@ -151,7 +152,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         double newV = _v[i][j][k][1];
         // Find threshold values for clamping
         clamp[0] = 1e8;
-        clamp[1] = 1e-8;
+        clamp[1] = -1e8;
         if (i > 0) {
           clamp[0] = std::min(clamp[0], _v[i - 1][j][k][1]);
           clamp[1] = std::max(clamp[1], _v[i - 1][j][k][1]);
@@ -214,7 +215,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         double newW = _w[i][j][k][2];
         // Find threshold values for clamping
         clamp[0] = 1e8;
-        clamp[1] = 1e-8;
+        clamp[1] = -1e8;
         if (i > 0) {
           clamp[0] = std::min(clamp[0], _w[i - 1][j][k][2]);
           clamp[1] = std::max(clamp[1], _w[i - 1][j][k][2]);
@@ -266,6 +267,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         wtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newW));
       }
 
+#pragma omp barrier
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x() + 1; i++)
     for (int j = 0; j < _resolution.y(); j++)
@@ -947,9 +949,9 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
 
   double velocity = 0.0;
   // Catmull-Rom like interpolation of u
-  Eigen::Array2d clamp; // 0: min, 1: max
+  double clamp[2]; // 0: min, 1: max
   clamp[0] = 1e8;
-  clamp[1] = 1e-8;
+  clamp[1] = -1e8;
   double distance = 0., distanceCount = 0., newVelocity = 1e8;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
@@ -994,9 +996,9 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
 
   double velocity(0);
   // Catmull-Rom like interpolation of v
-  Eigen::Array2d clamp; // 0: min, 1: max
+  double clamp[2]; // 0: min, 1: max
   clamp[0] = 1e8;
-  clamp[1] = 1e-8;
+  clamp[1] = -1e8;
   double distance = 0., distanceCount = 0., newVelocity = 1e8;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
@@ -1041,9 +1043,9 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
 
   double velocity(0);
   // Catmull-Rom like interpolation of w
-  Eigen::Array2d clamp; // 0: min, 1: max
+  double clamp[2]; // 0: min, 1: max
   clamp[0] = 1e8;
-  clamp[1] = 1e-8;
+  clamp[1] = -1e8;
   double distance = 0., distanceCount = 0., newVelocity = 1e8;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
