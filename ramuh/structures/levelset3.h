@@ -54,6 +54,8 @@ public:
    **/
   TriangleMesh marchingTetrahedra();
 
+  void setPressureSecondOrder(bool value);
+
   void checkCellMaterial();
 
   void printVertexVelocity();
@@ -93,6 +95,8 @@ protected:
       _velocity; // level set gradient and velocity on the corners
   std::vector<std::vector<std::vector<double>>>
       _phi; // Level set stored on the grid corners and its gradient values
+
+  bool _isPressureSecondOrder;
 };
 } // namespace Ramuh
 
