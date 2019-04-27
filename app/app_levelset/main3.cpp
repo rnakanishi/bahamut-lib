@@ -17,7 +17,7 @@ int main(int argc, char const *argv[]) {
   std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    resolution = 20;
+    resolution = 40;
     folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution
@@ -31,11 +31,10 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.3, 0.5), 0.25);
-  // sim.addCubeSurface(Ramuh::Vector3d(0.45, 0.45, 0.45),
-  //  Ramuh::Vector3d(0.75, 0.75, 0.75));
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.45, 0.5), 0.15);
+  // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
-                     Ramuh::Vector3d(15, 0.3, 15));
+                     Ramuh::Vector3d(15, 0.2, 15));
   // sim.addCubeSurface(Ramuh::Vector3d(-5, -5, -5),
   //  Ramuh::Vector3d(0.2, 0.8, 0.2));
 
@@ -49,17 +48,22 @@ int main(int argc, char const *argv[]) {
   writer.writeMeshModel(sim.marchingTetrahedra(), "obj/0000.obj");
   // sim.printVertexVelocity();
   writer.writeLevelSet(sim, "data/0");
+  sim.setPressureSecondOrder(false);
 
   Ramuh::Timer stopwatch;
-  for (int frame = 1; frame <= 300; frame++) {
+  for (int frame = 1; frame <= 50; frame++) {
+    std::cout << std::endl;
     Ramuh::TriangleMesh surface;
     try {
+      stopwatch.reset();
       sim.checkCellMaterial();
       sim.addGravity();
+      // sim.addExternalForce(Eigen::Vector3d(-1.5, -4.5, 0));
       sim.boundaryVelocities();
+      stopwatch.registerTime("External forces");
 
-      stopwatch.reset();
-      sim.macComarckVelocityAdvection();
+      // sim.macComarckVelocityAdvection();
+      sim.advectGridVelocity();
       stopwatch.registerTime("Velocity advection");
 
       sim.solvePressure();
@@ -68,10 +72,12 @@ int main(int argc, char const *argv[]) {
       sim.extrapolateVelocity();
       stopwatch.registerTime("Extraploate velocity");
 
-      sim.macCormackAdvection();
+      // sim.macCormackAdvection();
+      sim.integrateLevelSet();
       stopwatch.registerTime("Levelset advection");
 
-      sim.redistance();
+      if (frame % 5 == 0)
+        sim.redistance();
       stopwatch.registerTime("Redistance");
 
       surface = sim.marchingTetrahedra();

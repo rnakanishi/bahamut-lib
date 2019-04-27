@@ -84,7 +84,7 @@ void LevelSet3::addSphereSurface(Vector3d center, double radius) {
       for (int i = 0; i < _resolution.x(); i++) {
         Vector3d position(Vector3i(i, j, k) * _h + _h / 2);
         double distance = (position - center).length() - radius;
-        _phi[i][j][k] = distance;
+        _phi[i][j][k] = std::min(_phi[i][j][k], distance);
       }
   checkCellMaterial();
 }
@@ -111,14 +111,18 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
 }
 
 void LevelSet3::checkCellMaterial() {
-  for (int k = 0; k < _resolution.z(); k++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int i = 0; i < _resolution.x(); i++) {
-        if (_phi[i][j][k] <= 0)
-          _material[i][j][k] = Material::FluidMaterial::FLUID;
-        else
-          _material[i][j][k] = Material::FluidMaterial::AIR;
-      }
+#pragma omp parallel for
+  for (int _id = 0; _id < cellCount(); _id++) {
+    Eigen::Array3i ijk = idToijk(_id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+    if (_phi[i][j][k] <= 0)
+      _material[i][j][k] = Material::FluidMaterial::FLUID;
+    else
+      _material[i][j][k] = Material::FluidMaterial::AIR;
+  }
 }
 
 void LevelSet3::addImplicitFunction() { NOT_IMPLEMENTED(); }
@@ -129,37 +133,44 @@ void LevelSet3::integrateLevelSet() {
   oldPhi.changeSize(_resolution);
 
 #pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        Vector3d position, backPosition, velocity, h(_h.x(), _h.y(), _h.z()),
-            cellCenter;
-        Vector3i index;
-        double newPhi = _phi[i][j][k];
-        double distanceCount = 0.0, distance = 0.0;
+  for (int _id = 0; _id < cellCount(); _id++) {
+    Eigen::Array3i ijk = idToijk(_id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+    Eigen::Array3d position, backPosition, velocity, h(_h.x(), _h.y(), _h.z()),
+        cellCenter;
+    Eigen::Array3i index;
+    double newPhi = _phi[i][j][k];
 
-        position = Vector3d(i, j, k) * h + h / 2.0;
-        velocity.x((_u[i][j][k].x() + _u[i + 1][j][k].x()) / 2.0);
-        velocity.y((_v[i][j][k].y() + _v[i][j + 1][k].y()) / 2.0);
-        velocity.z((_w[i][j][k].z() + _w[i][j][k + 1].z()) / 2.0);
-        backPosition = position - (velocity * _dt);
-        index.x(std::floor(backPosition.x() / h.x()));
-        index.y(std::floor(backPosition.y() / h.y()));
-        index.z(std::floor(backPosition.z() / h.z()));
+    position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+               Eigen::Array3d(h[0] / 2, h[1] / 2, h[2] / 2);
 
-        // Check if inside domain
-        if (velocity.length() > 1e-8 && index >= Vector3i(0) &&
-            index < _resolution) {
-          newPhi = _interpolatePhi(Eigen::Vector3d(
-              backPosition[0], backPosition[1], backPosition[2]));
-        }
-        oldPhi[i][j][k] = newPhi;
-      }
+    velocity[0] = _interpolateVelocityU(position);
+    velocity[1] = _interpolateVelocityV(position);
+    velocity[2] = _interpolateVelocityW(position);
+
+    backPosition = position - (velocity * _dt);
+    index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
+
+    // Check if inside domain
+    if ((velocity.matrix().norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+        index[2] >= 0 && index[0] < _resolution[0] &&
+        index[1] < _resolution[1] && index[2] < _resolution[2]) {
+      newPhi = _interpolatePhi(backPosition);
+    }
+    oldPhi[i][j][k] = newPhi;
+  }
 #pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++)
-        _phi[i][j][k] = oldPhi[i][j][k];
+  for (int _id = 0; _id < cellCount(); _id++) {
+    Eigen::Array3i ijk = idToijk(_id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+    _phi[i][j][k] = oldPhi[i][j][k];
+  }
 }
 
 void LevelSet3::macCormackAdvection() {
@@ -167,66 +178,69 @@ void LevelSet3::macCormackAdvection() {
   newPhi.changeSize(_resolution);
   Eigen::Array3i resolution(_resolution[0], _resolution[1], _resolution[2]);
 #pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
-        Eigen::Vector3d velocity;
-        Eigen::Array3i index;
-        // Find threshold values for clamping
-        double clamp[2]; // 0: min, 1: max
-        clamp[0] = 1e8;
-        clamp[1] = -1e8;
-        if (i > 0) {
-          clamp[0] = std::min(clamp[0], _phi[i - 1][j][k]);
-          clamp[1] = std::max(clamp[1], _phi[i - 1][j][k]);
-        }
-        if (i < resolution[0] - 1) {
-          clamp[0] = std::min(clamp[0], _phi[i + 1][j][k]);
-          clamp[1] = std::max(clamp[1], _phi[i + 1][j][k]);
-        }
-        if (j > 0) {
-          clamp[0] = std::min(clamp[0], _phi[i][j - 1][k]);
-          clamp[1] = std::max(clamp[1], _phi[i][j - 1][k]);
-        }
-        if (j < resolution[1] - 1) {
-          clamp[0] = std::min(clamp[0], _phi[i][j + 1][k]);
-          clamp[1] = std::max(clamp[1], _phi[i][j + 1][k]);
-        }
-        if (k > 0) {
-          clamp[0] = std::min(clamp[0], _phi[i][j][k - 1]);
-          clamp[1] = std::max(clamp[1], _phi[i][j][k - 1]);
-        }
-        if (k < resolution[2] - 1) {
-          clamp[0] = std::min(clamp[0], _phi[i][j][k + 1]);
-          clamp[1] = std::max(clamp[1], _phi[i][j][k + 1]);
-        }
-        // Find the point as if it was in previous timestep and work with it
-        position = Eigen::Array3d(i, j, k).cwiseProduct(h) + (h / 2.0);
-        velocity[0] = (_u[i][j][k].x() + _u[i + 1][j][k].x()) / 2.0;
-        velocity[1] = (_v[i][j][k].y() + _v[i][j + 1][k].y()) / 2.0;
-        velocity[2] = (_w[i][j][k].z() + _w[i][j][k + 1].z()) / 2.0;
-        position -= velocity.array() * _dt;
-        index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
-        // TODO: look for a better solution
-        if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
-            index[2] >= 0 && index[0] < _resolution[0] &&
-            index[1] < _resolution[1] && index[2] < _resolution[2]) {
-          double phi_n;
-          phi_n = _interpolatePhi(position);
-          // Advect forward in time the value there
-          velocity[0] = _interpolateVelocityU(position);
-          velocity[1] = _interpolateVelocityV(position);
-          velocity[2] = _interpolateVelocityW(position);
-          position += velocity.array() * _dt;
-          double phi_n1_hat = _interpolatePhi(position);
-          // Analyse the error from original to the forward advected
-          double error = 0.5 * (_phi[i][j][k] - phi_n1_hat);
-          newPhi[i][j][k] =
-              std::max(clamp[0], std::min(clamp[1], phi_n + error));
-        } else
-          newPhi[i][j][k] = _phi[i][j][k];
-      }
+  for (int _id = 0; _id < cellCount(); _id++) {
+    Eigen::Array3i ijk = idToijk(_id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+
+    Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
+    Eigen::Vector3d velocity;
+    Eigen::Array3i index;
+    // Find threshold values for clamping
+    double clamp[2]; // 0: min, 1: max
+    clamp[0] = 1e8;
+    clamp[1] = -1e8;
+    if (i > 0) {
+      clamp[0] = std::min(clamp[0], _phi[i - 1][j][k]);
+      clamp[1] = std::max(clamp[1], _phi[i - 1][j][k]);
+    }
+    if (i < resolution[0] - 1) {
+      clamp[0] = std::min(clamp[0], _phi[i + 1][j][k]);
+      clamp[1] = std::max(clamp[1], _phi[i + 1][j][k]);
+    }
+    if (j > 0) {
+      clamp[0] = std::min(clamp[0], _phi[i][j - 1][k]);
+      clamp[1] = std::max(clamp[1], _phi[i][j - 1][k]);
+    }
+    if (j < resolution[1] - 1) {
+      clamp[0] = std::min(clamp[0], _phi[i][j + 1][k]);
+      clamp[1] = std::max(clamp[1], _phi[i][j + 1][k]);
+    }
+    if (k > 0) {
+      clamp[0] = std::min(clamp[0], _phi[i][j][k - 1]);
+      clamp[1] = std::max(clamp[1], _phi[i][j][k - 1]);
+    }
+    if (k < resolution[2] - 1) {
+      clamp[0] = std::min(clamp[0], _phi[i][j][k + 1]);
+      clamp[1] = std::max(clamp[1], _phi[i][j][k + 1]);
+    }
+    // Find the point as if it was in previous timestep and work with it
+    position = Eigen::Array3d(i, j, k).cwiseProduct(h) + (h / 2.0);
+    velocity[0] = (_u[i][j][k] + _u[i + 1][j][k]) / 2.0;
+    velocity[1] = (_v[i][j][k] + _v[i][j + 1][k]) / 2.0;
+    velocity[2] = (_w[i][j][k] + _w[i][j][k + 1]) / 2.0;
+    position -= velocity.array() * _dt;
+    index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+    // TODO: look for a better solution
+    if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+        index[2] >= 0 && index[0] < _resolution[0] &&
+        index[1] < _resolution[1] && index[2] < _resolution[2]) {
+      double phi_n;
+      phi_n = _interpolatePhi(position);
+      // Advect forward in time the value there
+      velocity[0] = _interpolateVelocityU(position);
+      velocity[1] = _interpolateVelocityV(position);
+      velocity[2] = _interpolateVelocityW(position);
+      position += velocity.array() * _dt;
+      double phi_n1_hat = _interpolatePhi(position);
+      // Analyse the error from original to the forward advected
+      double error = 0.5 * (_phi[i][j][k] - phi_n1_hat);
+      newPhi[i][j][k] = std::max(clamp[0], std::min(clamp[1], phi_n + error));
+    } else
+      newPhi[i][j][k] = _phi[i][j][k];
+  }
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
@@ -314,7 +328,7 @@ void LevelSet3::solvePressure() {
   // Solve pressure Poisson equation
   divergent = Eigen::VectorXd::Zero(cellCount());
   int ghostId = _getMapId(-1);
-#pragma omp for
+#pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
@@ -454,10 +468,6 @@ void LevelSet3::solvePressure() {
         }
       }
     }
-    if (std::isinf(centerWeight))
-      std::cerr << ">>>>>>>>>>>>Inifinte!\n";
-    if (std::isnan(centerWeight))
-      std::cerr << "NaN\n";
     threadTriplet.emplace_back(id, id, centerWeight);
 #pragma omp critical
     {
@@ -466,9 +476,9 @@ void LevelSet3::solvePressure() {
     }
 
     divergent[id] = 0;
-    divergent[id] -= (_u[i + 1][j][k].x() - _u[i][j][k].x()) / _h.x();
-    divergent[id] -= (_v[i][j + 1][k].y() - _v[i][j][k].y()) / _h.y();
-    divergent[id] -= (_w[i][j][k + 1].z() - _w[i][j][k].z()) / _h.z();
+    divergent[id] -= (_u[i + 1][j][k] - _u[i][j][k]) / _h[0];
+    divergent[id] -= (_v[i][j + 1][k] - _v[i][j][k]) / _h[1];
+    divergent[id] -= (_w[i][j][k + 1] - _w[i][j][k]) / _h[2];
     divergent[id] /= _dt;
   }
   divergent[ghostId] = 0;
@@ -476,17 +486,11 @@ void LevelSet3::solvePressure() {
 
   int nCells = idMap.size();
   pressure = Eigen::VectorXd::Zero(nCells);
-  // divergent.conservativeResize(nCells);
   divergent.conservativeResize(nCells);
 
   Eigen::SparseMatrix<double> pressureMatrix(nCells, nCells);
-  // pressureMatrix.setIdentity();
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
   timer.registerTime("Assembly");
-  if (pressureMatrix.toDense().hasNaN()) {
-    std::cerr << "NaN values on matrix\n";
-    exit(-12);
-  }
 
   // SOlve pressure Poisson system
   Eigen::BiCGSTAB<Eigen::SparseMatrix<double>,
@@ -506,22 +510,6 @@ void LevelSet3::solvePressure() {
     if (!x.isApprox(divergent, 1e-2))
       std::cerr << "Error is too high\n";
   }
-
-  std::ofstream file("eigenMatrix");
-  if (file.is_open()) {
-    file << pressureMatrix;
-  }
-  file.close();
-  file.open("divergent");
-  if (file.is_open()) {
-    file << divergent;
-  }
-  file.close();
-  file.open("pressure");
-  if (file.is_open()) {
-    file << pressure;
-  }
-  file.close();
 
   // Correct velocity through pressure gradient
   _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
@@ -555,11 +543,11 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _u[i][j][k].x(_u[i][j][k].x() - _dt * (pressure1 - pressure2) / _h.x());
-      if (std::isnan(_u[i][j][k].x()) || std::isinf(_u[i][j][k].x())) {
+      _u[i][j][k] = _u[i][j][k] - _dt * (pressure1 - pressure2) / _h.x();
+      if (std::isnan(_u[i][j][k]) || std::isinf(_u[i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
-      _maxVelocity[0] = std::max(_maxVelocity[0], std::fabs(_u[i][j][k][0]));
+      _maxVelocity[0] = std::max(_maxVelocity[0], std::fabs(_u[i][j][k]));
     }
     pressure2 = 0.0;
     if (j > 0) {
@@ -568,11 +556,11 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _v[i][j][k].y(_v[i][j][k].y() - _dt * (pressure1 - pressure2) / _h.y());
-      if (std::isnan(_v[i][j][k].y()) || std::isinf(_v[i][j][k].y())) {
+      _v[i][j][k] = (_v[i][j][k] - _dt * (pressure1 - pressure2) / _h.y());
+      if (std::isnan(_v[i][j][k]) || std::isinf(_v[i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
-      _maxVelocity[1] = std::max(_maxVelocity[1], std::fabs(_v[i][j][k][1]));
+      _maxVelocity[1] = std::max(_maxVelocity[1], std::fabs(_v[i][j][k]));
     }
     pressure2 = 0.0;
     if (k > 0) {
@@ -581,11 +569,11 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _w[i][j][k].z(_w[i][j][k].z() - _dt * (pressure1 - pressure2) / _h.z());
-      if (std::isnan(_w[i][j][k].z()) || std::isinf(_w[i][j][k].z())) {
+      _w[i][j][k] = (_w[i][j][k] - _dt * (pressure1 - pressure2) / _h.z());
+      if (std::isnan(_w[i][j][k]) || std::isinf(_w[i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
-      _maxVelocity[2] = std::max(_maxVelocity[2], std::fabs(_w[i][j][k][2]));
+      _maxVelocity[2] = std::max(_maxVelocity[2], std::fabs(_w[i][j][k]));
     }
   }
   if (_maxVelocity[0] > 1e4 || _maxVelocity[1] > 1e4 || _maxVelocity[2] > 1e4) {
@@ -657,120 +645,120 @@ void LevelSet3::redistance() {
   processed.changeSize(_resolution, false);
 
 #pragma omp parallel for
-  // Find surface cells adding them to queue
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        glm::vec3 position = glm::vec3(i * _h.x(), j * _h.y(), k * _h.z());
-        glm::vec3 intersections[3];
-        int nintersecs = 0;
-        double cellPhi = _phi[i][j][k];
-        int cellSign = (cellPhi >= 0) ? 1 : -1;
-        if (cellPhi == 0)
-          cellSign = 1;
+  for (int _id = 0; _id < cellCount(); _id++) {
+    Eigen::Array3i ijk = idToijk(_id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
 
-        bool isSurface = false, intersected = false;
-        double theta = 1e8;
-        if (i < _resolution.x() - 1 &&
-            std::signbit(cellSign) != std::signbit(_phi[i + 1][j][k])) {
-          isSurface = true;
-          intersected = true;
-          theta = std::min(theta,
-                           std::fabs(cellPhi / (cellPhi - _phi[i + 1][j][k])));
-          intersections[nintersecs] =
-              glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
-        }
-        if (i > 0 &&
-            std::signbit(cellSign) != std::signbit(_phi[i - 1][j][k])) {
-          isSurface = true;
-          intersected = true;
-          theta = std::min(theta,
-                           std::fabs(cellPhi / (cellPhi - _phi[i - 1][j][k])));
-          intersections[nintersecs] =
-              glm::vec3(position[0] - theta * _h.x(), position[1], position[2]);
-        }
-        theta = 1e8;
-        if (intersected) {
-          intersected = false;
-          nintersecs++;
-        }
-        if (j < _resolution.y() - 1 &&
-            std::signbit(cellSign) != std::signbit(_phi[i][j + 1][k])) {
-          isSurface = true;
-          intersected = true;
-          theta = std::min(theta,
-                           std::fabs(cellPhi / (cellPhi - _phi[i][j + 1][k])));
-          intersections[nintersecs] =
-              glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
-        }
-        if (j > 0 &&
-            std::signbit(cellSign) != std::signbit(_phi[i][j - 1][k])) {
-          isSurface = true;
-          intersected = true;
-          theta = std::min(theta,
-                           std::fabs(cellPhi / (cellPhi - _phi[i][j - 1][k])));
-          intersections[nintersecs] =
-              glm::vec3(position[0], position[1] - theta * _h.y(), position[2]);
-        }
-        theta = 1e8;
-        if (intersected) {
-          intersected = false;
-          nintersecs++;
-        }
-        if (k < _resolution.z() - 1 &&
-            std::signbit(cellSign) != std::signbit(_phi[i][j][k + 1])) {
-          isSurface = true;
-          intersected = true;
-          theta = std::min(theta,
-                           std::fabs(cellPhi / (cellPhi - _phi[i][j][k + 1])));
-          intersections[nintersecs] =
-              glm::vec3(position[0], position[1], position[2] + theta * _h.z());
-        }
-        if (k > 0 &&
-            std::signbit(cellSign) != std::signbit(_phi[i][j][k - 1])) {
-          isSurface = true;
-          intersected = true;
-          theta = std::min(theta,
-                           std::fabs(cellPhi / (cellPhi - _phi[i][j][k - 1])));
-          intersections[nintersecs] =
-              glm::vec3(position[0], position[1], position[2] - theta * _h.z());
-        }
-        if (intersected) {
-          intersected = false;
-          nintersecs++;
-        }
+    glm::vec3 position = glm::vec3(i * _h.x(), j * _h.y(), k * _h.z());
+    glm::vec3 intersections[3];
+    int nintersecs = 0;
+    double cellPhi = _phi[i][j][k];
+    int cellSign = (cellPhi >= 0) ? 1 : -1;
+    if (cellPhi == 0)
+      cellSign = 1;
 
-        if (isSurface) {
-          glm::vec3 proj;
-          if (nintersecs == 1) {
-            proj = intersections[0];
-          } else if (nintersecs == 2) {
-            proj = Geometry::closestPointPlane(position, intersections[0],
-                                               intersections[1]);
-          } else if (nintersecs == 3) {
-            proj = Geometry::closestPointTriangle(
-                position, intersections[0], intersections[1], intersections[2]);
-          }
-          double distance = glm::length(proj - position);
-          if (std::isnan(distance) || distance == 0 || distance > 5)
-            float d = distance;
-          if (std::fabs(distance) < 1e-8)
-            distance = 0;
+    bool isSurface = false, intersected = false;
+    double theta = 1e8;
+    if (i < _resolution.x() - 1 &&
+        std::signbit(cellSign) != std::signbit(_phi[i + 1][j][k])) {
+      isSurface = true;
+      intersected = true;
+      theta =
+          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i + 1][j][k])));
+      intersections[nintersecs] =
+          glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
+    }
+    if (i > 0 && std::signbit(cellSign) != std::signbit(_phi[i - 1][j][k])) {
+      isSurface = true;
+      intersected = true;
+      theta =
+          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i - 1][j][k])));
+      intersections[nintersecs] =
+          glm::vec3(position[0] - theta * _h.x(), position[1], position[2]);
+    }
+    theta = 1e8;
+    if (intersected) {
+      intersected = false;
+      nintersecs++;
+    }
+    if (j < _resolution.y() - 1 &&
+        std::signbit(cellSign) != std::signbit(_phi[i][j + 1][k])) {
+      isSurface = true;
+      intersected = true;
+      theta =
+          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j + 1][k])));
+      intersections[nintersecs] =
+          glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
+    }
+    if (j > 0 && std::signbit(cellSign) != std::signbit(_phi[i][j - 1][k])) {
+      isSurface = true;
+      intersected = true;
+      theta =
+          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j - 1][k])));
+      intersections[nintersecs] =
+          glm::vec3(position[0], position[1] - theta * _h.y(), position[2]);
+    }
+    theta = 1e8;
+    if (intersected) {
+      intersected = false;
+      nintersecs++;
+    }
+    if (k < _resolution.z() - 1 &&
+        std::signbit(cellSign) != std::signbit(_phi[i][j][k + 1])) {
+      isSurface = true;
+      intersected = true;
+      theta =
+          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j][k + 1])));
+      intersections[nintersecs] =
+          glm::vec3(position[0], position[1], position[2] + theta * _h.z());
+    }
+    if (k > 0 && std::signbit(cellSign) != std::signbit(_phi[i][j][k - 1])) {
+      isSurface = true;
+      intersected = true;
+      theta =
+          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j][k - 1])));
+      intersections[nintersecs] =
+          glm::vec3(position[0], position[1], position[2] - theta * _h.z());
+    }
+    if (intersected) {
+      intersected = false;
+      nintersecs++;
+    }
 
-          tempPhi[i][j][k] = cellSign * distance;
-          // _phi[i][j][k];
-          // cellSign * _solveEikonal(glm::ivec3(i, j, k));
-          // cellSign *std::min(std::fabs(tempPhi[i][j][k]), theta *
-          // _h.x());
-          processed[i][j][k] = true;
-#pragma omp critical
-          {
-            cellsQueue.push(
-                std::make_pair(std::fabs(tempPhi[i][j][k]), ijkToId(i, j, k)));
-            cellsAdded.insert(ijkToId(i, j, k));
-          }
-        }
+    if (isSurface) {
+      glm::vec3 proj;
+      if (nintersecs == 1) {
+        proj = intersections[0];
+      } else if (nintersecs == 2) {
+        proj = Geometry::closestPointPlane(position, intersections[0],
+                                           intersections[1]);
+      } else if (nintersecs == 3) {
+        proj = Geometry::closestPointTriangle(
+            position, intersections[0], intersections[1], intersections[2]);
       }
+      double distance = glm::length(proj - position);
+      if (std::isnan(distance) || distance == 0 || distance > 5)
+        float d = distance;
+      if (std::fabs(distance) < 1e-8)
+        distance = 0;
+
+      tempPhi[i][j][k] = cellSign * distance;
+      // _phi[i][j][k];
+      // cellSign * _solveEikonal(glm::ivec3(i, j, k));
+      // cellSign *std::min(std::fabs(tempPhi[i][j][k]), theta *
+      // _h.x());
+      processed[i][j][k] = true;
+#pragma omp critical
+      {
+        cellsQueue.push(
+            std::make_pair(std::fabs(tempPhi[i][j][k]), ijkToId(i, j, k)));
+        cellsAdded.insert(ijkToId(i, j, k));
+      }
+    }
+  }
 
   // Propagating distances
   double maxDistance = 5 * _h[0];

@@ -66,6 +66,8 @@ public:
   /// Add gravity value (\f$-9.81 \frac{m}{s^2}\f$) to all vertical velocities
   void addGravity();
 
+  void addExternalForce(Eigen::Vector3d force);
+
   ///
   /// Make grid velocity advection using a semi lagrangian mehtod
   void advectGridVelocity();
@@ -100,7 +102,7 @@ protected:
 
   // TODO: Change to Matrix2 type
   // TODO: use two matrices to improve performance
-  std::vector<std::vector<std::vector<Vector3d>>> _u, _v,
+  std::vector<std::vector<std::vector<double>>> _u, _v,
       _w; // Velocity components stored on faces
   std::vector<std::vector<std::vector<Material::FluidMaterial>>>
       _material; // Wheter the cell is a fluid, solid or air
