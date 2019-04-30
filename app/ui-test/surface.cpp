@@ -102,7 +102,7 @@ public:
     _shader.loadFragmentShader("./assets/shaders/texture.frag");
 
     Ramuh::LevelSet3 _levelset;
-    int resolution = 24;
+    int resolution = 40;
     _levelset.setResolution(Ramuh::Vector3i(resolution));
     _levelset.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0));
     _levelset.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.25);

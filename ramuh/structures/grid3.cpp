@@ -299,10 +299,28 @@ void RegularGrid3::advectGridVelocity() {
       Vector3i(_resolution.x(), _resolution.y() + 1, _resolution.z()));
   wtemp.changeSize(
       Vector3i(_resolution.x(), _resolution.y(), _resolution.z() + 1));
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x() + 1; i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        utemp[i][j][k] = _u[i][j][k];
+      }
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y() + 1; j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        vtemp[i][j][k] = _v[i][j][k];
+      }
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z() + 1; k++) {
+        wtemp[i][j][k] = _w[i][j][k];
+      }
 
 // Solve convection term (material derivative) - u velocities
-#pragma omp for
-  for (int i = 1; i < _resolution.x() + 1; i++)
+#pragma omp parallel for
+  for (int i = 0; i <= _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
         Eigen::Array3d position, backPosition, velocity, cellCenter;
@@ -328,7 +346,7 @@ void RegularGrid3::advectGridVelocity() {
 
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 1; j < _resolution.y() + 1; j++)
+    for (int j = 0; j <= _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
         Eigen::Array3d position, backPosition, velocity, cellCenter;
         Eigen::Array3i index;
@@ -354,7 +372,7 @@ void RegularGrid3::advectGridVelocity() {
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 1; k < _resolution.z() + 1; k++) {
+      for (int k = 0; k <= _resolution.z(); k++) {
         Eigen::Array3d position, backPosition, velocity, cellCenter;
         Eigen::Array3i index;
         double newVelocity = _w[i][j][k];
@@ -376,7 +394,6 @@ void RegularGrid3::advectGridVelocity() {
         wtemp[i][j][k] = (newVelocity);
       }
 
-#pragma omp barrier
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x() + 1; i++)
     for (int j = 0; j < _resolution.y(); j++)
@@ -428,9 +445,9 @@ int RegularGrid3::ijkToId(int i, int j, int k) {
 
 Eigen::Array3i RegularGrid3::idToijk(int cellId) {
   Eigen::Array3i index;
-  index[0] = cellId / (_resolution.x() * _resolution.y());
+  index[2] = cellId / (_resolution.x() * _resolution.y());
   index[1] = (cellId % (_resolution.x() * _resolution.y())) / _resolution.x();
-  index[2] = (cellId % (_resolution.x() * _resolution.y())) % _resolution.x();
+  index[0] = (cellId % (_resolution.x() * _resolution.y())) % _resolution.x();
   return index;
 }
 
@@ -493,11 +510,12 @@ void RegularGrid3::boundaryVelocities() {
 
 void RegularGrid3::addGravity() {
   for (int k = 0; k < _resolution.z(); k++) {
-    for (int j = 1; j < _resolution.y(); j++) {
+    for (int j = 1; j <= _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        // if (_material[i][j - 1][k] == Material::FluidMaterial::FLUID) {
+        // if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
         double vel = _v[i][j][k] - 9.81 * _dt;
         _v[i][j][k] = (vel);
+        // }
       }
     }
   }
@@ -521,10 +539,9 @@ void RegularGrid3::extrapolateVelocity() {
   std::queue<int> processingCells;
   // TODO: Change processed cells to check phi instead of construct distance vec
   Matrix3<int> processedCells;
-  processedCells.changeSize(_resolution);
+  processedCells.changeSize(_resolution, 1e8);
 
-  // Extrapolate velocity from fluid to air cells
-
+  // Find first wavefront of surface fluid cells
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
@@ -537,64 +554,37 @@ void RegularGrid3::extrapolateVelocity() {
       // Look for air neighbors
       // Add air cells to processing queue
       if (i > 0 && _material[i - 1][j][k] == Material::FluidMaterial::AIR) {
-        processedCells[i - 1][j][k] = 1;
+        // processedCells[i - 1][j][k] = 1;
         processingCells.push(ijkToId(i - 1, j, k));
-        _u[i - 1][j][k] = (_u[i][j][k]);
-        _v[i - 1][j][k] = (_v[i][j][k]);
-        _v[i - 1][j + 1][k] = (_v[i][j + 1][k]);
-        _w[i - 1][j][k] = (_w[i][j][k]);
-        _w[i - 1][j][k + 1] = (_w[i][j][k + 1]);
       }
       if (i < _resolution.x() - 1 &&
           _material[i + 1][j][k] == Material::FluidMaterial::AIR) {
-        processedCells[i + 1][j][k] = 1;
+        // processedCells[i + 1][j][k] = 1;
         processingCells.push(ijkToId(i + 1, j, k));
-        _u[i + 2][j][k] = (_u[i + 1][j][k]);
-        _v[i + 1][j][k] = (_v[i][j][k]);
-        _v[i + 1][j + 1][k] = (_v[i][j + 1][k]);
-        _w[i + 1][j][k] = (_w[i][j][k]);
-        _w[i + 1][j][k + 1] = (_w[i][j][k + 1]);
       }
       if (j > 0 && _material[i][j - 1][k] == Material::FluidMaterial::AIR) {
-        processedCells[i][j - 1][k] = 1;
+        // processedCells[i][j - 1][k] = 1;
         processingCells.push(ijkToId(i, j - 1, k));
-        _v[i][j - 1][k] = (_v[i][j][k]);
-        _u[i][j - 1][k] = (_u[i][j][k]);
-        _u[i + 1][j - 1][k] = (_u[i + 1][j][k]);
-        _w[i][j - 1][k] = (_w[i][j][k]);
-        _w[i][j - 1][k + 1] = (_w[i][j][k + 1]);
       }
       if (j < _resolution.y() - 1 &&
           _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
-        processedCells[i][j + 1][k] = 1;
+        // processedCells[i][j + 1][k] = 1;
         processingCells.push(ijkToId(i, j + 1, k));
-        _v[i][j + 2][k] = (_v[i][j + 1][k]);
-        _u[i][j + 1][k] = (_u[i][j][k]);
-        _u[i + 1][j + 1][k] = (_u[i + 1][j][k]);
-        _w[i][j + 1][k] = (_w[i][j][k]);
-        _w[i][j + 1][k + 1] = (_w[i][j][k + 1]);
       }
       if (k > 0 && _material[i][j][k - 1] == Material::FluidMaterial::AIR) {
-        processedCells[i][j][k - 1] = 1;
+        // processedCells[i][j][k - 1] = 1;
         processingCells.push(ijkToId(i, j, k - 1));
-        _w[i][j][k - 1] = (_w[i][j][k]);
-        _u[i][j][k - 1] = (_u[i][j][k]);
-        _u[i + 1][j][k - 1] = (_u[i + 1][j][k]);
-        _v[i][j][k - 1] = (_v[i][j][k]);
-        _v[i][j + 1][k - 1] = (_v[i][j + 1][k]);
       }
       if (k < _resolution.y() - 1 &&
           _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
-        processedCells[i][j][k + 1] = 1;
+        // processedCells[i][j][k + 1] = 1;
         processingCells.push(ijkToId(i, j, k + 1));
-        _w[i][j][k + 2] = (_w[i][j][k + 1]);
-        _u[i][j][k + 1] = (_u[i][j][k]);
-        _u[i + 1][j][k + 1] = (_u[i + 1][j][k]);
-        _v[i][j][k + 1] = (_v[i][j][k]);
-        _v[i][j + 1][k + 1] = (_v[i][j + 1][k]);
       }
     }
   }
+
+  // For each air cell, find its nearest neighbors from surface and take their
+  // velocities values. In case when more than one is found, take the average
   while (!processingCells.empty()) {
     int currCell = processingCells.front();
     processingCells.pop();
@@ -604,75 +594,128 @@ void RegularGrid3::extrapolateVelocity() {
     j = ijk[1];
     k = ijk[2];
 
-    // Check for neighbor airs
-    if (i > 0 && _material[i - 1][j][k] == Material::FluidMaterial::AIR) {
-      if (processedCells[i - 1][j][k] > processedCells[i][j][k] + 1) {
-        processedCells[i - 1][j][k] = processedCells[i][j][k] + 1;
+    if (processedCells[i][j][k] < 1e7)
+      continue;
+
+    // Find the least distance
+    int leastDistace = 1e8;
+    std::vector<Eigen::Array3i> neighborCells;
+    if (i > 0 && processedCells[i - 1][j][k] <= leastDistace) {
+      if (processedCells[i - 1][j][k] < leastDistace) {
+        leastDistace = processedCells[i - 1][j][k];
+        neighborCells.clear();
+      }
+      neighborCells.emplace_back(i - 1, j, k);
+    }
+    if (i < _resolution[0] - 1 && processedCells[i + 1][j][k] <= leastDistace) {
+      if (processedCells[i + 1][j][k] < leastDistace) {
+        leastDistace = processedCells[i + 1][j][k];
+        neighborCells.clear();
+      }
+      neighborCells.emplace_back(i + 1, j, k);
+    }
+    if (j > 0 && processedCells[i][j - 1][k] <= leastDistace) {
+      if (processedCells[i][j - 1][k] < leastDistace) {
+        leastDistace = processedCells[i][j - 1][k];
+        neighborCells.clear();
+      }
+      neighborCells.emplace_back(i, j - 1, k);
+    }
+    if (j < _resolution[1] - 1 && processedCells[i][j + 1][k] <= leastDistace) {
+      if (processedCells[i][j + 1][k] < leastDistace) {
+        leastDistace = processedCells[i][j + 1][k];
+        neighborCells.clear();
+      }
+      neighborCells.emplace_back(i, j + 1, k);
+    }
+    if (k > 0 && processedCells[i][j][k - 1] <= leastDistace) {
+      if (processedCells[i][j][k - 1] < leastDistace) {
+        leastDistace = processedCells[i][j][k - 1];
+        neighborCells.clear();
+      }
+      neighborCells.emplace_back(i, j, k - 1);
+    }
+    if (k < _resolution[2] - 1 && processedCells[i][j][k + 1] <= leastDistace) {
+      if (processedCells[i][j][k + 1] < leastDistace) {
+        leastDistace = processedCells[i][j][k + 1];
+        neighborCells.clear();
+      }
+      neighborCells.emplace_back(i, j, k + 1);
+    }
+    processedCells[i][j][k] = leastDistace + 1;
+    // Find which faces need update
+    // TODO: Change this to an enumerate
+    bool faceNeedUpdate[] = {1, 1, 1,
+                             1, 1, 1}; // LEFT RIGHT BOTTOM TOP BACK FRONT
+    for (auto cell : neighborCells) {
+      if (cell[0] < i)
+        faceNeedUpdate[0] = false;
+      else if (cell[0] > i)
+        faceNeedUpdate[1] = false;
+      if (cell[1] < j)
+        faceNeedUpdate[2] = false;
+      else if (cell[1] > j)
+        faceNeedUpdate[3] = false;
+      if (cell[2] < k)
+        faceNeedUpdate[4] = false;
+      else if (cell[2] > k)
+        faceNeedUpdate[5] = false;
+    }
+    // Update the faces
+    int nCells = neighborCells.size();
+    if (faceNeedUpdate[0]) {
+      double newVelocity = 0.0;
+      for (auto cell : neighborCells) {
+        newVelocity = _u[cell[0]][cell[1]][cell[2]];
+      }
+      _u[i][j][k] = newVelocity / nCells;
+      if (i > 0 && processedCells[i - 1][j][k] > 1e6)
         processingCells.push(ijkToId(i - 1, j, k));
-        _u[i - 1][j][k] = (_u[i][j][k]);
-        _v[i - 1][j][k] = (_v[i][j][k]);
-        _v[i - 1][j + 1][k] = (_v[i][j + 1][k]);
-        _w[i - 1][j][k] = (_w[i][j][k]);
-        _w[i - 1][j][k + 1] = (_w[i][j][k + 1]);
-      }
     }
-    if (i < _resolution.x() - 1 &&
-        _material[i + 1][j][k] == Material::FluidMaterial::AIR) {
-      if (processedCells[i + 1][j][k] > processedCells[i][j][k] + 1) {
-        processedCells[i + 1][j][k] = processedCells[i][j][k] + 1;
+    if (faceNeedUpdate[1]) {
+      double newVelocity = 0.0;
+      for (auto cell : neighborCells) {
+        newVelocity = _u[cell[0] + 1][cell[1]][cell[2]];
+      }
+      _u[i + 1][j][k] = newVelocity / nCells;
+      if (i < _resolution[0] - 1 && processedCells[i + 1][j][k] > 1e6)
         processingCells.push(ijkToId(i + 1, j, k));
-        _u[i + 2][j][k] = (_u[i + 1][j][k]);
-        _v[i + 1][j][k] = (_v[i][j][k]);
-        _v[i + 1][j + 1][k] = (_v[i][j + 1][k]);
-        _w[i + 1][j][k] = (_w[i][j][k]);
-        _w[i + 1][j][k + 1] = (_w[i][j][k + 1]);
-      }
     }
-    if (j > 0 && _material[i][j - 1][k] == Material::FluidMaterial::AIR) {
-      if (processedCells[i][j - 1][k] > processedCells[i][j][k] + 1) {
-        processedCells[i][j - 1][k] = processedCells[i][j][k] + 1;
+    if (faceNeedUpdate[2]) {
+      double newVelocity = 0.0;
+      for (auto cell : neighborCells) {
+        newVelocity = _v[cell[0]][cell[1]][cell[2]];
+      }
+      _v[i][j][k] = newVelocity / nCells;
+      if (j > 0 && processedCells[i][j - 1][k] > 1e6)
         processingCells.push(ijkToId(i, j - 1, k));
-        _v[i][j - 1][k] = (_v[i][j][k]);
-        _u[i][j - 1][k] = (_u[i][j][k]);
-        _u[i + 1][j - 1][k] = (_u[i + 1][j][k]);
-        _w[i][j - 1][k] = (_w[i][j][k]);
-        _w[i][j - 1][k + 1] = (_w[i][j][k + 1]);
-      }
     }
-    if (j < _resolution.y() - 1 &&
-        _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
-      if (processedCells[i][j + 1][k] > processedCells[i][j][k] + 1) {
-        processedCells[i][j + 1][k] = processedCells[i][j][k] + 1;
+    if (faceNeedUpdate[3]) {
+      double newVelocity = 0.0;
+      for (auto cell : neighborCells) {
+        newVelocity = _v[cell[0]][cell[1] + 1][cell[2]];
+      }
+      _v[i][j + 1][k] = newVelocity / nCells;
+      if (j < _resolution[1] - 1 && processedCells[i][j + 1][k] > 1e6)
         processingCells.push(ijkToId(i, j + 1, k));
-        _v[i][j + 2][k] = (_v[i][j + 1][k]);
-        _u[i][j + 1][k] = (_u[i][j][k]);
-        _u[i + 1][j + 1][k] = (_u[i + 1][j][k]);
-        _w[i][j + 1][k] = (_w[i][j][k]);
-        _w[i][j + 1][k + 1] = (_w[i][j][k + 1]);
+    }
+    if (faceNeedUpdate[4]) {
+      double newVelocity = 0.0;
+      for (auto cell : neighborCells) {
+        newVelocity = _w[cell[0]][cell[1]][cell[2]];
       }
-      if (k > 0 && _material[i][j][k - 1] == Material::FluidMaterial::AIR) {
-        if (processedCells[i][j][k + 1] > processedCells[i][j][k] + 1) {
-          processedCells[i][j][k - 1] = 1;
-          processingCells.push(ijkToId(i, j, k - 1));
-          _w[i][j][k - 1] = (_w[i][j][k]);
-          _u[i][j][k - 1] = (_u[i][j][k]);
-          _u[i + 1][j][k - 1] = (_u[i + 1][j][k]);
-          _v[i][j][k - 1] = (_v[i][j][k]);
-          _v[i][j + 1][k - 1] = (_v[i][j + 1][k]);
-        }
+      _w[i][j][k] = newVelocity / nCells;
+      if (k > 0 && processedCells[i][j][k - 1] > 1e6)
+        processingCells.push(ijkToId(i, j, k - 1));
+    }
+    if (faceNeedUpdate[5]) {
+      double newVelocity = 0.0;
+      for (auto cell : neighborCells) {
+        newVelocity = _w[cell[0]][cell[1]][cell[2] + 1];
       }
-      if (k < _resolution.y() - 1 &&
-          _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
-        if (processedCells[i][j][k + 1] > processedCells[i][j][k] + 1) {
-          processedCells[i][j][k + 1] = 1;
-          processingCells.push(ijkToId(i, j, k + 1));
-          _w[i][j][k + 2] = (_w[i][j][k + 1]);
-          _u[i][j][k + 1] = (_u[i][j][k]);
-          _u[i + 1][j][k + 1] = (_u[i + 1][j][k]);
-          _v[i][j][k + 1] = (_v[i][j][k]);
-          _v[i][j + 1][k + 1] = (_v[i][j + 1][k]);
-        }
-      }
+      _w[i][j][k + 1] = newVelocity / nCells;
+      if (k < _resolution[2] - 1 && processedCells[i][j][k + 1] > 1e6)
+        processingCells.push(ijkToId(i, j, k + 1));
     }
   }
 }
@@ -834,7 +877,7 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
   double clamp[2]; // 0: min, 1: max
   clamp[0] = 1e8;
   clamp[1] = -1e8;
-  double distance = 0., distanceCount = 0., newVelocity = 1e8;
+  double distance = 0., distanceCount = 0.;
   double velocity = 0.0;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
@@ -884,7 +927,7 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
   double clamp[2]; // 0: min, 1: max
   clamp[0] = 1e8;
   clamp[1] = -1e8;
-  double distance = 0., distanceCount = 0., newVelocity = 1e8;
+  double distance = 0., distanceCount = 0.;
   double velocity = 0.0;
   for (auto u : iCandidates)
     for (auto v : jCandidates)
@@ -934,7 +977,7 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
   double clamp[2]; // 0: min, 1: max
   clamp[0] = 1e8;
   clamp[1] = -1e8;
-  double distance = 0., distanceCount = 0., newVelocity = 1e8;
+  double distance = 0., distanceCount = 0.;
   double velocity = 0.0;
   for (auto u : iCandidates)
     for (auto v : jCandidates)

@@ -9,4 +9,6 @@ public:
 class LevelSetFluid3 : public Ramuh::LevelSet3 {
 public:
   LevelSetFluid3();
+
+  void writeVelocityField();
 };

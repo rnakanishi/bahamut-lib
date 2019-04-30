@@ -31,7 +31,7 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.45, 0.5), 0.15);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.2, 0.5), 0.1);
   // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
                      Ramuh::Vector3d(15, 0.2, 15));
@@ -58,27 +58,45 @@ int main(int argc, char const *argv[]) {
       stopwatch.reset();
       sim.checkCellMaterial();
       sim.addGravity();
+
+      sim.extrapolateVelocity();
+      stopwatch.registerTime("Gravity");
+
+      stopwatch.registerTime("External forces");
       // sim.addExternalForce(Eigen::Vector3d(-1.5, -4.5, 0));
       sim.boundaryVelocities();
-      stopwatch.registerTime("External forces");
 
       // sim.macComarckVelocityAdvection();
       sim.advectGridVelocity();
       stopwatch.registerTime("Velocity advection");
 
-      sim.solvePressure();
-      stopwatch.registerTime("Pressure");
+      sim.writeVelocityField();
+      std::cout << "Velocity advection\n";
 
       sim.extrapolateVelocity();
       stopwatch.registerTime("Extraploate velocity");
+
+      sim.writeVelocityField();
+      std::cout << "First extrapolation\n";
+
+      sim.solvePressure();
+      stopwatch.registerTime("Pressure");
+      sim.boundaryVelocities();
+
+      sim.extrapolateVelocity();
+      stopwatch.registerTime("Extraploate velocity");
+
+      sim.writeVelocityField();
+      std::cout << "Second extrapolation\n";
 
       // sim.macCormackAdvection();
       sim.integrateLevelSet();
       stopwatch.registerTime("Levelset advection");
 
-      if (frame % 5 == 0)
+      if (frame % 5 == 0) {
         sim.redistance();
-      stopwatch.registerTime("Redistance");
+        stopwatch.registerTime("Redistance");
+      }
 
       surface = sim.marchingTetrahedra();
       stopwatch.registerTime("Marching Tetrahedra");

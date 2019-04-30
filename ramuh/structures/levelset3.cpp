@@ -345,6 +345,7 @@ void LevelSet3::solvePressure() {
     double centerWeight = 0.0;
     // int id = ijkToId(i, j, k);
     std::vector<Eigen::Triplet<double>> threadTriplet;
+    threadTriplet.clear();
     Eigen::Array3d center = Eigen::Array3d(i, j, k).cwiseProduct(h) + h / 2.0;
     // (i * _h[0], j * _h[1], k * _h[2]);
 
@@ -355,11 +356,11 @@ void LevelSet3::solvePressure() {
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i - 1, j, k)),
                                    -1 / (h2));
       } else {
-        double theta;
-        Eigen::Array3d surface = _findSurfaceCoordinate(
-            Eigen::Array3i(i, j, k), Eigen::Array3i(i - 1, j, k));
-        theta = (surface - center).matrix().norm() / _h.x();
         if (_isPressureSecondOrder) {
+          double theta;
+          Eigen::Array3d surface = _findSurfaceCoordinate(
+              Eigen::Array3i(i, j, k), Eigen::Array3i(i - 1, j, k));
+          theta = (surface - center).matrix().norm() / _h.x();
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -375,11 +376,11 @@ void LevelSet3::solvePressure() {
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i + 1, j, k)),
                                    -1 / (h2));
       } else {
-        double theta;
-        Eigen::Array3d surface = _findSurfaceCoordinate(
-            Eigen::Array3i(i, j, k), Eigen::Array3i(i + 1, j, k));
-        theta = (surface - center).matrix().norm() / _h.x();
         if (_isPressureSecondOrder) {
+          double theta;
+          Eigen::Array3d surface = _findSurfaceCoordinate(
+              Eigen::Array3i(i, j, k), Eigen::Array3i(i + 1, j, k));
+          theta = (surface - center).matrix().norm() / _h.x();
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -395,11 +396,11 @@ void LevelSet3::solvePressure() {
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j - 1, k)),
                                    -1 / (h2));
       } else {
-        double theta;
-        Eigen::Array3d surface = _findSurfaceCoordinate(
-            Eigen::Array3i(i, j, k), Eigen::Array3i(i, j - 1, k));
-        theta = (surface - center).matrix().norm() / _h.y();
         if (_isPressureSecondOrder) {
+          double theta;
+          Eigen::Array3d surface = _findSurfaceCoordinate(
+              Eigen::Array3i(i, j, k), Eigen::Array3i(i, j - 1, k));
+          theta = (surface - center).matrix().norm() / _h.y();
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -415,11 +416,11 @@ void LevelSet3::solvePressure() {
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j + 1, k)),
                                    -1 / (h2));
       } else {
-        double theta;
-        Eigen::Array3d surface = _findSurfaceCoordinate(
-            Eigen::Array3i(i, j, k), Eigen::Array3i(i, j + 1, k));
-        theta = (surface - center).matrix().norm() / _h.y();
         if (_isPressureSecondOrder) {
+          double theta;
+          Eigen::Array3d surface = _findSurfaceCoordinate(
+              Eigen::Array3i(i, j, k), Eigen::Array3i(i, j + 1, k));
+          theta = (surface - center).matrix().norm() / _h.y();
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -435,11 +436,11 @@ void LevelSet3::solvePressure() {
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j, k - 1)),
                                    -1 / (h2));
       } else {
-        double theta;
-        Eigen::Array3d surface = _findSurfaceCoordinate(
-            Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k - 1));
-        theta = (surface - center).matrix().norm() / _h.z();
         if (_isPressureSecondOrder) {
+          double theta;
+          Eigen::Array3d surface = _findSurfaceCoordinate(
+              Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k - 1));
+          theta = (surface - center).matrix().norm() / _h.z();
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -455,11 +456,11 @@ void LevelSet3::solvePressure() {
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j, k + 1)),
                                    -1 / (h2));
       } else {
-        double theta;
-        Eigen::Array3d surface = _findSurfaceCoordinate(
-            Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k + 1));
-        theta = (surface - center).matrix().norm() / _h.z();
         if (_isPressureSecondOrder) {
+          double theta;
+          Eigen::Array3d surface = _findSurfaceCoordinate(
+              Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k + 1));
+          theta = (surface - center).matrix().norm() / _h.z();
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -482,6 +483,7 @@ void LevelSet3::solvePressure() {
     divergent[id] /= _dt;
   }
   divergent[ghostId] = 0;
+
   triplets.emplace_back(ghostId, ghostId, 1);
 
   int nCells = idMap.size();
@@ -493,9 +495,7 @@ void LevelSet3::solvePressure() {
   timer.registerTime("Assembly");
 
   // SOlve pressure Poisson system
-  Eigen::BiCGSTAB<Eigen::SparseMatrix<double>,
-                  Eigen::DiagonalPreconditioner<double>>
-      solver;
+  Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
   // solver.setMaxIterations(100);
   solver.compute(pressureMatrix);
   timer.registerTime("Prepare Matrix");
@@ -543,7 +543,7 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _u[i][j][k] = _u[i][j][k] - _dt * (pressure1 - pressure2) / _h.x();
+      _u[i][j][k] -= (_dt * (pressure1 - pressure2) / _h.x());
       if (std::isnan(_u[i][j][k]) || std::isinf(_u[i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
@@ -556,7 +556,7 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _v[i][j][k] = (_v[i][j][k] - _dt * (pressure1 - pressure2) / _h.y());
+      _v[i][j][k] -= (_dt * (pressure1 - pressure2) / _h.y());
       if (std::isnan(_v[i][j][k]) || std::isinf(_v[i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
@@ -569,7 +569,7 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _w[i][j][k] = (_w[i][j][k] - _dt * (pressure1 - pressure2) / _h.z());
+      _w[i][j][k] -= (_dt * (pressure1 - pressure2) / _h.z());
       if (std::isnan(_w[i][j][k]) || std::isinf(_w[i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
@@ -583,6 +583,34 @@ void LevelSet3::solvePressure() {
 
   timer.registerTime("Gradient");
   timer.evaluateComponentsTime();
+
+  {
+    std::ofstream file;
+    file.open("pressValues");
+    if (file.is_open()) {
+      for (int id = 0; id < cellCount(); id++) {
+        auto it = idMap.find(id);
+        if (it == idMap.end()) {
+          file << " 0 ";
+        } else {
+          file << " " << pressure[it->second] << " ";
+        }
+      }
+    }
+    std::cout << "pressure written\n";
+    file.close();
+    file.open("divergent");
+
+    for (int id = 0; id < cellCount(); id++) {
+      auto it = idMap.find(id);
+      if (it == idMap.end()) {
+        file << " 0 ";
+      } else {
+        file << " " << divergent[it->second] << " ";
+      }
+    }
+    file.close();
+  }
 }
 
 double LevelSet3::_solveEikonal(glm::ivec3 cellId) {
