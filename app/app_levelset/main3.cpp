@@ -17,7 +17,7 @@ int main(int argc, char const *argv[]) {
   std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    resolution = 40;
+    resolution = 32;
     folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution
@@ -31,7 +31,7 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.2, 0.5), 0.1);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.15);
   // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
                      Ramuh::Vector3d(15, 0.2, 15));
@@ -51,7 +51,7 @@ int main(int argc, char const *argv[]) {
   sim.setPressureSecondOrder(false);
 
   Ramuh::Timer stopwatch;
-  for (int frame = 1; frame <= 50; frame++) {
+  for (int frame = 1; frame <= 300; frame++) {
     std::cout << std::endl;
     Ramuh::TriangleMesh surface;
     try {
@@ -66,8 +66,8 @@ int main(int argc, char const *argv[]) {
       // sim.addExternalForce(Eigen::Vector3d(-1.5, -4.5, 0));
       sim.boundaryVelocities();
 
-      // sim.macComarckVelocityAdvection();
-      sim.advectGridVelocity();
+      sim.macComarckVelocityAdvection();
+      // sim.advectGridVelocity();
       stopwatch.registerTime("Velocity advection");
 
       sim.writeVelocityField();
@@ -89,8 +89,8 @@ int main(int argc, char const *argv[]) {
       sim.writeVelocityField();
       std::cout << "Second extrapolation\n";
 
-      // sim.macCormackAdvection();
-      sim.integrateLevelSet();
+      sim.macCormackAdvection();
+      // sim.integrateLevelSet();
       stopwatch.registerTime("Levelset advection");
 
       if (frame % 5 == 0) {
