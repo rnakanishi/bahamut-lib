@@ -48,8 +48,7 @@ int main(int argc, char const *argv[]) {
   writer.writeMeshModel(sim.marchingTetrahedra(), "obj/0000.obj");
   // sim.printVertexVelocity();
   writer.writeLevelSet(sim, "data/0");
-  sim.setPressureSecondOrder(false);
-
+return 256;
   Ramuh::Timer stopwatch;
   for (int frame = 1; frame <= 300; frame++) {
     std::cout << std::endl;
@@ -105,12 +104,17 @@ int main(int argc, char const *argv[]) {
       std::cerr << error << std::endl;
       return -1;
     }
-
-    std::ostringstream filename, objname;
-    objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
-    writer.writeMeshModel(surface, objname.str());
-    filename << "data/" << frame;
-    writer.writeLevelSet(sim, std::string(filename.str()));
+    try {
+      std::ostringstream filename, objname;
+      objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
+      writer.writeMeshModel(surface, objname.str());
+      filename << "data/" << frame;
+      writer.writeLevelSet(sim, std::string(filename.str()));
+    } catch (const char *error) {
+      std::cerr << "Failed to write obj: ";
+      std::cerr << error << std::endl;
+      return -2;
+    }
   }
   return 0;
 }

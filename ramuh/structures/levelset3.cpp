@@ -931,6 +931,20 @@ TriangleMesh LevelSet3::marchingTetrahedra() {
 
 void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
                              TriangleMesh &mesh) {
+  // Check if vertices are in proper order and invert them if necessary
+  glm::vec3 coords[4];
+  glm::vec3 h(_h[0], _h[1], _h[2]);
+  coords[0] = glm::vec3(vertices[0]) * h;
+  coords[1] = glm::vec3(vertices[1]) * h;
+  coords[2] = glm::vec3(vertices[2]) * h;
+  coords[3] = glm::vec3(vertices[3]) * h;
+  if (glm::dot(glm::cross(coords[1] - coords[0], coords[2] - coords[0]),
+               coords[3] - coords[0]) > 0) {
+    glm::ivec3 aux = vertices[1];
+    vertices[1] = vertices[2];
+    vertices[2] = aux;
+  }
+
   int triIndex = 0;
   if (_phi[vertices[0][0]][vertices[0][1]][vertices[0][2]] < 0)
     triIndex |= 1;
@@ -998,30 +1012,57 @@ void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
     mesh.addFace(face);
     break;
   case 3:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    mesh.addFace(face);
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    mesh.addFace(face);
+    break;
   case 12:
     face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
     face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
     face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
     mesh.addFace(face);
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
     mesh.addFace(face);
     break;
   case 5:
-  case 10:
     face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
     face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
     face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
     mesh.addFace(face);
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    mesh.addFace(face);
+    break;
+  case 10:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    mesh.addFace(face);
     face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
     mesh.addFace(face);
     break;
   case 9:
+    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
+    mesh.addFace(face);
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    mesh.addFace(face);
+    break;
   case 6:
     face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
     face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
     face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
     mesh.addFace(face);
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
     mesh.addFace(face);
     break;
   }

@@ -80,7 +80,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
   double clamp[2]; // 0: min, 1: max
 // Convective term for velocity U
 #pragma omp parellel for
-  for (int i = 1; i < _resolution.x(); i++)
+  for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
@@ -139,16 +139,16 @@ void RegularGrid3::macComarckVelocityAdvection() {
           newU = _u[i][j][k];
         }
         utemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newU));
-      }
+        //       }
 
-// Convective term for velocity V
-#pragma omp parellel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 1; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
-        Eigen::Vector3d velocity;
-        Eigen::Array3i index;
+        // // Convective term for velocity V
+        // #pragma omp parellel for
+        //   for (int i = 0; i < _resolution.x(); i++)
+        //     for (int j = 1; j < _resolution.y(); j++)
+        //       for (int k = 0; k < _resolution.z(); k++) {
+        //         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
+        // Eigen::Vector3d velocity;
+        // Eigen::Array3i index;
         double newV = _v[i][j][k];
         // Find threshold values for clamping
         clamp[0] = 1e8;
@@ -202,16 +202,16 @@ void RegularGrid3::macComarckVelocityAdvection() {
           newV = _v[i][j][k];
         }
         vtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newV));
-      }
+        //       }
 
-// Convective term for velocity W
-#pragma omp parellel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 1; k < _resolution.z(); k++) {
-        Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
-        Eigen::Vector3d velocity;
-        Eigen::Array3i index;
+        // // Convective term for velocity W
+        // #pragma omp parellel for
+        //   for (int i = 0; i < _resolution.x(); i++)
+        //     for (int j = 0; j < _resolution.y(); j++)
+        //       for (int k = 1; k < _resolution.z(); k++) {
+        //         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
+        // Eigen::Vector3d velocity;
+        // Eigen::Array3i index;
         double newW = _w[i][j][k];
         // Find threshold values for clamping
         clamp[0] = 1e8;
