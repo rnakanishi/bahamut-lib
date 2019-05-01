@@ -17,7 +17,7 @@ int main(int argc, char const *argv[]) {
   std::stringstream folderName;
   //   writer.setDebug(true);
   if (argc < 2) {
-    resolution = 32;
+    resolution = 128;
     folderName << "data" << resolution << '/';
   } else {
     // TODO: Read resolution
@@ -31,7 +31,7 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.15);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.25);
   // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
                      Ramuh::Vector3d(15, 0.2, 15));
@@ -48,7 +48,7 @@ int main(int argc, char const *argv[]) {
   writer.writeMeshModel(sim.marchingTetrahedra(), "obj/0000.obj");
   // sim.printVertexVelocity();
   writer.writeLevelSet(sim, "data/0");
-return 256;
+  return 256;
   Ramuh::Timer stopwatch;
   for (int frame = 1; frame <= 300; frame++) {
     std::cout << std::endl;
@@ -104,16 +104,20 @@ return 256;
       std::cerr << error << std::endl;
       return -1;
     }
+
+    std::ostringstream filename, objname;
+    objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
+    filename << "data/" << frame;
     try {
-      std::ostringstream filename, objname;
-      objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
       writer.writeMeshModel(surface, objname.str());
-      filename << "data/" << frame;
-      writer.writeLevelSet(sim, std::string(filename.str()));
     } catch (const char *error) {
       std::cerr << "Failed to write obj: ";
       std::cerr << error << std::endl;
-      return -2;
+    }
+    try {
+      writer.writeLevelSet(sim, std::string(filename.str()));
+    } catch (const char *error) {
+      std::cerr << "Failed to write levelset: " << error << std::endl;
     }
   }
   return 0;
