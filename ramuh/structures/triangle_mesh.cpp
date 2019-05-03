@@ -20,9 +20,9 @@ uint TriangleMesh::addFace(glm::ivec3 face) {
   distances[0] = glm::distance(_vertices[face[0]], _vertices[face[1]]);
   distances[1] = glm::distance(_vertices[face[0]], _vertices[face[2]]);
   distances[2] = glm::distance(_vertices[face[2]], _vertices[face[1]]);
-  if (distances[0] > 1. / 16 || distances[1] > 1. / 16 ||
-      distances[2] > 1. / 16)
-    std::cerr << "addFace: Distance too high\n";
+  // if (distances[0] > 1. / 16 || distances[1] > 1. / 16 ||
+  //     distances[2] > 1. / 16)
+  //   std::cerr << "addFace: Distance too high\n";
   _faces.emplace_back(face);
   return _faces.size() - 1;
 }

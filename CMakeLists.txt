@@ -9,6 +9,7 @@ include( glfw )
 include( glm )
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/glad" "external/glad")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/pugixml" "external/pugixml")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/tinyobjloader" 
                                                     "external/tinyobjloader")
 set(GLAD_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include")

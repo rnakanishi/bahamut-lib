@@ -1,0 +1,11 @@
+<simulation>
+    <resolution xyz="64"/>
+    <pressureOrder order="2"/>
+    <dataFolder>data64</dataFolder>
+    <objFolder>obj64</objFolder>
+    <domainSize x="1.0" y="1.0" z="1.0"/>
+    <domain>
+        <sphere></sphere>
+        <cube></cube>
+    </domain>
+</simulation>

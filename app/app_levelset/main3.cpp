@@ -9,19 +9,39 @@
 #include <sstream>
 #include <utils/file_writer.h>
 #include <utils/timer.hpp>
+#include <pugixml.hpp>
 
 int main(int argc, char const *argv[]) {
+
+  // Find a file to parse simulatoin parameters
+  std::string xmlFilename;
+  if (argc < 2) {
+    std::cerr << "Expected a XML file\nUsing default config.xml instead\n";
+    xmlFilename = std::string("assets/simulations/config.xml");
+  } else {
+    xmlFilename = std::string(argv[1]);
+  }
+
+  pugi::xml_document xmlDoc;
+  if (!xmlDoc.load_file(xmlFilename.c_str())) {
+    std::cerr << "Failed to load XML file: " << xmlFilename << std::endl;
+    return -3;
+  }
+
   LevelSetFluid3 sim;
   Ramuh::FileWriter writer;
   int resolution;
-  std::stringstream folderName;
-  //   writer.setDebug(true);
-  if (argc < 2) {
-    resolution = 128;
-    folderName << "data" << resolution << '/';
-  } else {
-    // TODO: Read resolution
-  }
+  std::string objFolderName, dataFolderName;
+  bool isPressureSecondOrder;
+
+  // ================
+  // Parsing values and assigning them
+  pugi::xml_node node;
+  node = xmlDoc.child("simulation");
+  resolution = node.child("resolution").attribute("xyz").as_int();
+  dataFolderName = std::string(node.child("dataFolder").child_value());
+  objFolderName = std::string(node.child("objFolder").child_value());
+
   sim.setResolution(Ramuh::Vector3i(resolution));
   sim.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0));
 
@@ -32,19 +52,24 @@ int main(int argc, char const *argv[]) {
   auto res = sim.resolution();
   auto h = sim.h();
 
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.15);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.75, 0.5), 0.15);
   // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
-                     Ramuh::Vector3d(15, 0.2, 15));
+                     Ramuh::Vector3d(15, 0.4, 15));
   // sim.addCubeSurface(Ramuh::Vector3d(-5, -5, -5),
   //  Ramuh::Vector3d(0.2, 0.8, 0.2));
 
   sim.setVelocity();
   sim.redistance();
-  writer.writeMeshModel(sim.marchingTetrahedra(), "obj/0000.obj");
-  writer.writeLevelSet(sim, "data/0");
+  std::ostringstream dataname, objname;
 
-  sim.setPressureSecondOrder(false);
+  dataname << dataFolderName << "/0";
+  objname << objFolderName << "/0000.obj";
+
+  writer.writeMeshModel(sim.marchingTetrahedra(), objname.str().c_str());
+  writer.writeLevelSet(sim, dataname.str().c_str());
+
+  sim.setPressureSecondOrder(true);
   Ramuh::Timer stopwatch;
   for (int frame = 1; frame <= 300; frame++) {
     std::cout << std::endl;
@@ -101,10 +126,12 @@ int main(int argc, char const *argv[]) {
       return -1;
     }
 
-    std::ostringstream filename, objname;
-    objname << "obj128/" << std::setw(4) << std::setfill('0') << frame
-            << ".obj";
-    filename << "data128/" << frame;
+    objname.clear();
+    dataname.clear();
+    objname << objFolderName << "/" << std::setw(4) << std::setfill('0')
+            << frame << ".obj";
+    dataname << dataFolderName << "/" << frame;
+
     try {
       writer.writeMeshModel(surface, objname.str());
     } catch (const char *error) {
@@ -112,7 +139,7 @@ int main(int argc, char const *argv[]) {
       std::cerr << error << std::endl;
     }
     try {
-      writer.writeLevelSet(sim, std::string(filename.str()));
+      writer.writeLevelSet(sim, std::string(dataname.str()));
     } catch (const char *error) {
       std::cerr << "Failed to write levelset: " << error << std::endl;
     }
