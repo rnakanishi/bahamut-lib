@@ -328,7 +328,7 @@ void LevelSet3::solvePressure() {
   // Solve pressure Poisson equation
   divergent = Eigen::VectorXd::Zero(cellCount());
   int ghostId = _getMapId(-1);
-#pragma omp parallel for
+#pragma omp for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
@@ -336,31 +336,30 @@ void LevelSet3::solvePressure() {
     j = ijk[1];
     k = ijk[2];
 
-    if (_material[i][j][k] != Material::FluidMaterial::FLUID)
+    if (_phi[i][j][k] > 0.0)
       continue;
     int id = _getMapId(_id);
 
     int validCells = 0;
     double h2 = _h.x() * _h.x();
     double centerWeight = 0.0;
-    // int id = ijkToId(i, j, k);
     std::vector<Eigen::Triplet<double>> threadTriplet;
     threadTriplet.clear();
     Eigen::Array3d center = Eigen::Array3d(i, j, k).cwiseProduct(h) + h / 2.0;
-    // (i * _h[0], j * _h[1], k * _h[2]);
 
     if (i > 0) {
       validCells++;
-      if (_material[i - 1][j][k] != Material::FluidMaterial::AIR) {
+      if (_phi[i - 1][j][k] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i - 1, j, k)),
                                    -1 / (h2));
       } else {
         if (_isPressureSecondOrder) {
           double theta;
-          Eigen::Array3d surface = _findSurfaceCoordinate(
-              Eigen::Array3i(i, j, k), Eigen::Array3i(i - 1, j, k));
-          theta = (surface - center).matrix().norm() / _h.x();
+          // Eigen::Array3d surface = _findSurfaceCoordinate(
+          // Eigen::Array3i(i, j, k), Eigen::Array3i(i - 1, j, k));
+          // theta = (surface - center).matrix().norm() / _h.x();
+          theta = -_phi[i][j][k] / (_phi[i - 1][j][k] - _phi[i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -371,16 +370,17 @@ void LevelSet3::solvePressure() {
     }
     if (i < _resolution.x() - 1) {
       validCells++;
-      if (_material[i + 1][j][k] != Material::FluidMaterial::AIR) {
+      if (_phi[i + 1][j][k] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i + 1, j, k)),
                                    -1 / (h2));
       } else {
         if (_isPressureSecondOrder) {
           double theta;
-          Eigen::Array3d surface = _findSurfaceCoordinate(
-              Eigen::Array3i(i, j, k), Eigen::Array3i(i + 1, j, k));
-          theta = (surface - center).matrix().norm() / _h.x();
+          // Eigen::Array3d surface = _findSurfaceCoordinate(
+          // Eigen::Array3i(i, j, k), Eigen::Array3i(i + 1, j, k));
+          // theta = (surface - center).matrix().norm() / _h.x();
+          theta = -_phi[i][j][k] / (_phi[i + 1][j][k] - _phi[i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -391,16 +391,17 @@ void LevelSet3::solvePressure() {
     }
     if (j > 0) {
       validCells++;
-      if (_material[i][j - 1][k] != Material::FluidMaterial::AIR) {
+      if (_phi[i][j - 1][k] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j - 1, k)),
                                    -1 / (h2));
       } else {
         if (_isPressureSecondOrder) {
           double theta;
-          Eigen::Array3d surface = _findSurfaceCoordinate(
-              Eigen::Array3i(i, j, k), Eigen::Array3i(i, j - 1, k));
-          theta = (surface - center).matrix().norm() / _h.y();
+          // Eigen::Array3d surface = _findSurfaceCoordinate(
+          // Eigen::Array3i(i, j, k), Eigen::Array3i(i, j - 1, k));
+          // theta = (surface - center).matrix().norm() / _h.y();
+          theta = -_phi[i][j][k] / (_phi[i][j - 1][k] - _phi[i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -411,16 +412,17 @@ void LevelSet3::solvePressure() {
     }
     if (j < _resolution.y() - 1) {
       validCells++;
-      if (_material[i][j + 1][k] != Material::FluidMaterial::AIR) {
+      if (_phi[i][j + 1][k] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j + 1, k)),
                                    -1 / (h2));
       } else {
         if (_isPressureSecondOrder) {
           double theta;
-          Eigen::Array3d surface = _findSurfaceCoordinate(
-              Eigen::Array3i(i, j, k), Eigen::Array3i(i, j + 1, k));
-          theta = (surface - center).matrix().norm() / _h.y();
+          // Eigen::Array3d surface = _findSurfaceCoordinate(
+          // Eigen::Array3i(i, j, k), Eigen::Array3i(i, j + 1, k));
+          // theta = (surface - center).matrix().norm() / _h.y();
+          theta = -_phi[i][j][k] / (_phi[i][j + 1][k] - _phi[i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -431,16 +433,17 @@ void LevelSet3::solvePressure() {
     }
     if (k > 0) {
       validCells++;
-      if (_material[i][j][k - 1] != Material::FluidMaterial::AIR) {
+      if (_phi[i][j][k - 1] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j, k - 1)),
                                    -1 / (h2));
       } else {
         if (_isPressureSecondOrder) {
           double theta;
-          Eigen::Array3d surface = _findSurfaceCoordinate(
-              Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k - 1));
-          theta = (surface - center).matrix().norm() / _h.z();
+          // Eigen::Array3d surface = _findSurfaceCoordinate(
+          // Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k - 1));
+          // theta = (surface - center).matrix().norm() / _h.z();
+          theta = -_phi[i][j][k] / (_phi[i][j][k - 1] - _phi[i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -451,16 +454,17 @@ void LevelSet3::solvePressure() {
     }
     if (k < _resolution.z() - 1) {
       validCells++;
-      if (_material[i][j][k + 1] != Material::FluidMaterial::AIR) {
+      if (_phi[i][j][k + 1] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j, k + 1)),
                                    -1 / (h2));
       } else {
         if (_isPressureSecondOrder) {
           double theta;
-          Eigen::Array3d surface = _findSurfaceCoordinate(
-              Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k + 1));
-          theta = (surface - center).matrix().norm() / _h.z();
+          // Eigen::Array3d surface = _findSurfaceCoordinate(
+          // Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k + 1));
+          // theta = (surface - center).matrix().norm() / _h.z();
+          theta = -_phi[i][j][k] / (_phi[i][j][k + 1] - _phi[i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -483,7 +487,6 @@ void LevelSet3::solvePressure() {
     divergent[id] /= _dt;
   }
   divergent[ghostId] = 0;
-
   triplets.emplace_back(ghostId, ghostId, 1);
 
   int nCells = idMap.size();
@@ -934,10 +937,10 @@ void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
   // Check if vertices are in proper order and invert them if necessary
   glm::vec3 coords[4];
   glm::vec3 h(_h[0], _h[1], _h[2]);
-  coords[0] = glm::vec3(vertices[0]) * h;
-  coords[1] = glm::vec3(vertices[1]) * h;
-  coords[2] = glm::vec3(vertices[2]) * h;
-  coords[3] = glm::vec3(vertices[3]) * h;
+  coords[0] = glm::vec3(vertices[0]) * h + h / 2.0f;
+  coords[1] = glm::vec3(vertices[1]) * h + h / 2.0f;
+  coords[2] = glm::vec3(vertices[2]) * h + h / 2.0f;
+  coords[3] = glm::vec3(vertices[3]) * h + h / 2.0f;
   if (glm::dot(glm::cross(coords[1] - coords[0], coords[2] - coords[0]),
                coords[3] - coords[0]) > 0) {
     glm::ivec3 aux = vertices[1];
@@ -1078,6 +1081,17 @@ glm::vec3 LevelSet3::_findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2) {
   float phi1, phi2;
   phi1 = _phi[v1[0]][v1[1]][v1[2]];
   phi2 = _phi[v2[0]][v2[1]][v2[2]];
+  if (phi1 == 0.0)
+    return coord1;
+  if (phi2 == 0.0)
+    return coord2;
+
+  if (std::signbit(phi1) == std::signbit(phi2)) {
+    std::stringstream message;
+    message << "LevelSet3::_findSurfaceCoordinate: There is no surface between "
+               "points\n";
+    throw(message.str().c_str());
+  }
   if (std::isnan(phi1) || std::isnan(phi2) || std::isinf(phi1) ||
       std::isinf(phi2)) {
     std::stringstream message;
@@ -1099,6 +1113,18 @@ Eigen::Array3d LevelSet3::_findSurfaceCoordinate(Eigen::Array3i v1,
   float phi1, phi2;
   phi1 = _phi[v1[0]][v1[1]][v1[2]];
   phi2 = _phi[v2[0]][v2[1]][v2[2]];
+
+  if (phi1 == 0.0)
+    return coord1;
+  if (phi2 == 0.0)
+    return coord2;
+
+  if (std::signbit(phi1) == std::signbit(phi2)) {
+    std::stringstream message;
+    message << "LevelSet3::_findSurfaceCoordinate: There is no surface between "
+               "points\n";
+    throw(message.str().c_str());
+  }
 
   if (std::isnan(phi1) || std::isnan(phi2) || std::isinf(phi1) ||
       std::isinf(phi2)) {

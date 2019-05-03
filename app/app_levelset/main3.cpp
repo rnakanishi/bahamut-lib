@@ -31,24 +31,20 @@ int main(int argc, char const *argv[]) {
 
   auto res = sim.resolution();
   auto h = sim.h();
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.25);
+
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.15);
   // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
   sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
                      Ramuh::Vector3d(15, 0.2, 15));
   // sim.addCubeSurface(Ramuh::Vector3d(-5, -5, -5),
   //  Ramuh::Vector3d(0.2, 0.8, 0.2));
 
-  //   sim.printLevelSetValue();
-  //   std::cerr << std::endl;
-  //   sim.redistance();
-  //   sim.printLevelSetValue();
   sim.setVelocity();
-  // writer.writeMeshModel(sim.marchingTetrahedra(), "data/model/0000.obj");
   sim.redistance();
   writer.writeMeshModel(sim.marchingTetrahedra(), "obj/0000.obj");
-  // sim.printVertexVelocity();
   writer.writeLevelSet(sim, "data/0");
-  return 256;
+
+  sim.setPressureSecondOrder(false);
   Ramuh::Timer stopwatch;
   for (int frame = 1; frame <= 300; frame++) {
     std::cout << std::endl;
@@ -106,8 +102,9 @@ int main(int argc, char const *argv[]) {
     }
 
     std::ostringstream filename, objname;
-    objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
-    filename << "data/" << frame;
+    objname << "obj128/" << std::setw(4) << std::setfill('0') << frame
+            << ".obj";
+    filename << "data128/" << frame;
     try {
       writer.writeMeshModel(surface, objname.str());
     } catch (const char *error) {

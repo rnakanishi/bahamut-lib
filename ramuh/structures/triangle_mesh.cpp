@@ -1,18 +1,28 @@
 #include <structures/triangle_mesh.h>
+#include <glm/glm.hpp>
+#include <iostream>
 
 namespace Ramuh {
 TriangleMesh::TriangleMesh() {}
 TriangleMesh::~TriangleMesh() {}
 
 uint TriangleMesh::addVertex(glm::vec3 vertex) {
-  if (_vMap.find(vertex) == _vMap.end()) {
-    _vertices.emplace_back(vertex);
-    _vMap[vertex] = _vertices.size() - 1;
-  }
-  return _vMap[vertex];
+  // if (_vMap.find(vertex) == _vMap.end()) {
+  _vertices.emplace_back(vertex);
+  return _vertices.size() - 1;
+  // _vMap[vertex] = _vertices.size() - 1;
+  // }
+  // return _vMap[vertex];
 }
 
 uint TriangleMesh::addFace(glm::ivec3 face) {
+  double distances[3];
+  distances[0] = glm::distance(_vertices[face[0]], _vertices[face[1]]);
+  distances[1] = glm::distance(_vertices[face[0]], _vertices[face[2]]);
+  distances[2] = glm::distance(_vertices[face[2]], _vertices[face[1]]);
+  if (distances[0] > 1. / 16 || distances[1] > 1. / 16 ||
+      distances[2] > 1. / 16)
+    std::cerr << "addFace: Distance too high\n";
   _faces.emplace_back(face);
   return _faces.size() - 1;
 }

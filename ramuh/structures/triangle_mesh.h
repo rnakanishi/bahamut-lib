@@ -91,10 +91,13 @@ protected:
   public:
     bool operator()(const glm::vec3 v1, const glm::vec3 v2) const {
       return v1[0] < v2[0] ||
-             (std::fabs(v1[0] - v2[0]) < 1e-8 && v1[1] < v2[1]) ||
-             (std::fabs(v1[0] - v2[0]) < 1e-8 &&
-              std::fabs(v1[1] - v2[1]) < 1e-8 && v1[2] < v2[2]);
+             std::fabs(v1[0] - v2[0]) < 1e-8 &&
+                 (v1[1] < v2[1] ||
+                  std::fabs(v1[1] - v2[1]) < 1e-8 && v1[2] < v2[2]);
     }
+    // return lhs.x < rhs.x ||
+    //        lhs.x == rhs.x && (lhs.y < rhs.y || lhs.y == rhs.y && lhs.z <
+    //        rhs.z);
   };
   std::map<glm::vec3, uint, vec3Compare> _vMap;
   std::vector<glm::vec3> _vertices;

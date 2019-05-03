@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <fstream>
 
 class LevelSetObject : public Garuda::MeshObject {
 public:
@@ -97,18 +98,39 @@ public:
     }
   }
 
+  void readData(const char *filename, Ramuh::LevelSet3 *surface) {
+    std::ifstream file;
+    file.open(filename);
+    if (!file.is_open()) {
+      std::cerr << "Error opening " << filename << std::endl;
+      return;
+    }
+    for (int k = 0; k < surface->resolution()[2]; k++) {
+      for (int i = 0; i < surface->resolution()[0]; i++) {
+        for (int j = 0; j < surface->resolution()[1]; j++) {
+          file >> (*surface)[i][j][k];
+        }
+      }
+    }
+  }
+
   void loadScene() {
     _shader.loadVertexShader("./assets/shaders/texture.vert");
     _shader.loadFragmentShader("./assets/shaders/texture.frag");
 
     Ramuh::LevelSet3 _levelset;
-    int resolution = 40;
+    int resolution = 64;
     _levelset.setResolution(Ramuh::Vector3i(resolution));
     _levelset.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0));
-    _levelset.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.25);
 
-    Ramuh::TriangleMesh surface = _levelset.marchingTetrahedra();
-    _objects = (LevelSetObject *)&surface;
+    readData("data/10", &_levelset);
+
+    // _levelset.addSphereSurface(Ramuh::Vector3d(0.5, 0.5, 0.5), 0.25);
+
+    auto surface = _levelset.marchingTetrahedra();
+    // _objects = std::make_shared<LevelSetObject>(&surface);
+    _objects = (new LevelSetObject(surface));
+    _objects = dynamic_cast<LevelSetObject *>(surface);
 
     _objects->loadMesh();
   }

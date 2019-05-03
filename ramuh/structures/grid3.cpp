@@ -666,7 +666,7 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[0]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity = _u[cell[0]][cell[1]][cell[2]];
+        newVelocity += _u[cell[0]][cell[1]][cell[2]];
       }
       _u[i][j][k] = newVelocity / nCells;
       if (i > 0 && processedCells[i - 1][j][k] > 1e6)
@@ -675,7 +675,7 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[1]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity = _u[cell[0] + 1][cell[1]][cell[2]];
+        newVelocity += _u[cell[0] + 1][cell[1]][cell[2]];
       }
       _u[i + 1][j][k] = newVelocity / nCells;
       if (i < _resolution[0] - 1 && processedCells[i + 1][j][k] > 1e6)
@@ -684,7 +684,7 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[2]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity = _v[cell[0]][cell[1]][cell[2]];
+        newVelocity += _v[cell[0]][cell[1]][cell[2]];
       }
       _v[i][j][k] = newVelocity / nCells;
       if (j > 0 && processedCells[i][j - 1][k] > 1e6)
@@ -693,7 +693,7 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[3]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity = _v[cell[0]][cell[1] + 1][cell[2]];
+        newVelocity += _v[cell[0]][cell[1] + 1][cell[2]];
       }
       _v[i][j + 1][k] = newVelocity / nCells;
       if (j < _resolution[1] - 1 && processedCells[i][j + 1][k] > 1e6)
@@ -702,7 +702,7 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[4]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity = _w[cell[0]][cell[1]][cell[2]];
+        newVelocity += _w[cell[0]][cell[1]][cell[2]];
       }
       _w[i][j][k] = newVelocity / nCells;
       if (k > 0 && processedCells[i][j][k - 1] > 1e6)
@@ -711,7 +711,7 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[5]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity = _w[cell[0]][cell[1]][cell[2] + 1];
+        newVelocity += _w[cell[0]][cell[1]][cell[2] + 1];
       }
       _w[i][j][k + 1] = newVelocity / nCells;
       if (k < _resolution[2] - 1 && processedCells[i][j][k + 1] > 1e6)
