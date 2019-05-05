@@ -30,7 +30,7 @@ int main(int argc, char const *argv[]) {
 
   LevelSetFluid3 sim;
   Ramuh::FileWriter writer;
-  int resolution;
+  int resolution, nFrames;
   std::string objFolderName, dataFolderName;
   bool isPressureSecondOrder;
 
@@ -39,23 +39,29 @@ int main(int argc, char const *argv[]) {
   pugi::xml_node node;
   node = xmlDoc.child("simulation");
   resolution = node.child("resolution").attribute("xyz").as_int();
+  nFrames = node.child("maxFrames").attribute("value").as_int();
   dataFolderName = std::string(node.child("dataFolder").child_value());
   objFolderName = std::string(node.child("objFolder").child_value());
+  int pressureOrder = node.child("pressureOrder").attribute("order").as_int();
+  isPressureSecondOrder = (pressureOrder == 2) ? true : false;
 
   sim.setResolution(Ramuh::Vector3i(resolution));
   sim.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0));
+  sim.setPressureSecondOrder(isPressureSecondOrder);
 
   std::cerr << "Initialized grid with size " << sim.domainSize()
             << ", resolution " << sim.resolution() << "  and h spacing "
             << sim.h() << std::endl;
+  std::cerr << "Pressure order at FS: " << ((isPressureSecondOrder) ? "2" : "1")
+            << std::endl;
 
   auto res = sim.resolution();
   auto h = sim.h();
 
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.75, 0.5), 0.15);
+  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.6, 0.5), 0.15);
   // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
-  sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
-                     Ramuh::Vector3d(15, 0.4, 15));
+  // sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
+  //  Ramuh::Vector3d(15, 0.4, 15));
   // sim.addCubeSurface(Ramuh::Vector3d(-5, -5, -5),
   //  Ramuh::Vector3d(0.2, 0.8, 0.2));
 
@@ -69,9 +75,8 @@ int main(int argc, char const *argv[]) {
   writer.writeMeshModel(sim.marchingTetrahedra(), objname.str().c_str());
   writer.writeLevelSet(sim, dataname.str().c_str());
 
-  sim.setPressureSecondOrder(true);
   Ramuh::Timer stopwatch;
-  for (int frame = 1; frame <= 300; frame++) {
+  for (int frame = 1; frame <= nFrames; frame++) {
     std::cout << std::endl;
     Ramuh::TriangleMesh surface;
     try {
@@ -126,8 +131,8 @@ int main(int argc, char const *argv[]) {
       return -1;
     }
 
-    objname.clear();
-    dataname.clear();
+    objname.str(std::string());
+    dataname.str(std::string());
     objname << objFolderName << "/" << std::setw(4) << std::setfill('0')
             << frame << ".obj";
     dataname << dataFolderName << "/" << frame;

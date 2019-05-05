@@ -1,6 +1,7 @@
 #include <structures/levelset3.h>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <utils/file_writer.h>
 
 class LevelSetTriangles : public Ramuh::LevelSet3 {
@@ -33,9 +34,16 @@ int main(void) {
   surface.setResolution(Ramuh::Vector3i(resolution));
   surface.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0));
 
-  surface.readData("data/26");
-  auto triangles = surface.marchingTetrahedra();
+  for (int frame = 0; frame <= 21; frame++) {
+    std::stringstream objname;
+    std::stringstream dataname;
+    objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
+    dataname << "data/" << frame;
 
-  Ramuh::FileWriter writer;
-  writer.writeMeshModel(triangles, "obj/reconstruct.obj");
+    surface.readData(dataname.str().c_str());
+    auto triangles = surface.marchingTetrahedra();
+
+    Ramuh::FileWriter writer;
+    writer.writeMeshModel(triangles, objname.str().c_str());
+  }
 }

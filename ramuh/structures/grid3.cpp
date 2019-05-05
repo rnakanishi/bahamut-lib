@@ -882,6 +882,9 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
+        if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
+            w < 0 || w >= _resolution[2])
+          continue;
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
@@ -932,6 +935,9 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
+        if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
+            w < 0 || w >= _resolution[2])
+          continue;
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
@@ -982,6 +988,9 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
+        if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
+            w < 0 || w >= _resolution[2])
+          continue;
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
         distance = (position - centerPosition).matrix().norm();

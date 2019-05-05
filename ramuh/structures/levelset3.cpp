@@ -282,6 +282,9 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
+        if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
+            w < 0 || w >= _resolution[2])
+          continue;
         Eigen::Array3d centerPosition = Eigen::Array3d(u, v, w) * h + h / 2.0;
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-6)
