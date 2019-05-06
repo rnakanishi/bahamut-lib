@@ -7,7 +7,7 @@ LevelSetFluid3::LevelSetFluid3() : Ramuh::LevelSet3() {}
 
 void LevelSetFluid3::writeVelocityField() {
   std::ofstream file;
-  file.open("velocityField");
+  file.open("results/velocityField");
   if (file.is_open()) {
     for (int id = 0; id < cellCount(); id++) {
       Eigen::Array3i ijk = idToijk(id);

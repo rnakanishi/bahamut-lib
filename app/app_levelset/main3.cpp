@@ -113,8 +113,8 @@ int main(int argc, char const *argv[]) {
         sim.extrapolateVelocity();
         stopwatch.registerTime("Extrapolate velocity");
 
-        // sim.macCormackAdvection();
-        sim.integrateLevelSet();
+        sim.macCormackAdvection();
+        // sim.integrateLevelSet();
         stopwatch.registerTime("Levelset advection");
 
         // if (frame % 5 == 0) {
@@ -123,7 +123,7 @@ int main(int argc, char const *argv[]) {
         // }
 
         stopwatch.evaluateComponentsTime();
-        sim.writeFaceVelocity("lastVelocity");
+        sim.writeFaceVelocity("results/lastVelocity");
       } catch (const char *error) {
         std::cerr << error << std::endl;
         return -1;

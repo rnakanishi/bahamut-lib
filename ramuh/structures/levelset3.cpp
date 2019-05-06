@@ -607,7 +607,7 @@ void LevelSet3::solvePressure() {
 
   {
     std::ofstream file;
-    file.open("pressValues");
+    file.open("results/pressValues");
     if (file.is_open()) {
       for (int id = 0; id < cellCount(); id++) {
         auto it = idMap.find(id);
@@ -620,7 +620,7 @@ void LevelSet3::solvePressure() {
     }
     std::cout << "pressure written\n";
     file.close();
-    file.open("divergent");
+    file.open("results/divergent");
 
     for (int id = 0; id < cellCount(); id++) {
       auto it = idMap.find(id);

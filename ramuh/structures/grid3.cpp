@@ -332,30 +332,29 @@ void RegularGrid3::advectGridVelocity() {
   wtemp.changeSize(
       Vector3i(_resolution.x(), _resolution.y(), _resolution.z() + 1), -1e8);
 
-  std::set<std::tuple<int, int, int>> fluidFaces;
+  std::vector<std::tuple<int, int, int>> fluidFaces;
   for (auto id : _fluidCells) {
     Eigen::Array3i ijk = idToijk(id);
     int i, j, k;
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    fluidFaces.insert(std::make_tuple(i, j, k));
+    fluidFaces.emplace_back(std::make_tuple(i, j, k));
     if (i < _resolution[0] - 1 &&
         _material[i + 1][j][k] == Material::FluidMaterial::AIR) {
-      fluidFaces.insert(std::make_tuple(i + 1, j, k));
+      fluidFaces.emplace_back(std::make_tuple(i + 1, j, k));
     }
   }
   // -------------------------------------------
   // Solve convection term (material derivative) - u velocities
   Eigen::Array3i ijk;
-  int i, j, k;
-  Eigen::Array3d position, backPosition, velocity, cellCenter;
-  Eigen::Array3i index;
-  double newVelocity;
-  // #pragma omp parallel for
-  for (std::set<std::tuple<int, int, int>>::iterator it = fluidFaces.begin();
-       it != fluidFaces.end(); it++) {
-    std::tie(i, j, k) = *it;
+
+#pragma omp parallel for
+  for (int it = 0; it < fluidFaces.size(); it++) {
+    int i, j, k;
+    Eigen::Array3d position, backPosition, velocity, cellCenter;
+    Eigen::Array3i index;
+    std::tie(i, j, k) = fluidFaces[it];
 
     if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
       utemp[i][j][k] = _u[i][j][k];
@@ -363,7 +362,7 @@ void RegularGrid3::advectGridVelocity() {
       wtemp[i][j][k] = _w[i][j][k];
       continue;
     }
-    newVelocity = _u[i][j][k];
+    double newVelocity = _u[i][j][k];
 
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                Eigen::Array3d(0, h[1] / 2, h[2] / 2);
@@ -389,17 +388,20 @@ void RegularGrid3::advectGridVelocity() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    fluidFaces.insert(std::make_tuple(i, j, k));
+    fluidFaces.emplace_back(std::make_tuple(i, j, k));
     if (j < _resolution[1] &&
         _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
-      fluidFaces.insert(std::make_tuple(i, j + 1, k));
+      fluidFaces.emplace_back(std::make_tuple(i, j + 1, k));
     }
   }
-  // #pragma omp parallel for
-  for (std::set<std::tuple<int, int, int>>::iterator it = fluidFaces.begin();
-       it != fluidFaces.end(); it++) {
-    std::tie(i, j, k) = *it;
-    newVelocity = _v[i][j][k];
+#pragma omp parallel for
+  for (int it = 0; it < fluidFaces.size(); it++) {
+    int i, j, k;
+    Eigen::Array3d position, backPosition, velocity, cellCenter;
+    Eigen::Array3i index;
+    std::tie(i, j, k) = fluidFaces[it];
+
+    double newVelocity = _v[i][j][k];
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
     velocity[0] = _interpolateVelocityU(position);
@@ -424,17 +426,20 @@ void RegularGrid3::advectGridVelocity() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    fluidFaces.insert(std::make_tuple(i, j, k));
+    fluidFaces.emplace_back(std::make_tuple(i, j, k));
     if (k < _resolution[2] &&
         _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
-      fluidFaces.insert(std::make_tuple(i, j, k + 1));
+      fluidFaces.emplace_back(std::make_tuple(i, j, k + 1));
     }
   }
-  // #pragma omp parallel for
-  for (std::set<std::tuple<int, int, int>>::iterator it = fluidFaces.begin();
-       it != fluidFaces.end(); it++) {
-    std::tie(i, j, k) = *it;
-    newVelocity = _w[i][j][k];
+#pragma omp parallel for
+  for (int it = 0; it < fluidFaces.size(); it++) {
+    int i, j, k;
+    Eigen::Array3d position, backPosition, velocity, cellCenter;
+    Eigen::Array3i index;
+    std::tie(i, j, k) = fluidFaces[it];
+
+    double newVelocity = _w[i][j][k];
 
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
