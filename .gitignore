@@ -8,3 +8,4 @@ data/*
 obj/*
 octave-workspace
 *.m
+results/*
