@@ -11,6 +11,12 @@ Timer::Timer() {
 
 void Timer::reset() { _start = _lastLap = std::clock(); }
 
+void Timer::clearAll() {
+  for (auto &comp : _components) {
+    comp.second = 0.0;
+  }
+}
+
 void Timer::lap() { _lastLap = std::clock(); }
 
 double Timer::getEllapsedTime() {
@@ -21,7 +27,10 @@ double Timer::getEllapsedTime() {
 }
 
 double Timer::registerTime(const std::string &name) {
-  _components[name] = getEllapsedTime();
+  auto it = _components.find(name);
+  if (it == _components.end())
+    _components[name] = 0.0;
+  _components[name] += getEllapsedTime();
   if (name.length() > _longestName)
     _longestName = name.length();
 }

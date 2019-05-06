@@ -111,6 +111,7 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
 }
 
 void LevelSet3::checkCellMaterial() {
+  _fluidCells.clear();
 #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
@@ -118,12 +119,14 @@ void LevelSet3::checkCellMaterial() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    if (_phi[i][j][k] <= 0)
+    if (_phi[i][j][k] <= 0) {
       _material[i][j][k] = Material::FluidMaterial::FLUID;
-    else
+#pragma omp critical
+      { _fluidCells.emplace_back(_id); }
+    } else
       _material[i][j][k] = Material::FluidMaterial::AIR;
   }
-}
+} // namespace Ramuh
 
 void LevelSet3::addImplicitFunction() { NOT_IMPLEMENTED(); }
 
@@ -139,6 +142,11 @@ void LevelSet3::integrateLevelSet() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
+    if (std::fabs(_phi[i][j][k]) > 5 * _h[0]) {
+      oldPhi[i][j][k] = _phi[i][j][k];
+      continue;
+    }
+
     Eigen::Array3d position, backPosition, velocity, h(_h.x(), _h.y(), _h.z()),
         cellCenter;
     Eigen::Array3i index;
@@ -175,7 +183,9 @@ void LevelSet3::integrateLevelSet() {
 
 void LevelSet3::macCormackAdvection() {
   Matrix3<double> newPhi;
+  Matrix3<bool> phiChanged;
   newPhi.changeSize(_resolution);
+  phiChanged.changeSize(_resolution, false);
   Eigen::Array3i resolution(_resolution[0], _resolution[1], _resolution[2]);
 #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
@@ -185,6 +195,10 @@ void LevelSet3::macCormackAdvection() {
     j = ijk[1];
     k = ijk[2];
 
+    // if (std::fabs(_phi[i][j][k]) > 5 * _h[0]) {
+    //   newPhi[i][j][k] = _phi[i][j][k];
+    //   continue;
+    // }
     Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
     Eigen::Vector3d velocity;
     Eigen::Array3i index;
@@ -331,7 +345,7 @@ void LevelSet3::solvePressure() {
   // Solve pressure Poisson equation
   divergent = Eigen::VectorXd::Zero(cellCount());
   int ghostId = _getMapId(-1);
-#pragma omp for
+#pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
@@ -502,6 +516,7 @@ void LevelSet3::solvePressure() {
 
   // SOlve pressure Poisson system
   Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
+  solver.setTolerance(1e-10);
   // solver.setMaxIterations(100);
   solver.compute(pressureMatrix);
   timer.registerTime("Prepare Matrix");

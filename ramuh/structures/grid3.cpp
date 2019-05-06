@@ -5,6 +5,7 @@
 #include <Eigen/SparseCore>
 #include <Eigen/IterativeLinearSolvers>
 #include <iostream>
+#include <fstream>
 #include <queue>
 #include <set>
 #include <omp.h>
@@ -16,8 +17,10 @@ RegularGrid3::RegularGrid3() {
   setResolution(Vector3i(32, 32, 32));
   _h = Vector3d(1. / 32);
   _domainSize = Vector3d(1.0);
-  _dt = 0.01;
   _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
+
+  _ellapsedDt = 0.0;
+  _originalDt = _dt = 1.0 / 60;
 }
 
 Vector3d RegularGrid3::domainSize() { return _domainSize; }
@@ -68,8 +71,44 @@ void RegularGrid3::setResolution(Vector3i newResolution) {
 
 void RegularGrid3::setH(Vector3d newH) { _h = newH; }
 
+bool RegularGrid3::advanceTime() {
+  _ellapsedDt += _dt;
+  if (_ellapsedDt < _originalDt)
+    return false;
+  _ellapsedDt = 0.0;
+  _dt = _originalDt;
+  return true;
+}
+
+void RegularGrid3::cfl() {
+  // Find biggest velocity
+
+  Eigen::Vector3d maxVel = Eigen::Vector3d(0.0, 0.0, 0.0);
+  for (int id = 0; id < cellCount(); id++) {
+    Eigen::Array3i ijk = idToijk(id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+
+    Eigen::Vector3d vel;
+    vel[0] = (_u[i][j][k] + _u[i + 1][j][k]) / 2.0;
+    vel[1] = (_v[i][j][k] + _v[i][j + 1][k]) / 2.0;
+    vel[2] = (_w[i][j][k] + _w[i][j][k + 1]) / 2.0;
+
+    if (maxVel.norm() < vel.norm() * 1.05)
+      maxVel = vel;
+  }
+
+  // Check if cfl condition applies
+  // Half timestep if so
+  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 3 * _h[0]) {
+    _dt = _dt / 2;
+  }
+}
+
 void RegularGrid3::macComarckVelocityAdvection() {
-  Matrix3<Vector3d> utemp, vtemp, wtemp;
+  Matrix3<double> utemp, vtemp, wtemp;
   utemp.changeSize(
       Vector3i(_resolution[0] + 1, _resolution[1], _resolution[2]));
   vtemp.changeSize(
@@ -83,6 +122,13 @@ void RegularGrid3::macComarckVelocityAdvection() {
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
+        if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
+          utemp[i][j][k] = _u[i][j][k];
+          vtemp[i][j][k] = _v[i][j][k];
+          wtemp[i][j][k] = _w[i][j][k];
+          continue;
+        }
+
         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
         Eigen::Vector3d velocity;
         Eigen::Array3i index;
@@ -142,13 +188,6 @@ void RegularGrid3::macComarckVelocityAdvection() {
         //       }
 
         // // Convective term for velocity V
-        // #pragma omp parellel for
-        //   for (int i = 0; i < _resolution.x(); i++)
-        //     for (int j = 1; j < _resolution.y(); j++)
-        //       for (int k = 0; k < _resolution.z(); k++) {
-        //         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
-        // Eigen::Vector3d velocity;
-        // Eigen::Array3i index;
         double newV = _v[i][j][k];
         // Find threshold values for clamping
         clamp[0] = 1e8;
@@ -205,13 +244,6 @@ void RegularGrid3::macComarckVelocityAdvection() {
         //       }
 
         // // Convective term for velocity W
-        // #pragma omp parellel for
-        //   for (int i = 0; i < _resolution.x(); i++)
-        //     for (int j = 0; j < _resolution.y(); j++)
-        //       for (int k = 1; k < _resolution.z(); k++) {
-        //         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
-        // Eigen::Vector3d velocity;
-        // Eigen::Array3i index;
         double newW = _w[i][j][k];
         // Find threshold values for clamping
         clamp[0] = 1e8;
@@ -272,132 +304,6 @@ void RegularGrid3::macComarckVelocityAdvection() {
   for (int i = 0; i < _resolution.x() + 1; i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        _u[i][j][k] = utemp[i][j][k][0];
-      }
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y() + 1; j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        _v[i][j][k] = vtemp[i][j][k][1];
-      }
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z() + 1; k++) {
-        _w[i][j][k] = wtemp[i][j][k][2];
-      }
-}
-
-void RegularGrid3::advectGridVelocity() {
-  // TODO: change to dynamic allocation
-  Matrix3<double> utemp, vtemp, wtemp;
-  Eigen::Array3d h(_h[0], _h[1], _h[2]);
-
-  utemp.changeSize(
-      Vector3i(_resolution.x() + 1, _resolution.y(), _resolution.z()));
-  vtemp.changeSize(
-      Vector3i(_resolution.x(), _resolution.y() + 1, _resolution.z()));
-  wtemp.changeSize(
-      Vector3i(_resolution.x(), _resolution.y(), _resolution.z() + 1));
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x() + 1; i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        utemp[i][j][k] = _u[i][j][k];
-      }
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y() + 1; j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        vtemp[i][j][k] = _v[i][j][k];
-      }
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z() + 1; k++) {
-        wtemp[i][j][k] = _w[i][j][k];
-      }
-
-// Solve convection term (material derivative) - u velocities
-#pragma omp parallel for
-  for (int i = 0; i <= _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        Eigen::Array3d position, backPosition, velocity, cellCenter;
-        Eigen::Array3i index;
-        double newVelocity = _u[i][j][k];
-
-        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
-                   Eigen::Array3d(0, h[1] / 2, h[2] / 2);
-        velocity[0] = _u[i][j][k];
-        velocity[1] = _interpolateVelocityV(position);
-        velocity[2] = _interpolateVelocityW(position);
-
-        backPosition = position - velocity * _dt;
-        index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
-
-        if (velocity.matrix().norm() > 1e-8 && index[0] >= 0 && index[1] >= 0 &&
-            index[2] >= 0 && index[0] < _resolution[0] &&
-            index[1] < _resolution[1] && index[2] < _resolution[2]) {
-          newVelocity = _interpolateVelocityU(backPosition);
-        }
-        utemp[i][j][k] = (newVelocity);
-      }
-
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j <= _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
-        Eigen::Array3d position, backPosition, velocity, cellCenter;
-        Eigen::Array3i index;
-        double newVelocity = _v[i][j][k];
-
-        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
-                   Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
-        velocity[0] = _interpolateVelocityU(position);
-        velocity[1] = _v[i][j][k];
-        velocity[2] = _interpolateVelocityW(position);
-
-        backPosition = position - velocity * _dt;
-        index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
-
-        if ((velocity.matrix().norm() > 1e-8) && index[0] >= 0 &&
-            index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
-            index[1] < _resolution[1] && index[2] < _resolution[2]) {
-          newVelocity = _interpolateVelocityV(backPosition);
-        }
-        vtemp[i][j][k] = (newVelocity);
-      }
-
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x(); i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k <= _resolution.z(); k++) {
-        Eigen::Array3d position, backPosition, velocity, cellCenter;
-        Eigen::Array3i index;
-        double newVelocity = _w[i][j][k];
-
-        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
-                   Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
-        velocity[0] = _interpolateVelocityU(position);
-        velocity[1] = _interpolateVelocityV(position);
-        velocity[2] = _w[i][j][k];
-
-        backPosition = position - velocity * _dt;
-        index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
-
-        if ((velocity.matrix().norm() > 1e-8) && index[0] >= 0 &&
-            index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
-            index[1] < _resolution[1] && index[2] < _resolution[2]) {
-          newVelocity = _interpolateVelocityW(backPosition);
-        }
-        wtemp[i][j][k] = (newVelocity);
-      }
-
-#pragma omp parallel for
-  for (int i = 0; i < _resolution.x() + 1; i++)
-    for (int j = 0; j < _resolution.y(); j++)
-      for (int k = 0; k < _resolution.z(); k++) {
         _u[i][j][k] = utemp[i][j][k];
       }
 #pragma omp parallel for
@@ -411,6 +317,162 @@ void RegularGrid3::advectGridVelocity() {
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z() + 1; k++) {
         _w[i][j][k] = wtemp[i][j][k];
+      }
+}
+
+void RegularGrid3::advectGridVelocity() {
+  // TODO: change to dynamic allocation
+  Matrix3<double> utemp, vtemp, wtemp;
+  Eigen::Array3d h(_h[0], _h[1], _h[2]);
+
+  utemp.changeSize(
+      Vector3i(_resolution.x() + 1, _resolution.y(), _resolution.z()), -1e8);
+  vtemp.changeSize(
+      Vector3i(_resolution.x(), _resolution.y() + 1, _resolution.z()), -1e8);
+  wtemp.changeSize(
+      Vector3i(_resolution.x(), _resolution.y(), _resolution.z() + 1), -1e8);
+
+  std::set<std::tuple<int, int, int>> fluidFaces;
+  for (auto id : _fluidCells) {
+    Eigen::Array3i ijk = idToijk(id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+    fluidFaces.insert(std::make_tuple(i, j, k));
+    if (i < _resolution[0] - 1 &&
+        _material[i + 1][j][k] == Material::FluidMaterial::AIR) {
+      fluidFaces.insert(std::make_tuple(i + 1, j, k));
+    }
+  }
+  // -------------------------------------------
+  // Solve convection term (material derivative) - u velocities
+  Eigen::Array3i ijk;
+  int i, j, k;
+  Eigen::Array3d position, backPosition, velocity, cellCenter;
+  Eigen::Array3i index;
+  double newVelocity;
+  // #pragma omp parallel for
+  for (std::set<std::tuple<int, int, int>>::iterator it = fluidFaces.begin();
+       it != fluidFaces.end(); it++) {
+    std::tie(i, j, k) = *it;
+
+    if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
+      utemp[i][j][k] = _u[i][j][k];
+      vtemp[i][j][k] = _v[i][j][k];
+      wtemp[i][j][k] = _w[i][j][k];
+      continue;
+    }
+    newVelocity = _u[i][j][k];
+
+    position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+               Eigen::Array3d(0, h[1] / 2, h[2] / 2);
+    velocity[0] = _u[i][j][k];
+    velocity[1] = _interpolateVelocityV(position);
+    velocity[2] = _interpolateVelocityW(position);
+
+    backPosition = position - velocity * _dt;
+    index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
+
+    if (velocity.matrix().norm() > 1e-8 && index[0] >= 0 && index[1] >= 0 &&
+        index[2] >= 0 && index[0] < _resolution[0] &&
+        index[1] < _resolution[1] && index[2] < _resolution[2]) {
+      newVelocity = _interpolateVelocityU(backPosition);
+    }
+    utemp[i][j][k] = (newVelocity);
+  }
+  // -------------------------------------------
+  fluidFaces.clear();
+  for (auto id : _fluidCells) {
+    Eigen::Array3i ijk = idToijk(id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+    fluidFaces.insert(std::make_tuple(i, j, k));
+    if (j < _resolution[1] &&
+        _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
+      fluidFaces.insert(std::make_tuple(i, j + 1, k));
+    }
+  }
+  // #pragma omp parallel for
+  for (std::set<std::tuple<int, int, int>>::iterator it = fluidFaces.begin();
+       it != fluidFaces.end(); it++) {
+    std::tie(i, j, k) = *it;
+    newVelocity = _v[i][j][k];
+    position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+               Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
+    velocity[0] = _interpolateVelocityU(position);
+    velocity[1] = _v[i][j][k];
+    velocity[2] = _interpolateVelocityW(position);
+
+    backPosition = position - velocity * _dt;
+    index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
+
+    if ((velocity.matrix().norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+        index[2] >= 0 && index[0] < _resolution[0] &&
+        index[1] < _resolution[1] && index[2] < _resolution[2]) {
+      newVelocity = _interpolateVelocityV(backPosition);
+    }
+    vtemp[i][j][k] = (newVelocity);
+  }
+  // -----------------------------------------------
+  fluidFaces.clear();
+  for (auto id : _fluidCells) {
+    Eigen::Array3i ijk = idToijk(id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+    fluidFaces.insert(std::make_tuple(i, j, k));
+    if (k < _resolution[2] &&
+        _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
+      fluidFaces.insert(std::make_tuple(i, j, k + 1));
+    }
+  }
+  // #pragma omp parallel for
+  for (std::set<std::tuple<int, int, int>>::iterator it = fluidFaces.begin();
+       it != fluidFaces.end(); it++) {
+    std::tie(i, j, k) = *it;
+    newVelocity = _w[i][j][k];
+
+    position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+               Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
+    velocity[0] = _interpolateVelocityU(position);
+    velocity[1] = _interpolateVelocityV(position);
+    velocity[2] = _w[i][j][k];
+
+    backPosition = position - velocity * _dt;
+    index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
+
+    if ((velocity.matrix().norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+        index[2] >= 0 && index[0] < _resolution[0] &&
+        index[1] < _resolution[1] && index[2] < _resolution[2]) {
+      newVelocity = _interpolateVelocityW(backPosition);
+    }
+    wtemp[i][j][k] = (newVelocity);
+  }
+
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x() + 1; i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        if (utemp[i][j][k] > -1e7)
+          _u[i][j][k] = utemp[i][j][k];
+      }
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y() + 1; j++)
+      for (int k = 0; k < _resolution.z(); k++) {
+        if (vtemp[i][j][k] > -1e7)
+          _v[i][j][k] = vtemp[i][j][k];
+      }
+#pragma omp parallel for
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
+      for (int k = 0; k < _resolution.z() + 1; k++) {
+        if (wtemp[i][j][k] > -1e7)
+          _w[i][j][k] = wtemp[i][j][k];
       }
 }
 
@@ -451,39 +513,45 @@ Eigen::Array3i RegularGrid3::idToijk(int cellId) {
   return index;
 }
 
-void RegularGrid3::printFaceVelocity() {
+void RegularGrid3::writeFaceVelocity(const char *filename) {
 
-  // std::cerr << "==== u: \n";
-  // for (int k = 0; k < _resolution.z(); k++) {
-  //   for (int j = 0; j < _resolution.y(); j++) {
-  //     for (int i = 0; i < _resolution.x() + 1; i++) {
-  //       std::cerr << _u[i][j][k].x() << " ";
-  //     }
-  //     std::cerr << std::endl;
-  //   }
-  //   std::cerr << std::endl;
-  // }
-  std::cerr << "==== v: \n";
-  int k = _resolution.y() / 2;
-  // for (int k = 0; k < _resolution.z(); k++) {
-  for (int j = 0; j < _resolution.y() + 1; j++) {
-    for (int i = 0; i < _resolution.x(); i++) {
-      std::cerr << _v[i][j][k] << " ";
-    }
-    std::cerr << std::endl;
+  std::ofstream file;
+  file.open(filename, std::ofstream::out | std::ofstream::trunc);
+  if (!file.is_open()) {
+    std::cerr << "RegularGrid3::writeFaceVelocity: unable to open " << filename
+              << std::endl;
+    return;
   }
-  std::cerr << std::endl;
-  // }
-  // std::cerr << "==== w: \n";
-  // for (int k = 0; k < _resolution.z(); k++) {
-  //   for (int j = 0; j < _resolution.y() + 1; j++) {
-  //     for (int i = 0; i < _resolution.x(); i++) {
-  //       std::cerr << _w[i][j][k].z() << " ";
-  //     }
-  //     std::cerr << std::endl;
-  //   }
-  //   std::cerr << std::endl;
-  // }
+
+  for (int k = 0; k < _resolution.z(); k++) {
+    for (int j = 0; j < _resolution.y(); j++) {
+      for (int i = 0; i < _resolution.x() + 1; i++) {
+        file << _u[i][j][k] << " ";
+      }
+      file << std::endl;
+    }
+    file << std::endl;
+  }
+
+  for (int k = 0; k < _resolution.z(); k++)
+    for (int j = 0; j < _resolution.y() + 1; j++) {
+      for (int i = 0; i < _resolution.x(); i++) {
+        file << _v[i][j][k] << " ";
+      }
+      file << std::endl;
+    }
+  file << std::endl;
+
+  for (int k = 0; k < _resolution.z() + 1; k++) {
+    for (int j = 0; j < _resolution.y(); j++) {
+      for (int i = 0; i < _resolution.x(); i++) {
+        file << _w[i][j][k] << " ";
+      }
+      file << std::endl;
+    }
+    file << std::endl;
+  }
+  file.close();
 }
 
 void RegularGrid3::boundaryVelocities() {
@@ -510,12 +578,13 @@ void RegularGrid3::boundaryVelocities() {
 
 void RegularGrid3::addGravity() {
   for (int k = 0; k < _resolution.z(); k++) {
-    for (int j = 1; j <= _resolution.y(); j++) {
+    for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        // if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
-        double vel = _v[i][j][k] - 9.81 * _dt;
-        _v[i][j][k] = (vel);
-        // }
+        if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
+          _v[i][j][k] -= 9.81 * _dt;
+          if (_material[i][j + 1][k] == Material::FluidMaterial::AIR)
+            _v[i][j + 1][k] -= 9.81 * _dt;
+        }
       }
     }
   }
@@ -537,7 +606,8 @@ void RegularGrid3::addExternalForce(Eigen::Vector3d force) {
 
 void RegularGrid3::extrapolateVelocity() {
   std::queue<int> processingCells;
-  // TODO: Change processed cells to check phi instead of construct distance vec
+  // TODO: Change processed cells to check phi instead of construct distance
+  // vec
   Matrix3<int> processedCells;
   processedCells.changeSize(_resolution, 1e8);
 
@@ -554,30 +624,30 @@ void RegularGrid3::extrapolateVelocity() {
       // Look for air neighbors
       // Add air cells to processing queue
       if (i > 0 && _material[i - 1][j][k] == Material::FluidMaterial::AIR) {
-        // processedCells[i - 1][j][k] = 1;
+        processedCells[i - 1][j][k] = 1;
         processingCells.push(ijkToId(i - 1, j, k));
       }
       if (i < _resolution.x() - 1 &&
           _material[i + 1][j][k] == Material::FluidMaterial::AIR) {
-        // processedCells[i + 1][j][k] = 1;
+        processedCells[i + 1][j][k] = 1;
         processingCells.push(ijkToId(i + 1, j, k));
       }
       if (j > 0 && _material[i][j - 1][k] == Material::FluidMaterial::AIR) {
-        // processedCells[i][j - 1][k] = 1;
+        processedCells[i][j - 1][k] = 1;
         processingCells.push(ijkToId(i, j - 1, k));
       }
       if (j < _resolution.y() - 1 &&
           _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
-        // processedCells[i][j + 1][k] = 1;
+        processedCells[i][j + 1][k] = 1;
         processingCells.push(ijkToId(i, j + 1, k));
       }
       if (k > 0 && _material[i][j][k - 1] == Material::FluidMaterial::AIR) {
-        // processedCells[i][j][k - 1] = 1;
+        processedCells[i][j][k - 1] = 1;
         processingCells.push(ijkToId(i, j, k - 1));
       }
       if (k < _resolution.y() - 1 &&
           _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
-        // processedCells[i][j][k + 1] = 1;
+        processedCells[i][j][k + 1] = 1;
         processingCells.push(ijkToId(i, j, k + 1));
       }
     }
@@ -594,11 +664,11 @@ void RegularGrid3::extrapolateVelocity() {
     j = ijk[1];
     k = ijk[2];
 
-    if (processedCells[i][j][k] < 1e7)
+    if (processedCells[i][j][k] > 20)
       continue;
 
     // Find the least distance
-    int leastDistace = 1e8;
+    int leastDistace = 1e6;
     std::vector<Eigen::Array3i> neighborCells;
     if (i > 0 && processedCells[i - 1][j][k] <= leastDistace) {
       if (processedCells[i - 1][j][k] < leastDistace) {
@@ -669,8 +739,10 @@ void RegularGrid3::extrapolateVelocity() {
         newVelocity += _u[cell[0]][cell[1]][cell[2]];
       }
       _u[i][j][k] = newVelocity / nCells;
-      if (i > 0 && processedCells[i - 1][j][k] > 1e6)
+      if (i > 0 && processedCells[i - 1][j][k] > 1e6) {
         processingCells.push(ijkToId(i - 1, j, k));
+        processedCells[i - 1][j][k] = processedCells[i][j][k] + 1;
+      }
     }
     if (faceNeedUpdate[1]) {
       double newVelocity = 0.0;
@@ -678,8 +750,10 @@ void RegularGrid3::extrapolateVelocity() {
         newVelocity += _u[cell[0] + 1][cell[1]][cell[2]];
       }
       _u[i + 1][j][k] = newVelocity / nCells;
-      if (i < _resolution[0] - 1 && processedCells[i + 1][j][k] > 1e6)
+      if (i < _resolution[0] - 1 && processedCells[i + 1][j][k] > 1e6) {
         processingCells.push(ijkToId(i + 1, j, k));
+        processedCells[i + 1][j][k] = processedCells[i][j][k] + 1;
+      }
     }
     if (faceNeedUpdate[2]) {
       double newVelocity = 0.0;
@@ -687,8 +761,10 @@ void RegularGrid3::extrapolateVelocity() {
         newVelocity += _v[cell[0]][cell[1]][cell[2]];
       }
       _v[i][j][k] = newVelocity / nCells;
-      if (j > 0 && processedCells[i][j - 1][k] > 1e6)
+      if (j > 0 && processedCells[i][j - 1][k] > 1e6) {
         processingCells.push(ijkToId(i, j - 1, k));
+        processedCells[i][j - 1][k] = processedCells[i][j][k] + 1;
+      }
     }
     if (faceNeedUpdate[3]) {
       double newVelocity = 0.0;
@@ -696,8 +772,10 @@ void RegularGrid3::extrapolateVelocity() {
         newVelocity += _v[cell[0]][cell[1] + 1][cell[2]];
       }
       _v[i][j + 1][k] = newVelocity / nCells;
-      if (j < _resolution[1] - 1 && processedCells[i][j + 1][k] > 1e6)
+      if (j < _resolution[1] - 1 && processedCells[i][j + 1][k] > 1e6) {
         processingCells.push(ijkToId(i, j + 1, k));
+        processedCells[i][j + 1][k] = processedCells[i][j][k] + 1;
+      }
     }
     if (faceNeedUpdate[4]) {
       double newVelocity = 0.0;
@@ -705,8 +783,10 @@ void RegularGrid3::extrapolateVelocity() {
         newVelocity += _w[cell[0]][cell[1]][cell[2]];
       }
       _w[i][j][k] = newVelocity / nCells;
-      if (k > 0 && processedCells[i][j][k - 1] > 1e6)
+      if (k > 0 && processedCells[i][j][k - 1] > 1e6) {
         processingCells.push(ijkToId(i, j, k - 1));
+        processedCells[i][j][k - 1] = processedCells[i][j][k] + 1;
+      }
     }
     if (faceNeedUpdate[5]) {
       double newVelocity = 0.0;
@@ -714,8 +794,10 @@ void RegularGrid3::extrapolateVelocity() {
         newVelocity += _w[cell[0]][cell[1]][cell[2] + 1];
       }
       _w[i][j][k + 1] = newVelocity / nCells;
-      if (k < _resolution[2] - 1 && processedCells[i][j][k + 1] > 1e6)
+      if (k < _resolution[2] - 1 && processedCells[i][j][k + 1] > 1e6) {
         processingCells.push(ijkToId(i, j, k + 1));
+        processedCells[i][j][k + 1] = processedCells[i][j][k] + 1;
+      }
     }
   }
 }
@@ -724,90 +806,109 @@ void RegularGrid3::solvePressure() {
 
   // Compute velocity divergent over cell center
   // std::vector<double> divergent(cellCount(), 0.0);
-  int nCells = cellCount();
   Eigen::VectorXd divergent, pressure;
-  Eigen::SparseMatrix<double> pressureMatrix(nCells + 1, nCells + 1);
   std::vector<Eigen::Triplet<double>> triplets;
 
-  divergent = Eigen::VectorXd::Zero(nCells + 1);
-  pressure = Eigen::VectorXd::Zero(nCells + 1);
+  divergent = Eigen::VectorXd::Zero(cellCount());
 
   Timer timer;
 
+  std::map<int, int> idMap;
+  std::function<int(int)> _getMapId = [&](int cellId) {
+    int index;
+#pragma omp critical
+    {
+      auto it = idMap.find(cellId);
+      if (it == idMap.end()) {
+        int nextId = idMap.size();
+        idMap[cellId] = nextId;
+        index = nextId;
+      } else
+        index = it->second;
+    }
+    return index;
+  };
 // Solve pressure Poisson equation
 #pragma omp parallel for
-  for (int k = 0; k < _resolution.z(); k++) {
-    for (int j = 0; j < _resolution.y(); j++) {
-      for (int i = 0; i < _resolution.x(); i++) {
-        if (_material[i][j][k] != Material::FluidMaterial::FLUID)
-          continue;
+  for (int _id = 0; _id < cellCount(); _id++) {
+    Eigen::Array3i ijk = idToijk(_id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
 
-        int validCells = 0;
-        int id = ijkToId(i, j, k);
-        std::vector<Eigen::Triplet<double>> threadTriplet;
+    if (_material[i][j][k] != Material::FluidMaterial::FLUID)
+      continue;
+    int id = _getMapId(_id);
 
-        if (i > 0) {
-          validCells++;
-          if (_material[i - 1][j][k] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijkToId(i - 1, j, k),
-                                       -1 / (_h.x() * _h.x()));
-        }
-        if (i < _resolution.x() - 1) {
-          validCells++;
-          if (_material[i + 1][j][k] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijkToId(i + 1, j, k),
-                                       -1 / (_h.x() * _h.x()));
-        }
-        if (j > 0) {
-          validCells++;
-          if (_material[i][j - 1][k] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijkToId(i, j - 1, k),
-                                       -1 / (_h.x() * _h.x()));
-        }
-        if (j < _resolution.y() - 1) {
-          validCells++;
-          if (_material[i][j + 1][k] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijkToId(i, j + 1, k),
-                                       -1 / (_h.x() * _h.x()));
-        }
-        if (k > 0) {
-          validCells++;
-          if (_material[i][j][k - 1] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijkToId(i, j, k - 1),
-                                       -1 / (_h.x() * _h.x()));
-        }
-        if (k < _resolution.z() - 1) {
-          validCells++;
-          if (_material[i][j][k + 1] != Material::FluidMaterial::AIR)
-            threadTriplet.emplace_back(id, ijkToId(i, j, k + 1),
-                                       -1 / (_h.x() * _h.x()));
-        }
+    int validCells = 0;
+    std::vector<Eigen::Triplet<double>> threadTriplet;
 
-        threadTriplet.emplace_back(id, id, validCells / (_h.x() * _h.x()));
-#pragma omp critical
-        {
-          triplets.insert(triplets.end(), threadTriplet.begin(),
-                          threadTriplet.end());
-        }
-
-        divergent[id] = 0;
-        divergent[id] -= (_u[i + 1][j][k] - _u[i][j][k]) / _h.x();
-        divergent[id] -= (_v[i][j + 1][k] - _v[i][j][k]) / _h.y();
-        divergent[id] -= (_w[i][j][k + 1] - _w[i][j][k]) / _h.z();
-        divergent[id] /= _dt;
-      }
+    if (i > 0) {
+      validCells++;
+      if (_material[i - 1][j][k] != Material::FluidMaterial::AIR)
+        threadTriplet.emplace_back(id, _getMapId(ijkToId(i - 1, j, k)),
+                                   -1 / (_h.x() * _h.x()));
     }
-  }
-  triplets.emplace_back(nCells, nCells, 1);
+    if (i < _resolution.x() - 1) {
+      validCells++;
+      if (_material[i + 1][j][k] != Material::FluidMaterial::AIR)
+        threadTriplet.emplace_back(id, _getMapId(ijkToId(i + 1, j, k)),
+                                   -1 / (_h.x() * _h.x()));
+    }
+    if (j > 0) {
+      validCells++;
+      if (_material[i][j - 1][k] != Material::FluidMaterial::AIR)
+        threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j - 1, k)),
+                                   -1 / (_h.x() * _h.x()));
+    }
+    if (j < _resolution.y() - 1) {
+      validCells++;
+      if (_material[i][j + 1][k] != Material::FluidMaterial::AIR)
+        threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j + 1, k)),
+                                   -1 / (_h.x() * _h.x()));
+    }
+    if (k > 0) {
+      validCells++;
+      if (_material[i][j][k - 1] != Material::FluidMaterial::AIR)
+        threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j, k - 1)),
+                                   -1 / (_h.x() * _h.x()));
+    }
+    if (k < _resolution.z() - 1) {
+      validCells++;
+      if (_material[i][j][k + 1] != Material::FluidMaterial::AIR)
+        threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j, k + 1)),
+                                   -1 / (_h.x() * _h.x()));
+    }
 
+    threadTriplet.emplace_back(id, id, validCells / (_h.x() * _h.x()));
+#pragma omp critical
+    {
+      triplets.insert(triplets.end(), threadTriplet.begin(),
+                      threadTriplet.end());
+    }
+
+    divergent[id] = 0;
+    divergent[id] -= (_u[i + 1][j][k] - _u[i][j][k]) / _h.x();
+    divergent[id] -= (_v[i][j + 1][k] - _v[i][j][k]) / _h.y();
+    divergent[id] -= (_w[i][j][k + 1] - _w[i][j][k]) / _h.z();
+    divergent[id] /= _dt;
+  }
+
+  int nCells = idMap.size() + 1;
+  triplets.emplace_back(nCells, nCells, 1);
+  pressure = Eigen::VectorXd::Zero(nCells);
+  divergent.conservativeResize(nCells);
+  divergent[nCells] = 0.0;
+
+  Eigen::SparseMatrix<double> pressureMatrix(nCells, nCells);
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
-  timer.registerTime("Assembly");
+  timer.registerTime("Assemblyplo");
 
   // SOlve pressure Poisson system
-  Eigen::ConjugateGradient<Eigen::SparseMatrix<double>,
-                           Eigen::Lower | Eigen::Upper>
-      solver;
+  Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
   solver.compute(pressureMatrix);
+  timer.registerTime("Prepare matrix");
   pressure = solver.solve(divergent);
   timer.registerTime("System solve");
 
@@ -895,9 +996,14 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
         clamp[0] = std::min(clamp[0], _u[u][v][w]);
         clamp[1] = std::max(clamp[1], _u[u][v][w]);
       }
-  if (distanceCount == 0 || distanceCount > 1e8)
-    throw(
-        "RegularGrid3::interpolateVelocityU: distanceCount zero or infinity\n");
+  if (distanceCount == 0 || distanceCount > 1e8) {
+    std::stringstream message;
+    message << "RegularGrid3::interpolateVelocityU: distanceCount zero or "
+               "infinity at ("
+            << position[0] << ", " << position[1] << ", " << position[2]
+            << ").\n";
+    throw(message.str().c_str());
+  }
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   // return velocity / distanceCount;
 }
@@ -948,9 +1054,14 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
         clamp[0] = std::min(clamp[0], _v[u][v][w]);
         clamp[1] = std::max(clamp[1], _v[u][v][w]);
       }
-  if (distanceCount == 0 || distanceCount > 1e8)
-    throw(
-        "RegularGrid3::interpolateVelocityV: distanceCount zero or infinity\n");
+  if (distanceCount == 0 || distanceCount > 1e8) {
+    std::stringstream message;
+    message << "RegularGrid3::interpolateVelocityV: distanceCount zero or "
+               "infinity at ("
+            << position[0] << ", " << position[1] << ", " << position[2]
+            << ").\n";
+    throw(message.str().c_str());
+  }
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   // return velocity / distanceCount;
 }
@@ -1001,11 +1112,32 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
         clamp[0] = std::min(clamp[0], _w[u][v][w]);
         clamp[1] = std::max(clamp[1], _w[u][v][w]);
       }
-  if (distanceCount == 0 || distanceCount > 1e8)
-    throw(
-        "RegularGrid3::interpolateVelocityW: distanceCount zero or infinity\n");
+  if (distanceCount == 0 || distanceCount > 1e8) {
+    std::stringstream message;
+    message << "RegularGrid3::interpolateVelocityW: distanceCount zero or "
+               "infinity at ("
+            << position[0] << ", " << position[1] << ", " << position[2]
+            << ").\n";
+    throw(message.str().c_str());
+  }
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   // return velocity / distanceCount;
+}
+
+std::vector<Eigen::Array3i> RegularGrid3::cellFaces(Eigen::Array3i cell,
+                                                    int coordinate) {
+  std::vector<Eigen::Array3i> faces;
+
+  faces.emplace_back(cell);
+  if (coordinate == 0) {
+    faces.emplace_back(cell + Eigen::Array3i(1, 0, 0));
+  } else if (coordinate == 1) {
+    faces.emplace_back(cell + Eigen::Array3i(0, 1, 0));
+  } else if (coordinate == 2) {
+    faces.emplace_back(cell + Eigen::Array3i(0, 0, 1));
+  }
+
+  return faces;
 }
 
 } // namespace Ramuh

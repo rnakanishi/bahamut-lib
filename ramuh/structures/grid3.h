@@ -6,6 +6,7 @@
 #include <utils/material.h>
 #include <vector>
 #include <Eigen/Dense>
+#include <utility>
 
 namespace Ramuh {
 
@@ -37,6 +38,16 @@ public:
   /// Return the total amount of cells present on the grid
   /// \return int
   int cellCount();
+
+  /**
+   * @brief Return faces that belong to the cell accordingly to the coordinate
+   *
+   * @param cell cell id
+   * @param coord x y, or z coordinate
+   * @return std::pair<Eigen::Array3i, Eigen::Array3i>
+   **/
+  std::vector<Eigen::Array3i> cellFaces(Eigen::Array3i cell,
+                                                      int coord);
 
   int ijkToId(int i, int j, int k);
 
@@ -80,7 +91,11 @@ public:
 
   void extrapolateVelocity();
 
-  void printFaceVelocity();
+  void writeFaceVelocity(const char *filename);
+
+  void cfl();
+
+  bool advanceTime();
 
 protected:
   double _interpolateVelocityU(Eigen::Array3d position);
@@ -94,16 +109,18 @@ protected:
   void setH(Vector3d newH);
 
   double _maxVelocity[3];
-  double _dt;                      // Time step
-  Vector3i _resolution;            // Number of cells in each dimension
-  Vector3d _domainSize;            // domain size in units
-  Vector3d _h;                     // Spacing between cells
-  std::vector<char> _materialMask; // Either cell is fluid, air, solid
+  double _dt;           // CFL max timestep
+  double _ellapsedDt;   // Total ellapsed time in frame
+  double _originalDt;   // Time step
+  Vector3i _resolution; // Number of cells in each dimension
+  Vector3d _domainSize; // domain size in units
+  Vector3d _h;          // Spacing between cells
 
   // TODO: Change to Matrix2 type
   // TODO: use two matrices to improve performance
   std::vector<std::vector<std::vector<double>>> _u, _v,
       _w; // Velocity components stored on faces
+  std::vector<int> _fluidCells, _surfaceCells;
   std::vector<std::vector<std::vector<Material::FluidMaterial>>>
       _material; // Wheter the cell is a fluid, solid or air
 };

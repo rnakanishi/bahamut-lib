@@ -16,15 +16,18 @@ int main(int argc, char const *argv[]) {
   // Find a file to parse simulatoin parameters
   std::string xmlFilename;
   if (argc < 2) {
-    std::cerr << "Expected a XML file\nUsing default config.xml instead\n";
+    std::cerr << "Expected a XML file. Using default config.xml instead\n";
     xmlFilename = std::string("assets/simulations/config.xml");
   } else {
     xmlFilename = std::string(argv[1]);
   }
 
   pugi::xml_document xmlDoc;
-  if (!xmlDoc.load_file(xmlFilename.c_str())) {
+  pugi::xml_parse_result result = xmlDoc.load_file(xmlFilename.c_str());
+  if (!result) {
     std::cerr << "Failed to load XML file: " << xmlFilename << std::endl;
+    std::cerr << result.description() << std::endl;
+
     return -3;
   }
 
@@ -60,8 +63,8 @@ int main(int argc, char const *argv[]) {
 
   sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.6, 0.5), 0.15);
   // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
-  // sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
-  //  Ramuh::Vector3d(15, 0.4, 15));
+  sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
+                     Ramuh::Vector3d(15, 0.4, 15));
   // sim.addCubeSurface(Ramuh::Vector3d(-5, -5, -5),
   //  Ramuh::Vector3d(0.2, 0.8, 0.2));
 
@@ -79,57 +82,53 @@ int main(int argc, char const *argv[]) {
   for (int frame = 1; frame <= nFrames; frame++) {
     std::cout << std::endl;
     Ramuh::TriangleMesh surface;
-    try {
-      stopwatch.reset();
-      sim.checkCellMaterial();
-      sim.addGravity();
+    sim.cfl();
 
-      sim.extrapolateVelocity();
-      stopwatch.registerTime("Gravity");
+    stopwatch.reset();
+    stopwatch.clearAll();
+    do {
+      try {
+        sim.checkCellMaterial();
+        sim.addGravity();
+        // sim.addExternalForce(Eigen::Vector3d(-1.5, -4.5, 0));
+        stopwatch.registerTime("Gravity");
 
-      stopwatch.registerTime("External forces");
-      // sim.addExternalForce(Eigen::Vector3d(-1.5, -4.5, 0));
-      sim.boundaryVelocities();
+        sim.extrapolateVelocity();
+        sim.boundaryVelocities();
 
-      sim.macComarckVelocityAdvection();
-      // sim.advectGridVelocity();
-      stopwatch.registerTime("Velocity advection");
+        // sim.macComarckVelocityAdvection();
+        sim.advectGridVelocity();
+        stopwatch.registerTime("Velocity advection");
 
-      sim.writeVelocityField();
-      std::cout << "Velocity advection\n";
+        sim.writeVelocityField();
+        std::cout << "Velocity advection\n";
 
-      sim.extrapolateVelocity();
-      stopwatch.registerTime("Extraploate velocity");
+        sim.extrapolateVelocity();
+        stopwatch.registerTime("Extrapolate velocity");
 
-      sim.writeVelocityField();
-      std::cout << "First extrapolation\n";
+        sim.solvePressure();
+        stopwatch.registerTime("Pressure");
+        // sim.boundaryVelocities();
 
-      sim.solvePressure();
-      stopwatch.registerTime("Pressure");
-      sim.boundaryVelocities();
+        sim.extrapolateVelocity();
+        stopwatch.registerTime("Extrapolate velocity");
 
-      sim.extrapolateVelocity();
-      stopwatch.registerTime("Extraploate velocity");
+        // sim.macCormackAdvection();
+        sim.integrateLevelSet();
+        stopwatch.registerTime("Levelset advection");
 
-      sim.writeVelocityField();
-      std::cout << "Second extrapolation\n";
-
-      sim.macCormackAdvection();
-      // sim.integrateLevelSet();
-      stopwatch.registerTime("Levelset advection");
-
-      if (frame % 5 == 0) {
+        // if (frame % 5 == 0) {
         sim.redistance();
         stopwatch.registerTime("Redistance");
-      }
+        // }
 
-      surface = sim.marchingTetrahedra();
-      stopwatch.registerTime("Marching Tetrahedra");
-      stopwatch.evaluateComponentsTime();
-    } catch (const char *error) {
-      std::cerr << error << std::endl;
-      return -1;
-    }
+        stopwatch.evaluateComponentsTime();
+        sim.writeFaceVelocity("lastVelocity");
+      } catch (const char *error) {
+        std::cerr << error << std::endl;
+        return -1;
+      }
+    } while (!sim.advanceTime());
 
     objname.str(std::string());
     dataname.str(std::string());
@@ -138,6 +137,7 @@ int main(int argc, char const *argv[]) {
     dataname << dataFolderName << "/" << frame;
 
     try {
+      surface = sim.marchingTetrahedra();
       writer.writeMeshModel(surface, objname.str());
     } catch (const char *error) {
       std::cerr << "Failed to write obj: ";

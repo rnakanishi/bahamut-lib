@@ -11,6 +11,8 @@ public:
 
   void reset();
 
+  void clearAll();
+
   void lap();
 
   double getEllapsedTime();

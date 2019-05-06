@@ -1,11 +1,13 @@
 <simulation>
-    <resolution xyz="64"/>
-    <pressureOrder order="2"/>
-    <dataFolder>data64</dataFolder>
-    <objFolder>obj64</objFolder>
+    <resolution xyz="80"/>
+    <timestep dt="0.01" />
+    <pressureOrder order="1"/>
+    <dataFolder>results/datatest</dataFolder>
+    <objFolder>results/test</objFolder>
     <domainSize x="1.0" y="1.0" z="1.0"/>
     <domain>
         <sphere></sphere>
         <cube></cube>
-    </domain>
+    </domain>   
+    <maxFrames value="40" />
 </simulation>
