@@ -8,7 +8,7 @@ if mat is None:
     mat = bpy.data.materials.new(name="Glass")
     
 for f in range(scn.frame_start, scn.frame_end):
-    fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/obj/{:04d}.obj'.format(f))
+    fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/results/test/{:04d}.obj'.format(f))
     bpy.ops.import_scene.obj(filepath=fpath)
     obj = bpy.context.selected_objects[0]
     
@@ -22,5 +22,5 @@ for f in range(scn.frame_start, scn.frame_end):
     bpy.ops.object.editmode_toggle()
     
     bpy.context.area.type = original_type
-    bpy.ops.import_scene.obj(filepath=fpath, use_normals=False)
+    bpy.ops.export_scene.obj(filepath=fpath, use_normals=False, use_materials=False, use_selection=True)
     bpy.ops.object.delete(use_global=False)
