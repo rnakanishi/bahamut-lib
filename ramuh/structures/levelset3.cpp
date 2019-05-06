@@ -17,17 +17,13 @@
 namespace Ramuh {
 
 LevelSet3::LevelSet3() : RegularGrid3() {
-  _phi.resize(_resolution.x());
-  for (auto &row : _phi) {
-    row.resize(_resolution.y());
-    for (auto &depth : row)
-      depth.resize(_resolution.z(), 1e6);
-  }
-  _gradPhi.resize(_resolution.x() + 1);
-  for (auto &row : _gradPhi) {
-    row.resize(_resolution.y() + 1);
-    for (auto &depth : row)
-      depth.resize(_resolution.z() + 1);
+  for (int buffer = 0; buffer < 2; buffer++) {
+    _phi[buffer].resize(_resolution.x());
+    for (auto &row : _phi[buffer]) {
+      row.resize(_resolution.y());
+      for (auto &depth : row)
+        depth.resize(_resolution.z(), 1e6);
+    }
   }
 
   _isPressureSecondOrder = true;
@@ -39,17 +35,11 @@ void LevelSet3::setPressureSecondOrder(bool value) {
 
 void LevelSet3::setResolution(Vector3i newResolution) {
   RegularGrid3::setResolution(newResolution);
-  _phi.resize(_resolution.x());
-  for (auto &row : _phi) {
+  _phi[_currBuffer].resize(_resolution.x());
+  for (auto &row : _phi[_currBuffer]) {
     row.resize(_resolution.y());
     for (auto &depth : row)
       depth.resize(_resolution.z(), 1e6);
-  }
-  _gradPhi.resize(_resolution.x() + 1);
-  for (auto &row : _gradPhi) {
-    row.resize(_resolution.y() + 1);
-    for (auto &depth : row)
-      depth.resize(_resolution.z() + 1);
   }
   _velocity.resize(_resolution.x() + 1);
   for (auto &row : _velocity) {
@@ -84,7 +74,8 @@ void LevelSet3::addSphereSurface(Vector3d center, double radius) {
       for (int i = 0; i < _resolution.x(); i++) {
         Vector3d position(Vector3i(i, j, k) * _h + _h / 2);
         double distance = (position - center).length() - radius;
-        _phi[i][j][k] = std::min(_phi[i][j][k], distance);
+        _phi[_currBuffer][i][j][k] =
+            std::min(_phi[_currBuffer][i][j][k], distance);
       }
   checkCellMaterial();
 }
@@ -98,13 +89,15 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
         Vector3d distanceUpper = (position - upper).abs();
         double phi;
         if (position > lower && position < upper) {
-          phi = std::min(std::fabs(_phi[i][j][k]),
+          phi = std::min(std::fabs(_phi[_currBuffer][i][j][k]),
                          std::min(distanceLower.min(), distanceUpper.min()));
-          _phi[i][j][k] = -std::min(std::fabs(_phi[i][j][k]), phi);
+          _phi[_currBuffer][i][j][k] =
+              -std::min(std::fabs(_phi[_currBuffer][i][j][k]), phi);
         } else {
-          phi = std::min(_phi[i][j][k],
+          phi = std::min(_phi[_currBuffer][i][j][k],
                          std::min(distanceLower.min(), distanceUpper.min()));
-          _phi[i][j][k] = std::min(std::fabs(_phi[i][j][k]), phi);
+          _phi[_currBuffer][i][j][k] =
+              std::min(std::fabs(_phi[_currBuffer][i][j][k]), phi);
         }
       }
   checkCellMaterial();
@@ -119,7 +112,7 @@ void LevelSet3::checkCellMaterial() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    if (_phi[i][j][k] <= 0) {
+    if (_phi[_currBuffer][i][j][k] <= 0) {
       _material[i][j][k] = Material::FluidMaterial::FLUID;
 #pragma omp critical
       { _fluidCells.emplace_back(_id); }
@@ -142,15 +135,15 @@ void LevelSet3::integrateLevelSet() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    if (std::fabs(_phi[i][j][k]) > 5 * _h[0]) {
-      oldPhi[i][j][k] = _phi[i][j][k];
+    if (std::fabs(_phi[_currBuffer][i][j][k]) > 5 * _h[0]) {
+      oldPhi[i][j][k] = _phi[_currBuffer][i][j][k];
       continue;
     }
 
     Eigen::Array3d position, backPosition, velocity, h(_h.x(), _h.y(), _h.z()),
         cellCenter;
     Eigen::Array3i index;
-    double newPhi = _phi[i][j][k];
+    double newPhi = _phi[_currBuffer][i][j][k];
 
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                Eigen::Array3d(h[0] / 2, h[1] / 2, h[2] / 2);
@@ -177,7 +170,7 @@ void LevelSet3::integrateLevelSet() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    _phi[i][j][k] = oldPhi[i][j][k];
+    _phi[_currBuffer][i][j][k] = oldPhi[i][j][k];
   }
 }
 
@@ -195,8 +188,8 @@ void LevelSet3::macCormackAdvection() {
     j = ijk[1];
     k = ijk[2];
 
-    // if (std::fabs(_phi[i][j][k]) > 5 * _h[0]) {
-    //   newPhi[i][j][k] = _phi[i][j][k];
+    // if (std::fabs(_phi[_currBuffer][i][j][k]) > 5 * _h[0]) {
+    //   newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
     //   continue;
     // }
     Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
@@ -207,34 +200,37 @@ void LevelSet3::macCormackAdvection() {
     clamp[0] = 1e8;
     clamp[1] = -1e8;
     if (i > 0) {
-      clamp[0] = std::min(clamp[0], _phi[i - 1][j][k]);
-      clamp[1] = std::max(clamp[1], _phi[i - 1][j][k]);
+      clamp[0] = std::min(clamp[0], _phi[_currBuffer][i - 1][j][k]);
+      clamp[1] = std::max(clamp[1], _phi[_currBuffer][i - 1][j][k]);
     }
     if (i < resolution[0] - 1) {
-      clamp[0] = std::min(clamp[0], _phi[i + 1][j][k]);
-      clamp[1] = std::max(clamp[1], _phi[i + 1][j][k]);
+      clamp[0] = std::min(clamp[0], _phi[_currBuffer][i + 1][j][k]);
+      clamp[1] = std::max(clamp[1], _phi[_currBuffer][i + 1][j][k]);
     }
     if (j > 0) {
-      clamp[0] = std::min(clamp[0], _phi[i][j - 1][k]);
-      clamp[1] = std::max(clamp[1], _phi[i][j - 1][k]);
+      clamp[0] = std::min(clamp[0], _phi[_currBuffer][i][j - 1][k]);
+      clamp[1] = std::max(clamp[1], _phi[_currBuffer][i][j - 1][k]);
     }
     if (j < resolution[1] - 1) {
-      clamp[0] = std::min(clamp[0], _phi[i][j + 1][k]);
-      clamp[1] = std::max(clamp[1], _phi[i][j + 1][k]);
+      clamp[0] = std::min(clamp[0], _phi[_currBuffer][i][j + 1][k]);
+      clamp[1] = std::max(clamp[1], _phi[_currBuffer][i][j + 1][k]);
     }
     if (k > 0) {
-      clamp[0] = std::min(clamp[0], _phi[i][j][k - 1]);
-      clamp[1] = std::max(clamp[1], _phi[i][j][k - 1]);
+      clamp[0] = std::min(clamp[0], _phi[_currBuffer][i][j][k - 1]);
+      clamp[1] = std::max(clamp[1], _phi[_currBuffer][i][j][k - 1]);
     }
     if (k < resolution[2] - 1) {
-      clamp[0] = std::min(clamp[0], _phi[i][j][k + 1]);
-      clamp[1] = std::max(clamp[1], _phi[i][j][k + 1]);
+      clamp[0] = std::min(clamp[0], _phi[_currBuffer][i][j][k + 1]);
+      clamp[1] = std::max(clamp[1], _phi[_currBuffer][i][j][k + 1]);
     }
     // Find the point as if it was in previous timestep and work with it
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) + (h / 2.0);
-    velocity[0] = (_u[i][j][k] + _u[i + 1][j][k]) / 2.0;
-    velocity[1] = (_v[i][j][k] + _v[i][j + 1][k]) / 2.0;
-    velocity[2] = (_w[i][j][k] + _w[i][j][k + 1]) / 2.0;
+    velocity[0] =
+        (_u[_currBuffer][i][j][k] + _u[_currBuffer][i + 1][j][k]) / 2.0;
+    velocity[1] =
+        (_v[_currBuffer][i][j][k] + _v[_currBuffer][i][j + 1][k]) / 2.0;
+    velocity[2] =
+        (_w[_currBuffer][i][j][k] + _w[_currBuffer][i][j][k + 1]) / 2.0;
     position -= velocity.array() * _dt;
     index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
     // TODO: look for a better solution
@@ -250,16 +246,16 @@ void LevelSet3::macCormackAdvection() {
       position += velocity.array() * _dt;
       double phi_n1_hat = _interpolatePhi(position);
       // Analyse the error from original to the forward advected
-      double error = 0.5 * (_phi[i][j][k] - phi_n1_hat);
+      double error = 0.5 * (_phi[_currBuffer][i][j][k] - phi_n1_hat);
       newPhi[i][j][k] = std::max(clamp[0], std::min(clamp[1], phi_n + error));
     } else
-      newPhi[i][j][k] = _phi[i][j][k];
+      newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
   }
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++)
-        _phi[i][j][k] = newPhi[i][j][k];
+        _phi[_currBuffer][i][j][k] = newPhi[i][j][k];
 }
 
 double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
@@ -302,11 +298,11 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
         Eigen::Array3d centerPosition = Eigen::Array3d(u, v, w) * h + h / 2.0;
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-6)
-          return _phi[u][v][w];
+          return _phi[_currBuffer][u][v][w];
         distanceCount += 1. / distance;
-        newPhi += _phi[u][v][w] / distance;
-        clamp[0] = std::min(clamp[0], _phi[u][v][w]);
-        clamp[1] = std::max(clamp[1], _phi[u][v][w]);
+        newPhi += _phi[_currBuffer][u][v][w] / distance;
+        clamp[0] = std::min(clamp[0], _phi[_currBuffer][u][v][w]);
+        clamp[1] = std::max(clamp[1], _phi[_currBuffer][u][v][w]);
       }
   if (distanceCount == 0 || distanceCount > 1e8)
     throw("LevelSet3::interpolatePhi: distanceCount zero or infinity\n");
@@ -314,7 +310,7 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
 }
 
 std::vector<std::vector<double>> &LevelSet3::operator[](const int i) {
-  return _phi[i];
+  return _phi[_currBuffer][i];
 }
 
 void LevelSet3::solvePressure() {
@@ -353,7 +349,7 @@ void LevelSet3::solvePressure() {
     j = ijk[1];
     k = ijk[2];
 
-    if (_phi[i][j][k] > 0.0)
+    if (_phi[_currBuffer][i][j][k] > 0.0)
       continue;
     int id = _getMapId(_id);
 
@@ -366,7 +362,7 @@ void LevelSet3::solvePressure() {
 
     if (i > 0) {
       validCells++;
-      if (_phi[i - 1][j][k] < 0.0) {
+      if (_phi[_currBuffer][i - 1][j][k] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i - 1, j, k)),
                                    -1 / (h2));
@@ -376,7 +372,8 @@ void LevelSet3::solvePressure() {
           // Eigen::Array3d surface = _findSurfaceCoordinate(
           // Eigen::Array3i(i, j, k), Eigen::Array3i(i - 1, j, k));
           // theta = (surface - center).matrix().norm() / _h.x();
-          theta = -_phi[i][j][k] / (_phi[i - 1][j][k] - _phi[i][j][k]);
+          theta = -_phi[_currBuffer][i][j][k] /
+                  (_phi[_currBuffer][i - 1][j][k] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -387,7 +384,7 @@ void LevelSet3::solvePressure() {
     }
     if (i < _resolution.x() - 1) {
       validCells++;
-      if (_phi[i + 1][j][k] < 0.0) {
+      if (_phi[_currBuffer][i + 1][j][k] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i + 1, j, k)),
                                    -1 / (h2));
@@ -397,7 +394,8 @@ void LevelSet3::solvePressure() {
           // Eigen::Array3d surface = _findSurfaceCoordinate(
           // Eigen::Array3i(i, j, k), Eigen::Array3i(i + 1, j, k));
           // theta = (surface - center).matrix().norm() / _h.x();
-          theta = -_phi[i][j][k] / (_phi[i + 1][j][k] - _phi[i][j][k]);
+          theta = -_phi[_currBuffer][i][j][k] /
+                  (_phi[_currBuffer][i + 1][j][k] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -408,7 +406,7 @@ void LevelSet3::solvePressure() {
     }
     if (j > 0) {
       validCells++;
-      if (_phi[i][j - 1][k] < 0.0) {
+      if (_phi[_currBuffer][i][j - 1][k] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j - 1, k)),
                                    -1 / (h2));
@@ -418,7 +416,8 @@ void LevelSet3::solvePressure() {
           // Eigen::Array3d surface = _findSurfaceCoordinate(
           // Eigen::Array3i(i, j, k), Eigen::Array3i(i, j - 1, k));
           // theta = (surface - center).matrix().norm() / _h.y();
-          theta = -_phi[i][j][k] / (_phi[i][j - 1][k] - _phi[i][j][k]);
+          theta = -_phi[_currBuffer][i][j][k] /
+                  (_phi[_currBuffer][i][j - 1][k] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -429,7 +428,7 @@ void LevelSet3::solvePressure() {
     }
     if (j < _resolution.y() - 1) {
       validCells++;
-      if (_phi[i][j + 1][k] < 0.0) {
+      if (_phi[_currBuffer][i][j + 1][k] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j + 1, k)),
                                    -1 / (h2));
@@ -439,7 +438,8 @@ void LevelSet3::solvePressure() {
           // Eigen::Array3d surface = _findSurfaceCoordinate(
           // Eigen::Array3i(i, j, k), Eigen::Array3i(i, j + 1, k));
           // theta = (surface - center).matrix().norm() / _h.y();
-          theta = -_phi[i][j][k] / (_phi[i][j + 1][k] - _phi[i][j][k]);
+          theta = -_phi[_currBuffer][i][j][k] /
+                  (_phi[_currBuffer][i][j + 1][k] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -450,7 +450,7 @@ void LevelSet3::solvePressure() {
     }
     if (k > 0) {
       validCells++;
-      if (_phi[i][j][k - 1] < 0.0) {
+      if (_phi[_currBuffer][i][j][k - 1] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j, k - 1)),
                                    -1 / (h2));
@@ -460,7 +460,8 @@ void LevelSet3::solvePressure() {
           // Eigen::Array3d surface = _findSurfaceCoordinate(
           // Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k - 1));
           // theta = (surface - center).matrix().norm() / _h.z();
-          theta = -_phi[i][j][k] / (_phi[i][j][k - 1] - _phi[i][j][k]);
+          theta = -_phi[_currBuffer][i][j][k] /
+                  (_phi[_currBuffer][i][j][k - 1] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -471,7 +472,7 @@ void LevelSet3::solvePressure() {
     }
     if (k < _resolution.z() - 1) {
       validCells++;
-      if (_phi[i][j][k + 1] < 0.0) {
+      if (_phi[_currBuffer][i][j][k + 1] < 0.0) {
         centerWeight += 1 / h2;
         threadTriplet.emplace_back(id, _getMapId(ijkToId(i, j, k + 1)),
                                    -1 / (h2));
@@ -481,7 +482,8 @@ void LevelSet3::solvePressure() {
           // Eigen::Array3d surface = _findSurfaceCoordinate(
           // Eigen::Array3i(i, j, k), Eigen::Array3i(i, j, k + 1));
           // theta = (surface - center).matrix().norm() / _h.z();
-          theta = -_phi[i][j][k] / (_phi[i][j][k + 1] - _phi[i][j][k]);
+          theta = -_phi[_currBuffer][i][j][k] /
+                  (_phi[_currBuffer][i][j][k + 1] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
@@ -498,9 +500,12 @@ void LevelSet3::solvePressure() {
     }
 
     divergent[id] = 0;
-    divergent[id] -= (_u[i + 1][j][k] - _u[i][j][k]) / _h[0];
-    divergent[id] -= (_v[i][j + 1][k] - _v[i][j][k]) / _h[1];
-    divergent[id] -= (_w[i][j][k + 1] - _w[i][j][k]) / _h[2];
+    divergent[id] -=
+        (_u[_currBuffer][i + 1][j][k] - _u[_currBuffer][i][j][k]) / _h[0];
+    divergent[id] -=
+        (_v[_currBuffer][i][j + 1][k] - _v[_currBuffer][i][j][k]) / _h[1];
+    divergent[id] -=
+        (_w[_currBuffer][i][j][k + 1] - _w[_currBuffer][i][j][k]) / _h[2];
     divergent[id] /= _dt;
   }
   divergent[ghostId] = 0;
@@ -564,11 +569,13 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _u[i][j][k] -= (_dt * (pressure1 - pressure2) / _h.x());
-      if (std::isnan(_u[i][j][k]) || std::isinf(_u[i][j][k])) {
+      _u[_currBuffer][i][j][k] -= (_dt * (pressure1 - pressure2) / _h.x());
+      if (std::isnan(_u[_currBuffer][i][j][k]) ||
+          std::isinf(_u[_currBuffer][i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
-      _maxVelocity[0] = std::max(_maxVelocity[0], std::fabs(_u[i][j][k]));
+      _maxVelocity[0] =
+          std::max(_maxVelocity[0], std::fabs(_u[_currBuffer][i][j][k]));
     }
     pressure2 = 0.0;
     if (j > 0) {
@@ -577,11 +584,13 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _v[i][j][k] -= (_dt * (pressure1 - pressure2) / _h.y());
-      if (std::isnan(_v[i][j][k]) || std::isinf(_v[i][j][k])) {
+      _v[_currBuffer][i][j][k] -= (_dt * (pressure1 - pressure2) / _h.y());
+      if (std::isnan(_v[_currBuffer][i][j][k]) ||
+          std::isinf(_v[_currBuffer][i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
-      _maxVelocity[1] = std::max(_maxVelocity[1], std::fabs(_v[i][j][k]));
+      _maxVelocity[1] =
+          std::max(_maxVelocity[1], std::fabs(_v[_currBuffer][i][j][k]));
     }
     pressure2 = 0.0;
     if (k > 0) {
@@ -590,11 +599,13 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _w[i][j][k] -= (_dt * (pressure1 - pressure2) / _h.z());
-      if (std::isnan(_w[i][j][k]) || std::isinf(_w[i][j][k])) {
+      _w[_currBuffer][i][j][k] -= (_dt * (pressure1 - pressure2) / _h.z());
+      if (std::isnan(_w[_currBuffer][i][j][k]) ||
+          std::isinf(_w[_currBuffer][i][j][k])) {
         std::cerr << "Infinite velocity component";
       }
-      _maxVelocity[2] = std::max(_maxVelocity[2], std::fabs(_w[i][j][k]));
+      _maxVelocity[2] =
+          std::max(_maxVelocity[2], std::fabs(_w[_currBuffer][i][j][k]));
     }
   }
   if (_maxVelocity[0] > 1e4 || _maxVelocity[1] > 1e4 || _maxVelocity[2] > 1e4) {
@@ -640,15 +651,15 @@ double LevelSet3::_solveEikonal(glm::ivec3 cellId) {
   j = cellId[1];
   k = cellId[2];
   std::vector<double> distances(3, 0);
-  distances[0] =
-      std::min(std::fabs(_phi[std::max(0, i - 1)][j][k]),
-               std::fabs(_phi[std::min(_resolution.x() - 1, i + 1)][j][k]));
-  distances[1] =
-      std::min(std::fabs(_phi[i][std::max(0, j - 1)][k]),
-               std::fabs(_phi[i][std::min(_resolution.y() - 1, j + 1)][k]));
-  distances[2] =
-      std::min(std::fabs(_phi[i][j][std::max(0, k - 1)]),
-               std::fabs(_phi[i][j][std::min(_resolution.z() - 1, k + 1)]));
+  distances[0] = std::min(
+      std::fabs(_phi[_currBuffer][std::max(0, i - 1)][j][k]),
+      std::fabs(_phi[_currBuffer][std::min(_resolution.x() - 1, i + 1)][j][k]));
+  distances[1] = std::min(
+      std::fabs(_phi[_currBuffer][i][std::max(0, j - 1)][k]),
+      std::fabs(_phi[_currBuffer][i][std::min(_resolution.y() - 1, j + 1)][k]));
+  distances[2] = std::min(
+      std::fabs(_phi[_currBuffer][i][j][std::max(0, k - 1)]),
+      std::fabs(_phi[_currBuffer][i][j][std::min(_resolution.z() - 1, k + 1)]));
 
   std::sort(distances.begin(), distances.end());
 
@@ -688,7 +699,7 @@ void LevelSet3::redistance() {
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        tempPhi[i][j][k] = _phi[i][j][k];
+        tempPhi[i][j][k] = _phi[_currBuffer][i][j][k];
       }
 
   processed.changeSize(_resolution, false);
@@ -704,7 +715,7 @@ void LevelSet3::redistance() {
     glm::vec3 position = glm::vec3(i * _h.x(), j * _h.y(), k * _h.z());
     glm::vec3 intersections[3];
     int nintersecs = 0;
-    double cellPhi = _phi[i][j][k];
+    double cellPhi = _phi[_currBuffer][i][j][k];
     int cellSign = (cellPhi >= 0) ? 1 : -1;
     if (cellPhi == 0)
       cellSign = 1;
@@ -712,19 +723,24 @@ void LevelSet3::redistance() {
     bool isSurface = false, intersected = false;
     double theta = 1e8;
     if (i < _resolution.x() - 1 &&
-        std::signbit(cellSign) != std::signbit(_phi[i + 1][j][k])) {
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i + 1][j][k])) {
       isSurface = true;
       intersected = true;
-      theta =
-          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i + 1][j][k])));
+      theta = std::min(
+          theta,
+          std::fabs(cellPhi / (cellPhi - _phi[_currBuffer][i + 1][j][k])));
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 && std::signbit(cellSign) != std::signbit(_phi[i - 1][j][k])) {
+    if (i > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
-      theta =
-          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i - 1][j][k])));
+      theta = std::min(
+          theta,
+          std::fabs(cellPhi / (cellPhi - _phi[_currBuffer][i - 1][j][k])));
       intersections[nintersecs] =
           glm::vec3(position[0] - theta * _h.x(), position[1], position[2]);
     }
@@ -734,19 +750,24 @@ void LevelSet3::redistance() {
       nintersecs++;
     }
     if (j < _resolution.y() - 1 &&
-        std::signbit(cellSign) != std::signbit(_phi[i][j + 1][k])) {
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j + 1][k])) {
       isSurface = true;
       intersected = true;
-      theta =
-          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j + 1][k])));
+      theta = std::min(
+          theta,
+          std::fabs(cellPhi / (cellPhi - _phi[_currBuffer][i][j + 1][k])));
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 && std::signbit(cellSign) != std::signbit(_phi[i][j - 1][k])) {
+    if (j > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
-      theta =
-          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j - 1][k])));
+      theta = std::min(
+          theta,
+          std::fabs(cellPhi / (cellPhi - _phi[_currBuffer][i][j - 1][k])));
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] - theta * _h.y(), position[2]);
     }
@@ -756,19 +777,24 @@ void LevelSet3::redistance() {
       nintersecs++;
     }
     if (k < _resolution.z() - 1 &&
-        std::signbit(cellSign) != std::signbit(_phi[i][j][k + 1])) {
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j][k + 1])) {
       isSurface = true;
       intersected = true;
-      theta =
-          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j][k + 1])));
+      theta = std::min(
+          theta,
+          std::fabs(cellPhi / (cellPhi - _phi[_currBuffer][i][j][k + 1])));
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 && std::signbit(cellSign) != std::signbit(_phi[i][j][k - 1])) {
+    if (k > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
-      theta =
-          std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j][k - 1])));
+      theta = std::min(
+          theta,
+          std::fabs(cellPhi / (cellPhi - _phi[_currBuffer][i][j][k - 1])));
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] - theta * _h.z());
     }
@@ -795,7 +821,7 @@ void LevelSet3::redistance() {
         distance = 0;
 
       tempPhi[i][j][k] = cellSign * distance;
-      // _phi[i][j][k];
+      // _phi[_currBuffer][i][j][k];
       // cellSign * _solveEikonal(glm::ivec3(i, j, k));
       // cellSign *std::min(std::fabs(tempPhi[i][j][k]), theta *
       // _h.x());
@@ -821,8 +847,8 @@ void LevelSet3::redistance() {
 
     if (!processed[i][j][k]) {
       processed[i][j][k] = true;
-      int distanceSignal = (_phi[i][j][k] >= 0) ? 1 : -1;
-      if (std::fabs(_phi[i][j][k]) < 1e-7)
+      int distanceSignal = (_phi[_currBuffer][i][j][k] >= 0) ? 1 : -1;
+      if (std::fabs(_phi[_currBuffer][i][j][k]) < 1e-7)
         distanceSignal = 1;
       double newPhi = _solveEikonal(glm::ivec3(i, j, k));
 
@@ -833,36 +859,36 @@ void LevelSet3::redistance() {
       continue;
     // Add all neighbors of the cell to queue
     if (i > 0 && cellsAdded.find(ijkToId(i - 1, j, k)) == cellsAdded.end()) {
-      cellsQueue.push(
-          std::make_pair(std::fabs(_phi[i - 1][j][k]), ijkToId(i - 1, j, k)));
+      cellsQueue.push(std::make_pair(std::fabs(_phi[_currBuffer][i - 1][j][k]),
+                                     ijkToId(i - 1, j, k)));
       cellsAdded.insert(ijkToId(i - 1, j, k));
     }
     if (i < _resolution.x() - 1 &&
         cellsAdded.find(ijkToId(i + 1, j, k)) == cellsAdded.end()) {
-      cellsQueue.push(
-          std::make_pair(std::fabs(_phi[i + 1][j][k]), ijkToId(i + 1, j, k)));
+      cellsQueue.push(std::make_pair(std::fabs(_phi[_currBuffer][i + 1][j][k]),
+                                     ijkToId(i + 1, j, k)));
       cellsAdded.insert(ijkToId(i + 1, j, k));
     }
     if (j > 0 && cellsAdded.find(ijkToId(i, j - 1, k)) == cellsAdded.end()) {
-      cellsQueue.push(
-          std::make_pair(std::fabs(_phi[i][j - 1][k]), ijkToId(i, j - 1, k)));
+      cellsQueue.push(std::make_pair(std::fabs(_phi[_currBuffer][i][j - 1][k]),
+                                     ijkToId(i, j - 1, k)));
       cellsAdded.insert(ijkToId(i, j - 1, k));
     }
     if (j < _resolution.y() - 1 &&
         cellsAdded.find(ijkToId(i, j + 1, k)) == cellsAdded.end()) {
-      cellsQueue.push(
-          std::make_pair(std::fabs(_phi[i][j + 1][k]), ijkToId(i, j + 1, k)));
+      cellsQueue.push(std::make_pair(std::fabs(_phi[_currBuffer][i][j + 1][k]),
+                                     ijkToId(i, j + 1, k)));
       cellsAdded.insert(ijkToId(i, j + 1, k));
     }
     if (k > 0 && cellsAdded.find(ijkToId(i, j, k - 1)) == cellsAdded.end()) {
-      cellsQueue.push(
-          std::make_pair(std::fabs(_phi[i][j][k - 1]), ijkToId(i, j, k - 1)));
+      cellsQueue.push(std::make_pair(std::fabs(_phi[_currBuffer][i][j][k - 1]),
+                                     ijkToId(i, j, k - 1)));
       cellsAdded.insert(ijkToId(i, j, k - 1));
     }
     if (k < _resolution.z() - 1 &&
         cellsAdded.find(ijkToId(i, j, k + 1)) == cellsAdded.end()) {
-      cellsQueue.push(
-          std::make_pair(std::fabs(_phi[i][j][k + 1]), ijkToId(i, j, k + 1)));
+      cellsQueue.push(std::make_pair(std::fabs(_phi[_currBuffer][i][j][k + 1]),
+                                     ijkToId(i, j, k + 1)));
       cellsAdded.insert(ijkToId(i, j, k + 1));
     }
   }
@@ -870,7 +896,7 @@ void LevelSet3::redistance() {
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++)
-        _phi[i][j][k] = tempPhi[i][j][k];
+        _phi[_currBuffer][i][j][k] = tempPhi[i][j][k];
 }
 
 void LevelSet3::printLevelSetValue() {
@@ -879,7 +905,7 @@ void LevelSet3::printLevelSetValue() {
     for (int j = _resolution.y() - 1; j >= 0; j--) {
       for (int i = 0; i < _resolution.x(); i++) {
         if (k == 15)
-          std::cout << _phi[i][j][k] << ' ';
+          std::cout << _phi[_currBuffer][i][j][k] << ' ';
       }
       if (k == 15)
         std::cout << std::endl;
@@ -967,13 +993,13 @@ void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
   }
 
   int triIndex = 0;
-  if (_phi[vertices[0][0]][vertices[0][1]][vertices[0][2]] < 0)
+  if (_phi[_currBuffer][vertices[0][0]][vertices[0][1]][vertices[0][2]] < 0)
     triIndex |= 1;
-  if (_phi[vertices[1][0]][vertices[1][1]][vertices[1][2]] < 0)
+  if (_phi[_currBuffer][vertices[1][0]][vertices[1][1]][vertices[1][2]] < 0)
     triIndex |= 2;
-  if (_phi[vertices[2][0]][vertices[2][1]][vertices[2][2]] < 0)
+  if (_phi[_currBuffer][vertices[2][0]][vertices[2][1]][vertices[2][2]] < 0)
     triIndex |= 4;
-  if (_phi[vertices[3][0]][vertices[3][1]][vertices[3][2]] < 0)
+  if (_phi[_currBuffer][vertices[3][0]][vertices[3][1]][vertices[3][2]] < 0)
     triIndex |= 8;
 
   glm::vec3 vertex;
@@ -1097,8 +1123,8 @@ glm::vec3 LevelSet3::_findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2) {
   direction = coord2 - coord1;
 
   float phi1, phi2;
-  phi1 = _phi[v1[0]][v1[1]][v1[2]];
-  phi2 = _phi[v2[0]][v2[1]][v2[2]];
+  phi1 = _phi[_currBuffer][v1[0]][v1[1]][v1[2]];
+  phi2 = _phi[_currBuffer][v2[0]][v2[1]][v2[2]];
   if (phi1 == 0.0)
     return coord1;
   if (phi2 == 0.0)
@@ -1129,8 +1155,8 @@ Eigen::Array3d LevelSet3::_findSurfaceCoordinate(Eigen::Array3i v1,
   direction = coord2 - coord1;
 
   float phi1, phi2;
-  phi1 = _phi[v1[0]][v1[1]][v1[2]];
-  phi2 = _phi[v2[0]][v2[1]][v2[2]];
+  phi1 = _phi[_currBuffer][v1[0]][v1[1]][v1[2]];
+  phi2 = _phi[_currBuffer][v2[0]][v2[1]][v2[2]];
 
   if (phi1 == 0.0)
     return coord1;

@@ -21,6 +21,7 @@ RegularGrid3::RegularGrid3() {
 
   _ellapsedDt = 0.0;
   _originalDt = _dt = 1.0 / 60;
+  _currBuffer = 0;
 }
 
 Vector3d RegularGrid3::domainSize() { return _domainSize; }
@@ -40,36 +41,40 @@ void RegularGrid3::setResolution(Vector3i newResolution) {
   _resolution = newResolution;
   setH(_domainSize / _resolution);
 
-  _u.resize(_resolution.x() + 1);
-  for (auto &row : _u) {
-    row.resize(_resolution.y());
-    for (auto &depth : row)
-      depth.resize(_resolution.z());
-  }
+  for (int buffer = 0; buffer < 2; buffer++) {
+    _u[buffer].resize(_resolution.x() + 1);
+    for (auto &row : _u[buffer]) {
+      row.resize(_resolution.y());
+      for (auto &depth : row)
+        depth.resize(_resolution.z());
+    }
 
-  _v.resize(_resolution.x());
-  for (auto &row : _v) {
-    row.resize(_resolution.y() + 1);
-    for (auto &depth : row)
-      depth.resize(_resolution.z());
-  }
+    _v[buffer].resize(_resolution.x());
+    for (auto &row : _v[buffer]) {
+      row.resize(_resolution.y() + 1);
+      for (auto &depth : row)
+        depth.resize(_resolution.z());
+    }
 
-  _w.resize(_resolution.x());
-  for (auto &row : _w) {
-    row.resize(_resolution.y());
-    for (auto &depth : row)
-      depth.resize(_resolution.z() + 1);
-  }
+    _w[buffer].resize(_resolution.x());
+    for (auto &row : _w[buffer]) {
+      row.resize(_resolution.y());
+      for (auto &depth : row)
+        depth.resize(_resolution.z() + 1);
+    }
 
-  _material.resize(_resolution.x());
-  for (auto &row : _material) {
-    row.resize(_resolution.y());
-    for (auto &depth : row)
-      depth.resize(_resolution.z(), Material::FluidMaterial::AIR);
+    _material.resize(_resolution.x());
+    for (auto &row : _material) {
+      row.resize(_resolution.y());
+      for (auto &depth : row)
+        depth.resize(_resolution.z(), Material::FluidMaterial::AIR);
+    }
   }
 }
 
 void RegularGrid3::setH(Vector3d newH) { _h = newH; }
+
+void RegularGrid3::swapBuffers() { _currBuffer = (_currBuffer + 1) % 2; }
 
 bool RegularGrid3::advanceTime() {
   _ellapsedDt += _dt;
@@ -92,9 +97,9 @@ void RegularGrid3::cfl() {
     k = ijk[2];
 
     Eigen::Vector3d vel;
-    vel[0] = (_u[i][j][k] + _u[i + 1][j][k]) / 2.0;
-    vel[1] = (_v[i][j][k] + _v[i][j + 1][k]) / 2.0;
-    vel[2] = (_w[i][j][k] + _w[i][j][k + 1]) / 2.0;
+    vel[0] = (_u[_currBuffer][i][j][k] + _u[_currBuffer][i + 1][j][k]) / 2.0;
+    vel[1] = (_v[_currBuffer][i][j][k] + _v[_currBuffer][i][j + 1][k]) / 2.0;
+    vel[2] = (_w[_currBuffer][i][j][k] + _w[_currBuffer][i][j][k + 1]) / 2.0;
 
     if (maxVel.norm() < vel.norm() * 1.05)
       maxVel = vel;
@@ -123,47 +128,47 @@ void RegularGrid3::macComarckVelocityAdvection() {
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
         if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
-          utemp[i][j][k] = _u[i][j][k];
-          vtemp[i][j][k] = _v[i][j][k];
-          wtemp[i][j][k] = _w[i][j][k];
+          utemp[i][j][k] = _u[_currBuffer][i][j][k];
+          vtemp[i][j][k] = _v[_currBuffer][i][j][k];
+          wtemp[i][j][k] = _w[_currBuffer][i][j][k];
           continue;
         }
 
         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
         Eigen::Vector3d velocity;
         Eigen::Array3i index;
-        double newU = _u[i][j][k];
+        double newU = _u[_currBuffer][i][j][k];
         // Find threshold values for clamping
         clamp[0] = 1e8;
         clamp[1] = -1e8;
         if (i > 0) {
-          clamp[0] = std::min(clamp[0], _u[i - 1][j][k]);
-          clamp[1] = std::max(clamp[1], _u[i - 1][j][k]);
+          clamp[0] = std::min(clamp[0], _u[_currBuffer][i - 1][j][k]);
+          clamp[1] = std::max(clamp[1], _u[_currBuffer][i - 1][j][k]);
         }
         if (i < _resolution[0]) {
-          clamp[0] = std::min(clamp[0], _u[i + 1][j][k]);
-          clamp[1] = std::max(clamp[1], _u[i + 1][j][k]);
+          clamp[0] = std::min(clamp[0], _u[_currBuffer][i + 1][j][k]);
+          clamp[1] = std::max(clamp[1], _u[_currBuffer][i + 1][j][k]);
         }
         if (j > 0) {
-          clamp[0] = std::min(clamp[0], _u[i][j - 1][k]);
-          clamp[1] = std::max(clamp[1], _u[i][j - 1][k]);
+          clamp[0] = std::min(clamp[0], _u[_currBuffer][i][j - 1][k]);
+          clamp[1] = std::max(clamp[1], _u[_currBuffer][i][j - 1][k]);
         }
         if (j < _resolution[1] - 1) {
-          clamp[0] = std::min(clamp[0], _u[i][j + 1][k]);
-          clamp[1] = std::max(clamp[1], _u[i][j + 1][k]);
+          clamp[0] = std::min(clamp[0], _u[_currBuffer][i][j + 1][k]);
+          clamp[1] = std::max(clamp[1], _u[_currBuffer][i][j + 1][k]);
         }
         if (k > 0) {
-          clamp[0] = std::min(clamp[0], _u[i][j][k - 1]);
-          clamp[1] = std::max(clamp[1], _u[i][j][k - 1]);
+          clamp[0] = std::min(clamp[0], _u[_currBuffer][i][j][k - 1]);
+          clamp[1] = std::max(clamp[1], _u[_currBuffer][i][j][k - 1]);
         }
         if (k < _resolution[2] - 1) {
-          clamp[0] = std::min(clamp[0], _u[i][j][k + 1]);
-          clamp[1] = std::max(clamp[1], _u[i][j][k + 1]);
+          clamp[0] = std::min(clamp[0], _u[_currBuffer][i][j][k + 1]);
+          clamp[1] = std::max(clamp[1], _u[_currBuffer][i][j][k + 1]);
         }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(0, h[1] / 2, h[2] / 2);
-        velocity[0] = _u[i][j][k];
+        velocity[0] = _u[_currBuffer][i][j][k];
         velocity[1] = _interpolateVelocityV(position);
         velocity[2] = _interpolateVelocityW(position);
         position -= velocity.array() * _dt;
@@ -179,48 +184,48 @@ void RegularGrid3::macComarckVelocityAdvection() {
           velocity[2] = _interpolateVelocityW(position);
           position += velocity.array() * _dt;
           double u_n1_hat = _interpolateVelocityU(position);
-          double error = 0.5 * (_u[i][j][k] - u_n1_hat);
+          double error = 0.5 * (_u[_currBuffer][i][j][k] - u_n1_hat);
           newU = u_n + error;
         } else {
-          newU = _u[i][j][k];
+          newU = _u[_currBuffer][i][j][k];
         }
         utemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newU));
         //       }
 
         // // Convective term for velocity V
-        double newV = _v[i][j][k];
+        double newV = _v[_currBuffer][i][j][k];
         // Find threshold values for clamping
         clamp[0] = 1e8;
         clamp[1] = -1e8;
         if (i > 0) {
-          clamp[0] = std::min(clamp[0], _v[i - 1][j][k]);
-          clamp[1] = std::max(clamp[1], _v[i - 1][j][k]);
+          clamp[0] = std::min(clamp[0], _v[_currBuffer][i - 1][j][k]);
+          clamp[1] = std::max(clamp[1], _v[_currBuffer][i - 1][j][k]);
         }
         if (i < _resolution[0] - 1) {
-          clamp[0] = std::min(clamp[0], _v[i + 1][j][k]);
-          clamp[1] = std::max(clamp[1], _v[i + 1][j][k]);
+          clamp[0] = std::min(clamp[0], _v[_currBuffer][i + 1][j][k]);
+          clamp[1] = std::max(clamp[1], _v[_currBuffer][i + 1][j][k]);
         }
         if (j > 0) {
-          clamp[0] = std::min(clamp[0], _v[i][j - 1][k]);
-          clamp[1] = std::max(clamp[1], _v[i][j - 1][k]);
+          clamp[0] = std::min(clamp[0], _v[_currBuffer][i][j - 1][k]);
+          clamp[1] = std::max(clamp[1], _v[_currBuffer][i][j - 1][k]);
         }
         if (j < _resolution[1]) {
-          clamp[0] = std::min(clamp[0], _v[i][j + 1][k]);
-          clamp[1] = std::max(clamp[1], _v[i][j + 1][k]);
+          clamp[0] = std::min(clamp[0], _v[_currBuffer][i][j + 1][k]);
+          clamp[1] = std::max(clamp[1], _v[_currBuffer][i][j + 1][k]);
         }
         if (k > 0) {
-          clamp[0] = std::min(clamp[0], _v[i][j][k - 1]);
-          clamp[1] = std::max(clamp[1], _v[i][j][k - 1]);
+          clamp[0] = std::min(clamp[0], _v[_currBuffer][i][j][k - 1]);
+          clamp[1] = std::max(clamp[1], _v[_currBuffer][i][j][k - 1]);
         }
         if (k < _resolution[2] - 1) {
-          clamp[0] = std::min(clamp[0], _v[i][j][k + 1]);
-          clamp[1] = std::max(clamp[1], _v[i][j][k + 1]);
+          clamp[0] = std::min(clamp[0], _v[_currBuffer][i][j][k + 1]);
+          clamp[1] = std::max(clamp[1], _v[_currBuffer][i][j][k + 1]);
         }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
         velocity[0] = _interpolateVelocityU(position);
-        velocity[1] = _v[i][j][k];
+        velocity[1] = _v[_currBuffer][i][j][k];
         velocity[2] = _interpolateVelocityW(position);
         position -= velocity.array() * _dt;
         index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
@@ -235,49 +240,49 @@ void RegularGrid3::macComarckVelocityAdvection() {
           velocity[2] = _interpolateVelocityW(position);
           position += velocity.array() * _dt;
           double v_n1_hat = _interpolateVelocityV(position);
-          double error = 0.5 * (_v[i][j][k] - v_n1_hat);
+          double error = 0.5 * (_v[_currBuffer][i][j][k] - v_n1_hat);
           newV = v_n + error;
         } else {
-          newV = _v[i][j][k];
+          newV = _v[_currBuffer][i][j][k];
         }
         vtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newV));
         //       }
 
         // // Convective term for velocity W
-        double newW = _w[i][j][k];
+        double newW = _w[_currBuffer][i][j][k];
         // Find threshold values for clamping
         clamp[0] = 1e8;
         clamp[1] = -1e8;
         if (i > 0) {
-          clamp[0] = std::min(clamp[0], _w[i - 1][j][k]);
-          clamp[1] = std::max(clamp[1], _w[i - 1][j][k]);
+          clamp[0] = std::min(clamp[0], _w[_currBuffer][i - 1][j][k]);
+          clamp[1] = std::max(clamp[1], _w[_currBuffer][i - 1][j][k]);
         }
         if (i < _resolution[0] - 1) {
-          clamp[0] = std::min(clamp[0], _w[i + 1][j][k]);
-          clamp[1] = std::max(clamp[1], _w[i + 1][j][k]);
+          clamp[0] = std::min(clamp[0], _w[_currBuffer][i + 1][j][k]);
+          clamp[1] = std::max(clamp[1], _w[_currBuffer][i + 1][j][k]);
         }
         if (j > 0) {
-          clamp[0] = std::min(clamp[0], _w[i][j - 1][k]);
-          clamp[1] = std::max(clamp[1], _w[i][j - 1][k]);
+          clamp[0] = std::min(clamp[0], _w[_currBuffer][i][j - 1][k]);
+          clamp[1] = std::max(clamp[1], _w[_currBuffer][i][j - 1][k]);
         }
         if (j < _resolution[1] - 1) {
-          clamp[0] = std::min(clamp[0], _w[i][j + 1][k]);
-          clamp[1] = std::max(clamp[1], _w[i][j + 1][k]);
+          clamp[0] = std::min(clamp[0], _w[_currBuffer][i][j + 1][k]);
+          clamp[1] = std::max(clamp[1], _w[_currBuffer][i][j + 1][k]);
         }
         if (k > 0) {
-          clamp[0] = std::min(clamp[0], _w[i][j][k - 1]);
-          clamp[1] = std::max(clamp[1], _w[i][j][k - 1]);
+          clamp[0] = std::min(clamp[0], _w[_currBuffer][i][j][k - 1]);
+          clamp[1] = std::max(clamp[1], _w[_currBuffer][i][j][k - 1]);
         }
         if (k < _resolution[2]) {
-          clamp[0] = std::min(clamp[0], _w[i][j][k + 1]);
-          clamp[1] = std::max(clamp[1], _w[i][j][k + 1]);
+          clamp[0] = std::min(clamp[0], _w[_currBuffer][i][j][k + 1]);
+          clamp[1] = std::max(clamp[1], _w[_currBuffer][i][j][k + 1]);
         }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
         velocity[0] = _interpolateVelocityU(position);
         velocity[1] = _interpolateVelocityV(position);
-        velocity[2] = _w[i][j][k];
+        velocity[2] = _w[_currBuffer][i][j][k];
         position -= velocity.array() * _dt;
         index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
 
@@ -291,10 +296,10 @@ void RegularGrid3::macComarckVelocityAdvection() {
           velocity[2] = _interpolateVelocityW(position);
           position += velocity.array() * _dt;
           double w_n1_hat = _interpolateVelocityW(position);
-          double error = 0.5 * (_w[i][j][k] - w_n1_hat);
+          double error = 0.5 * (_w[_currBuffer][i][j][k] - w_n1_hat);
           newW = w_n + error;
         } else {
-          newW = _w[i][j][k];
+          newW = _w[_currBuffer][i][j][k];
         }
         wtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newW));
       }
@@ -304,19 +309,19 @@ void RegularGrid3::macComarckVelocityAdvection() {
   for (int i = 0; i < _resolution.x() + 1; i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        _u[i][j][k] = utemp[i][j][k];
+        _u[_currBuffer][i][j][k] = utemp[i][j][k];
       }
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y() + 1; j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        _v[i][j][k] = vtemp[i][j][k];
+        _v[_currBuffer][i][j][k] = vtemp[i][j][k];
       }
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z() + 1; k++) {
-        _w[i][j][k] = wtemp[i][j][k];
+        _w[_currBuffer][i][j][k] = wtemp[i][j][k];
       }
 }
 
@@ -357,16 +362,16 @@ void RegularGrid3::advectGridVelocity() {
     std::tie(i, j, k) = fluidFaces[it];
 
     if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
-      utemp[i][j][k] = _u[i][j][k];
-      vtemp[i][j][k] = _v[i][j][k];
-      wtemp[i][j][k] = _w[i][j][k];
+      utemp[i][j][k] = _u[_currBuffer][i][j][k];
+      vtemp[i][j][k] = _v[_currBuffer][i][j][k];
+      wtemp[i][j][k] = _w[_currBuffer][i][j][k];
       continue;
     }
-    double newVelocity = _u[i][j][k];
+    double newVelocity = _u[_currBuffer][i][j][k];
 
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                Eigen::Array3d(0, h[1] / 2, h[2] / 2);
-    velocity[0] = _u[i][j][k];
+    velocity[0] = _u[_currBuffer][i][j][k];
     velocity[1] = _interpolateVelocityV(position);
     velocity[2] = _interpolateVelocityW(position);
 
@@ -401,11 +406,11 @@ void RegularGrid3::advectGridVelocity() {
     Eigen::Array3i index;
     std::tie(i, j, k) = fluidFaces[it];
 
-    double newVelocity = _v[i][j][k];
+    double newVelocity = _v[_currBuffer][i][j][k];
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
     velocity[0] = _interpolateVelocityU(position);
-    velocity[1] = _v[i][j][k];
+    velocity[1] = _v[_currBuffer][i][j][k];
     velocity[2] = _interpolateVelocityW(position);
 
     backPosition = position - velocity * _dt;
@@ -439,13 +444,13 @@ void RegularGrid3::advectGridVelocity() {
     Eigen::Array3i index;
     std::tie(i, j, k) = fluidFaces[it];
 
-    double newVelocity = _w[i][j][k];
+    double newVelocity = _w[_currBuffer][i][j][k];
 
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
     velocity[0] = _interpolateVelocityU(position);
     velocity[1] = _interpolateVelocityV(position);
-    velocity[2] = _w[i][j][k];
+    velocity[2] = _w[_currBuffer][i][j][k];
 
     backPosition = position - velocity * _dt;
     index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
@@ -463,21 +468,21 @@ void RegularGrid3::advectGridVelocity() {
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
         if (utemp[i][j][k] > -1e7)
-          _u[i][j][k] = utemp[i][j][k];
+          _u[_currBuffer][i][j][k] = utemp[i][j][k];
       }
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y() + 1; j++)
       for (int k = 0; k < _resolution.z(); k++) {
         if (vtemp[i][j][k] > -1e7)
-          _v[i][j][k] = vtemp[i][j][k];
+          _v[_currBuffer][i][j][k] = vtemp[i][j][k];
       }
 #pragma omp parallel for
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z() + 1; k++) {
         if (wtemp[i][j][k] > -1e7)
-          _w[i][j][k] = wtemp[i][j][k];
+          _w[_currBuffer][i][j][k] = wtemp[i][j][k];
       }
 }
 
@@ -485,19 +490,19 @@ void RegularGrid3::setVelocity() {
   for (int i = 0; i < _resolution.x() + 1; i++) {
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        _u[i][j][k] = 0; // 1.0;
+        _u[_currBuffer][i][j][k] = 0; // 1.0;
       }
   }
   for (int i = 0; i < _resolution.x(); i++) {
     for (int j = 0; j < _resolution.y() + 1; j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        _v[i][j][k] = 0; //-1.0;
+        _v[_currBuffer][i][j][k] = 0; //-1.0;
       }
   }
   for (int i = 0; i < _resolution.x(); i++) {
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z() + 1; k++) {
-        _w[i][j][k] = 0; //-1.0;
+        _w[_currBuffer][i][j][k] = 0; //-1.0;
       }
   }
 }
@@ -531,7 +536,7 @@ void RegularGrid3::writeFaceVelocity(const char *filename) {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x() + 1; i++) {
-        file << _u[i][j][k] << " ";
+        file << _u[_currBuffer][i][j][k] << " ";
       }
       file << std::endl;
     }
@@ -541,7 +546,7 @@ void RegularGrid3::writeFaceVelocity(const char *filename) {
   for (int k = 0; k < _resolution.z(); k++)
     for (int j = 0; j < _resolution.y() + 1; j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        file << _v[i][j][k] << " ";
+        file << _v[_currBuffer][i][j][k] << " ";
       }
       file << std::endl;
     }
@@ -550,7 +555,7 @@ void RegularGrid3::writeFaceVelocity(const char *filename) {
   for (int k = 0; k < _resolution.z() + 1; k++) {
     for (int j = 0; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        file << _w[i][j][k] << " ";
+        file << _w[_currBuffer][i][j][k] << " ";
       }
       file << std::endl;
     }
@@ -563,20 +568,20 @@ void RegularGrid3::boundaryVelocities() {
   // Z velocities
   for (int j = 0; j < _resolution.y(); j++) {
     for (int i = 0; i < _resolution.x(); i++) {
-      _w[i][j][0] = 0.0;
-      _w[i][j][_resolution.z()] = 0.0;
+      _w[_currBuffer][i][j][0] = 0.0;
+      _w[_currBuffer][i][j][_resolution.z()] = 0.0;
     }
   }
   for (int k = 0; k < _resolution.z(); k++) {
     for (int i = 0; i < _resolution.x(); i++) {
-      _v[i][0][k] = 0.0;
-      _v[i][_resolution.y()][k] = 0.0;
+      _v[_currBuffer][i][0][k] = 0.0;
+      _v[_currBuffer][i][_resolution.y()][k] = 0.0;
     }
   }
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 0; j < _resolution.y(); j++) {
-      _u[0][j][k] = 0.0;
-      _u[_resolution.x()][j][k] = 0.0;
+      _u[_currBuffer][0][j][k] = 0.0;
+      _u[_currBuffer][_resolution.x()][j][k] = 0.0;
     }
   }
 }
@@ -586,9 +591,9 @@ void RegularGrid3::addGravity() {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
         if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
-          _v[i][j][k] -= 9.81 * _dt;
+          _v[_currBuffer][i][j][k] -= 9.81 * _dt;
           if (_material[i][j + 1][k] == Material::FluidMaterial::AIR)
-            _v[i][j + 1][k] -= 9.81 * _dt;
+            _v[_currBuffer][i][j + 1][k] -= 9.81 * _dt;
         }
       }
     }
@@ -603,9 +608,9 @@ void RegularGrid3::addExternalForce(Eigen::Vector3d force) {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    _u[i][j][k] += force[0] * _dt;
-    _v[i][j][k] += force[1] * _dt;
-    _w[i][j][k] += force[2] * _dt;
+    _u[_currBuffer][i][j][k] += force[0] * _dt;
+    _v[_currBuffer][i][j][k] += force[1] * _dt;
+    _w[_currBuffer][i][j][k] += force[2] * _dt;
   }
 }
 
@@ -741,9 +746,9 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[0]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity += _u[cell[0]][cell[1]][cell[2]];
+        newVelocity += _u[_currBuffer][cell[0]][cell[1]][cell[2]];
       }
-      _u[i][j][k] = newVelocity / nCells;
+      _u[_currBuffer][i][j][k] = newVelocity / nCells;
       if (i > 0 && processedCells[i - 1][j][k] > 1e6) {
         processingCells.push(ijkToId(i - 1, j, k));
         processedCells[i - 1][j][k] = processedCells[i][j][k] + 1;
@@ -752,9 +757,9 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[1]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity += _u[cell[0] + 1][cell[1]][cell[2]];
+        newVelocity += _u[_currBuffer][cell[0] + 1][cell[1]][cell[2]];
       }
-      _u[i + 1][j][k] = newVelocity / nCells;
+      _u[_currBuffer][i + 1][j][k] = newVelocity / nCells;
       if (i < _resolution[0] - 1 && processedCells[i + 1][j][k] > 1e6) {
         processingCells.push(ijkToId(i + 1, j, k));
         processedCells[i + 1][j][k] = processedCells[i][j][k] + 1;
@@ -763,9 +768,9 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[2]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity += _v[cell[0]][cell[1]][cell[2]];
+        newVelocity += _v[_currBuffer][cell[0]][cell[1]][cell[2]];
       }
-      _v[i][j][k] = newVelocity / nCells;
+      _v[_currBuffer][i][j][k] = newVelocity / nCells;
       if (j > 0 && processedCells[i][j - 1][k] > 1e6) {
         processingCells.push(ijkToId(i, j - 1, k));
         processedCells[i][j - 1][k] = processedCells[i][j][k] + 1;
@@ -774,9 +779,9 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[3]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity += _v[cell[0]][cell[1] + 1][cell[2]];
+        newVelocity += _v[_currBuffer][cell[0]][cell[1] + 1][cell[2]];
       }
-      _v[i][j + 1][k] = newVelocity / nCells;
+      _v[_currBuffer][i][j + 1][k] = newVelocity / nCells;
       if (j < _resolution[1] - 1 && processedCells[i][j + 1][k] > 1e6) {
         processingCells.push(ijkToId(i, j + 1, k));
         processedCells[i][j + 1][k] = processedCells[i][j][k] + 1;
@@ -785,9 +790,9 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[4]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity += _w[cell[0]][cell[1]][cell[2]];
+        newVelocity += _w[_currBuffer][cell[0]][cell[1]][cell[2]];
       }
-      _w[i][j][k] = newVelocity / nCells;
+      _w[_currBuffer][i][j][k] = newVelocity / nCells;
       if (k > 0 && processedCells[i][j][k - 1] > 1e6) {
         processingCells.push(ijkToId(i, j, k - 1));
         processedCells[i][j][k - 1] = processedCells[i][j][k] + 1;
@@ -796,9 +801,9 @@ void RegularGrid3::extrapolateVelocity() {
     if (faceNeedUpdate[5]) {
       double newVelocity = 0.0;
       for (auto cell : neighborCells) {
-        newVelocity += _w[cell[0]][cell[1]][cell[2] + 1];
+        newVelocity += _w[_currBuffer][cell[0]][cell[1]][cell[2] + 1];
       }
-      _w[i][j][k + 1] = newVelocity / nCells;
+      _w[_currBuffer][i][j][k + 1] = newVelocity / nCells;
       if (k < _resolution[2] - 1 && processedCells[i][j][k + 1] > 1e6) {
         processingCells.push(ijkToId(i, j, k + 1));
         processedCells[i][j][k + 1] = processedCells[i][j][k] + 1;
@@ -894,9 +899,12 @@ void RegularGrid3::solvePressure() {
     }
 
     divergent[id] = 0;
-    divergent[id] -= (_u[i + 1][j][k] - _u[i][j][k]) / _h.x();
-    divergent[id] -= (_v[i][j + 1][k] - _v[i][j][k]) / _h.y();
-    divergent[id] -= (_w[i][j][k + 1] - _w[i][j][k]) / _h.z();
+    divergent[id] -=
+        (_u[_currBuffer][i + 1][j][k] - _u[_currBuffer][i][j][k]) / _h.x();
+    divergent[id] -=
+        (_v[_currBuffer][i][j + 1][k] - _v[_currBuffer][i][j][k]) / _h.y();
+    divergent[id] -=
+        (_w[_currBuffer][i][j][k + 1] - _w[_currBuffer][i][j][k]) / _h.z();
     divergent[id] /= _dt;
   }
 
@@ -925,7 +933,7 @@ void RegularGrid3::solvePressure() {
         double diffs =
             (pressure[ijkToId(i, j, k)] - pressure[ijkToId(i - 1, j, k)]) /
             _h.x();
-        _u[i][j][k] -= _dt * diffs;
+        _u[_currBuffer][i][j][k] -= _dt * diffs;
       }
     }
   }
@@ -936,7 +944,7 @@ void RegularGrid3::solvePressure() {
         double diffs =
             (pressure[ijkToId(i, j, k)] - pressure[ijkToId(i, j - 1, k)]) /
             _h.y();
-        _v[i][j][k] -= _dt * diffs;
+        _v[_currBuffer][i][j][k] -= _dt * diffs;
       }
     }
   }
@@ -947,7 +955,7 @@ void RegularGrid3::solvePressure() {
         double diffs =
             (pressure[ijkToId(i, j, k)] - pressure[ijkToId(i, j, k - 1)]) /
             _h.z();
-        _w[i][j][k] -= _dt * diffs;
+        _w[_currBuffer][i][j][k] -= _dt * diffs;
       }
     }
   }
@@ -995,11 +1003,11 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-6)
-          return _u[u][v][w];
+          return _u[_currBuffer][u][v][w];
         distanceCount += 1. / distance;
-        velocity += _u[u][v][w] / distance;
-        clamp[0] = std::min(clamp[0], _u[u][v][w]);
-        clamp[1] = std::max(clamp[1], _u[u][v][w]);
+        velocity += _u[_currBuffer][u][v][w] / distance;
+        clamp[0] = std::min(clamp[0], _u[_currBuffer][u][v][w]);
+        clamp[1] = std::max(clamp[1], _u[_currBuffer][u][v][w]);
       }
   if (distanceCount == 0 || distanceCount > 1e8) {
     std::stringstream message;
@@ -1053,11 +1061,11 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-7)
-          return _v[u][v][w];
+          return _v[_currBuffer][u][v][w];
         distanceCount += 1. / distance;
-        velocity += _v[u][v][w] / distance;
-        clamp[0] = std::min(clamp[0], _v[u][v][w]);
-        clamp[1] = std::max(clamp[1], _v[u][v][w]);
+        velocity += _v[_currBuffer][u][v][w] / distance;
+        clamp[0] = std::min(clamp[0], _v[_currBuffer][u][v][w]);
+        clamp[1] = std::max(clamp[1], _v[_currBuffer][u][v][w]);
       }
   if (distanceCount == 0 || distanceCount > 1e8) {
     std::stringstream message;
@@ -1111,11 +1119,11 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-7)
-          return _w[u][v][w];
+          return _w[_currBuffer][u][v][w];
         distanceCount += 1. / distance;
-        velocity += _w[u][v][w] / distance;
-        clamp[0] = std::min(clamp[0], _w[u][v][w]);
-        clamp[1] = std::max(clamp[1], _w[u][v][w]);
+        velocity += _w[_currBuffer][u][v][w] / distance;
+        clamp[0] = std::min(clamp[0], _w[_currBuffer][u][v][w]);
+        clamp[1] = std::max(clamp[1], _w[_currBuffer][u][v][w]);
       }
   if (distanceCount == 0 || distanceCount > 1e8) {
     std::stringstream message;

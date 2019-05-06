@@ -91,10 +91,10 @@ protected:
   glm::vec3 _findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2);
   Eigen::Array3d _findSurfaceCoordinate(Eigen::Array3i v1, Eigen::Array3i v2);
   // TODO: Change to Matrix3 type
-  std::vector<std::vector<std::vector<Vector3d>>> _gradPhi,
+  std::vector<std::vector<std::vector<Vector3d>>> 
       _velocity; // level set gradient and velocity on the corners
   std::vector<std::vector<std::vector<double>>>
-      _phi; // Level set stored on the grid corners and its gradient values
+      _phi[2]; // Level set stored on the grid corners and its gradient values
 
   bool _isPressureSecondOrder;
 };

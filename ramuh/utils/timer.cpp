@@ -47,6 +47,7 @@ void Timer::evaluateComponentsTime() {
               << std::setprecision(4) << comp.second << "\t(" << std::setw(4)
               << std::setprecision(4) << comp.second / total * 100 << "\%)\n";
   }
+  std::cout << "Total time: " << getTotalTime << std::endl;
   std::cout << "===============================\n";
 }
 

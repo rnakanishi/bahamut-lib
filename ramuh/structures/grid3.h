@@ -46,8 +46,7 @@ public:
    * @param coord x y, or z coordinate
    * @return std::pair<Eigen::Array3i, Eigen::Array3i>
    **/
-  std::vector<Eigen::Array3i> cellFaces(Eigen::Array3i cell,
-                                                      int coord);
+  std::vector<Eigen::Array3i> cellFaces(Eigen::Array3i cell, int coord);
 
   int ijkToId(int i, int j, int k);
 
@@ -97,6 +96,8 @@ public:
 
   bool advanceTime();
 
+  void swapBuffers();
+
 protected:
   double _interpolateVelocityU(Eigen::Array3d position);
   double _interpolateVelocityV(Eigen::Array3d position);
@@ -118,8 +119,9 @@ protected:
 
   // TODO: Change to Matrix2 type
   // TODO: use two matrices to improve performance
-  std::vector<std::vector<std::vector<double>>> _u, _v,
-      _w; // Velocity components stored on faces
+  int _currBuffer;
+  std::vector<std::vector<std::vector<double>>> _u[2], _v[2],
+      _w[2]; // Velocity components stored on faces
   std::vector<int> _fluidCells, _surfaceCells;
   std::vector<std::vector<std::vector<Material::FluidMaterial>>>
       _material; // Wheter the cell is a fluid, solid or air
