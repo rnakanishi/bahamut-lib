@@ -1,5 +1,5 @@
 <simulation>
-    <resolution xyz="80"/>
+    <resolution xyz="128"/>
     <timestep dt="0.01" />
     <pressureOrder order="1"/>
     <dataFolder>results/datatest</dataFolder>
@@ -9,5 +9,5 @@
         <sphere></sphere>
         <cube></cube>
     </domain>   
-    <maxFrames value="40" />
+    <maxFrames value="150" />
 </simulation>
