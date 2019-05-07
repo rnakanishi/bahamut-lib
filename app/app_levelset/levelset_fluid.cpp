@@ -16,9 +16,12 @@ void LevelSetFluid3::writeVelocityField() {
       j = ijk[1];
       k = ijk[2];
 
-      file << (_u[i][j][k] + _u[i + 1][j][k]) / 2 << " ";
-      file << (_v[i][j][k] + _v[i][j + 1][k]) / 2 << " ";
-      file << (_w[i][j][k] + _u[i][j][k + 1]) / 2 << "\n";
+      file << (_u[_currBuffer][i][j][k] + _u[_currBuffer][i + 1][j][k]) / 2
+           << " ";
+      file << (_v[_currBuffer][i][j][k] + _v[_currBuffer][i][j + 1][k]) / 2
+           << " ";
+      file << (_w[_currBuffer][i][j][k] + _u[_currBuffer][i][j][k + 1]) / 2
+           << "\n";
     }
   }
 }

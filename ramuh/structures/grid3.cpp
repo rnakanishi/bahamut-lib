@@ -523,8 +523,8 @@ Eigen::Array3i RegularGrid3::idToijk(int cellId) {
   return index;
 }
 
+// TODO: Transfer writeFAceVelocity to and FileReader class
 void RegularGrid3::writeFaceVelocity(const char *filename) {
-
   std::ofstream file;
   file.open(filename, std::ofstream::out | std::ofstream::trunc);
   if (!file.is_open()) {
@@ -560,6 +560,40 @@ void RegularGrid3::writeFaceVelocity(const char *filename) {
       file << std::endl;
     }
     file << std::endl;
+  }
+  file.close();
+}
+
+void RegularGrid3::readFaceVelocity(const char *filename) {
+  std::ifstream file;
+  file.open(filename);
+  if (!file.is_open()) {
+    std::cerr << "RegularGrid3::writeFaceVelocity: unable to open " << filename
+              << std::endl;
+    return;
+  }
+
+  for (int k = 0; k < _resolution.z(); k++) {
+    for (int j = 0; j < _resolution.y(); j++) {
+      for (int i = 0; i < _resolution.x() + 1; i++) {
+        file >> _u[_currBuffer][i][j][k];
+      }
+    }
+  }
+
+  for (int k = 0; k < _resolution.z(); k++)
+    for (int j = 0; j < _resolution.y() + 1; j++) {
+      for (int i = 0; i < _resolution.x(); i++) {
+        file >> _v[_currBuffer][i][j][k];
+      }
+    }
+
+  for (int k = 0; k < _resolution.z() + 1; k++) {
+    for (int j = 0; j < _resolution.y(); j++) {
+      for (int i = 0; i < _resolution.x(); i++) {
+        file >> _w[_currBuffer][i][j][k];
+      }
+    }
   }
   file.close();
 }

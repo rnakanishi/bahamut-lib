@@ -733,9 +733,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -760,9 +759,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -787,9 +785,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -899,19 +896,43 @@ void LevelSet3::redistance() {
         _phi[_currBuffer][i][j][k] = tempPhi[i][j][k];
 }
 
-void LevelSet3::printLevelSetValue() {
+void LevelSet3::writeLevelSetValue(const char *filename) {
+  std::ofstream file;
+  file.open(filename, std::ofstream::out | std::ofstream::trunc);
 
-  for (int k = 0; k < _resolution.z(); k++) {
-    for (int j = _resolution.y() - 1; j >= 0; j--) {
-      for (int i = 0; i < _resolution.x(); i++) {
-        if (k == 15)
-          std::cout << _phi[_currBuffer][i][j][k] << ' ';
+  if (!file.is_open()) {
+    std::cerr << "Levelset3::writeLevelSetValue: Failed to open file "
+              << filename << std::endl;
+    return;
+  }
+
+  for (int i = 0; i < _resolution[0]; i++) {
+    for (int j = 0; j < _resolution[1]; j++) {
+      for (int k = 0; k < _resolution[2]; k++) {
+        file << _phi[_currBuffer][i][j][k] << ' ';
       }
-      if (k == 15)
-        std::cout << std::endl;
+      file << std::endl;
     }
-    if (k == 15)
-      std::cout << std::endl;
+    file << std::endl;
+  }
+}
+
+void LevelSet3::readLevelSetValue(const char *filename) {
+  std::ifstream file;
+  file.open(filename);
+
+  if (!file.is_open()) {
+    std::cerr << "Levelset3::readLevelSetValue: Failed to open file "
+              << filename << std::endl;
+    return;
+  }
+
+  for (int i = 0; i < _resolution[0]; i++) {
+    for (int j = 0; j < _resolution[1]; j--) {
+      for (int k = 0; k < _resolution[2]; k++) {
+        file >> _phi[_currBuffer][i][j][k];
+      }
+    }
   }
 }
 

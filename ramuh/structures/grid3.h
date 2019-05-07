@@ -91,6 +91,8 @@ public:
   void extrapolateVelocity();
 
   void writeFaceVelocity(const char *filename);
+  
+  void readFaceVelocity(const char *filename);
 
   void cfl();
 

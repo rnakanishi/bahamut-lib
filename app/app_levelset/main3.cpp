@@ -124,6 +124,7 @@ int main(int argc, char const *argv[]) {
 
         stopwatch.evaluateComponentsTime();
         sim.writeFaceVelocity("results/lastVelocity");
+        sim.writeLevelSetValue("results/lastLevelset");
       } catch (const char *error) {
         std::cerr << error << std::endl;
         return -1;
