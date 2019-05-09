@@ -69,15 +69,26 @@ void LevelSet3::printVertexVelocity() {
 }
 
 void LevelSet3::addSphereSurface(Vector3d center, double radius) {
+  addSphereSurface(Eigen::Array3d(center[0], center[1], center[2]), radius);
+}
+
+void LevelSet3::addSphereSurface(Eigen::Array3d center, double radius) {
   for (int k = 0; k < _resolution.z(); k++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int i = 0; i < _resolution.x(); i++) {
-        Vector3d position(Vector3i(i, j, k) * _h + _h / 2);
-        double distance = (position - center).length() - radius;
+        Eigen::Array3d h(_h[0], _h[1], _h[2]);
+        Eigen::Array3d position =
+            Eigen::Array3d(i, j, k).cwiseProduct(h) + h / 2.0;
+        double distance = (position - center).matrix().norm() - radius;
         _phi[_currBuffer][i][j][k] =
             std::min(_phi[_currBuffer][i][j][k], distance);
       }
   checkCellMaterial();
+}
+
+void LevelSet3::addCubeSurface(Eigen::Array3d lower, Eigen::Array3d upper) {
+  addCubeSurface(Vector3d(lower[0], lower[1], lower[2]),
+                 Vector3d(upper[0], upper[1], upper[2]));
 }
 
 void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
@@ -180,7 +191,7 @@ void LevelSet3::macCormackAdvection() {
   newPhi.changeSize(_resolution);
   phiChanged.changeSize(_resolution, false);
   Eigen::Array3i resolution(_resolution[0], _resolution[1], _resolution[2]);
-#pragma omp parallel for
+#pragma omp for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
@@ -264,6 +275,9 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>().cwiseProduct(h) + h / 2.0;
+  index[0] = std::max(0, std::min(_resolution[0], index[0]));
+  index[1] = std::max(0, std::min(_resolution[1], index[1]));
+  index[2] = std::max(0, std::min(_resolution[2], index[2]));
   std::vector<int> iCandidates, jCandidates, kCandidates;
   if (index[0] >= 0 && index[0] < _resolution[0])
     iCandidates.push_back(index[0]);
@@ -733,8 +747,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -759,8 +774,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -785,8 +801,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -919,16 +936,15 @@ void LevelSet3::writeLevelSetValue(const char *filename) {
 
 void LevelSet3::readLevelSetValue(const char *filename) {
   std::ifstream file;
-  file.open(filename);
+  file.open(filename, std::ifstream::in);
 
   if (!file.is_open()) {
     std::cerr << "Levelset3::readLevelSetValue: Failed to open file "
               << filename << std::endl;
     return;
   }
-
   for (int i = 0; i < _resolution[0]; i++) {
-    for (int j = 0; j < _resolution[1]; j--) {
+    for (int j = 0; j < _resolution[1]; j++) {
       for (int k = 0; k < _resolution[2]; k++) {
         file >> _phi[_currBuffer][i][j][k];
       }

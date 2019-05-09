@@ -394,7 +394,7 @@ void RegularGrid3::advectGridVelocity() {
     j = ijk[1];
     k = ijk[2];
     fluidFaces.emplace_back(std::make_tuple(i, j, k));
-    if (j < _resolution[1] &&
+    if (j < _resolution[1] - 1 &&
         _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
       fluidFaces.emplace_back(std::make_tuple(i, j + 1, k));
     }
@@ -568,7 +568,7 @@ void RegularGrid3::readFaceVelocity(const char *filename) {
   std::ifstream file;
   file.open(filename);
   if (!file.is_open()) {
-    std::cerr << "RegularGrid3::writeFaceVelocity: unable to open " << filename
+    std::cerr << "RegularGrid3::readFaceVelocity: unable to open " << filename
               << std::endl;
     return;
   }
@@ -626,7 +626,8 @@ void RegularGrid3::addGravity() {
       for (int i = 0; i < _resolution.x(); i++) {
         if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
           _v[_currBuffer][i][j][k] -= 9.81 * _dt;
-          if (_material[i][j + 1][k] == Material::FluidMaterial::AIR)
+          if (j < _resolution[1] - 1 &&
+              _material[i][j + 1][k] == Material::FluidMaterial::AIR)
             _v[_currBuffer][i][j + 1][k] -= 9.81 * _dt;
         }
       }
@@ -1003,6 +1004,9 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
+  index[0] = std::max(0, std::min(_resolution[0], index[0]));
+  index[2] = std::max(0, std::min(_resolution[2], index[2]));
+  index[1] = std::max(0, std::min(_resolution[1], index[1]));
   std::vector<int> iCandidates, jCandidates, kCandidates;
   if (index[0] >= 0)
     iCandidates.push_back(index[0]);
@@ -1061,6 +1065,9 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
+  index[0] = std::max(0, std::min(_resolution[0], index[0]));
+  index[1] = std::max(0, std::min(_resolution[1], index[1]));
+  index[2] = std::max(0, std::min(_resolution[2], index[2]));
   std::vector<int> iCandidates, jCandidates, kCandidates;
   if (index[0] < resolution[0])
     iCandidates.push_back(index[0]);
@@ -1119,6 +1126,9 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
+  index[0] = std::max(0, std::min(_resolution[0], index[0]));
+  index[1] = std::max(0, std::min(_resolution[1], index[1]));
+  index[2] = std::max(0, std::min(_resolution[2], index[2]));
   std::vector<int> iCandidates, jCandidates, kCandidates;
   if (index[0] < resolution[0])
     iCandidates.push_back(index[0]);

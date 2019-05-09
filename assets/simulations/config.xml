@@ -1,13 +1,27 @@
+<?xml version="1.0"?>
 <simulation>
-    <resolution xyz="128"/>
+    <resolution xyz="64"/>
     <timestep dt="0.01" />
-    <pressureOrder order="1"/>
+    <pressure order="1"/>
+    <advection order="1" />
+
     <dataFolder>results/datatest</dataFolder>
     <objFolder>results/test</objFolder>
-    <domainSize x="1.0" y="1.0" z="1.0"/>
+
     <domain>
-        <sphere></sphere>
-        <cube></cube>
+        <size>1.0 1.0 1.0</size>
+        <sphere>
+            <radius>0.15</radius>
+            <center>0.25 0.6 0.25</center>
+        </sphere>
+        <sphere>
+            <radius>0.15</radius>
+            <center>0.75 0.6 0.75</center>
+        </sphere>
+        <cube>
+            <lower>-15 -15 -15</lower>
+            <upper>15 0.4 15</upper>
+        </cube>
     </domain>   
     <maxFrames value="150" />
 </simulation>

@@ -35,4 +35,6 @@ uint TriangleMesh::getVerticesSize() { return _vertices.size(); }
 
 uint TriangleMesh::getFacesSize() { return _faces.size(); }
 
+void remesh();
+
 } // namespace Ramuh

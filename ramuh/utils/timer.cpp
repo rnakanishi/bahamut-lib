@@ -28,9 +28,11 @@ double Timer::getEllapsedTime() {
 
 double Timer::registerTime(const std::string &name) {
   auto it = _components.find(name);
+  double timeInterval = getEllapsedTime();
+  std::cout << name << " took " << timeInterval << std::endl;
   if (it == _components.end())
     _components[name] = 0.0;
-  _components[name] += getEllapsedTime();
+  _components[name] += timeInterval;
   if (name.length() > _longestName)
     _longestName = name.length();
 }

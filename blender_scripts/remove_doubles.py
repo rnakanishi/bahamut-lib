@@ -8,12 +8,13 @@ if mat is None:
     mat = bpy.data.materials.new(name="Glass")
     
 for f in range(scn.frame_start, scn.frame_end):
-    fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/results/test/{:04d}.obj'.format(f))
+    # fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/results/test/{:04d}.obj'.format(f))
+    fpath = bpy.path.abspath('/home/rnakanishi/Documents/blender/ando/objs/mac100-p1/{:04d}.obj'.format(f))
     bpy.ops.import_scene.obj(filepath=fpath)
     obj = bpy.context.selected_objects[0]
     
-    original_type = bpy.context.area.type
-    bpy.context.area.type = "VIEW_3D"
+    # original_type = bpy.context.area.type
+    # bpy.context.area.type = "VIEW_3D"
 
     bpy.context.scene.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT')
@@ -21,6 +22,7 @@ for f in range(scn.frame_start, scn.frame_end):
     bpy.ops.mesh.remove_doubles()
     bpy.ops.object.editmode_toggle()
     
-    bpy.context.area.type = original_type
+    # bpy.context.area.type = "TEXT_EDITOR"
+    # bpy.context.area.type = original_type
     bpy.ops.export_scene.obj(filepath=fpath, use_normals=False, use_materials=False, use_selection=True)
     bpy.ops.object.delete(use_global=False)
