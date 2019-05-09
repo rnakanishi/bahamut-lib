@@ -37,7 +37,9 @@ int main(int argc, char const *argv[]) {
   std::string objFolderName, dataFolderName;
   bool isPressureSecondOrder;
 
-  // ================
+  // =====================================================
+  // =====================================================
+  // TODO: implement proper Parser class
   // Parsing values and assigning them
   pugi::xml_node node;
   node = xmlDoc.child("simulation");
@@ -45,7 +47,8 @@ int main(int argc, char const *argv[]) {
   nFrames = node.child("maxFrames").attribute("value").as_int();
   dataFolderName = std::string(node.child("dataFolder").child_value());
   objFolderName = std::string(node.child("objFolder").child_value());
-  int pressureOrder = node.child("pressureOrder").attribute("order").as_int();
+  int pressureOrder = node.child("pressure").attribute("order").as_int();
+  int advectionOrder = node.child("advection").attribute("order").as_int();
   isPressureSecondOrder = (pressureOrder == 2) ? true : false;
 
   sim.setResolution(Ramuh::Vector3i(resolution));
@@ -61,15 +64,38 @@ int main(int argc, char const *argv[]) {
   auto res = sim.resolution();
   auto h = sim.h();
 
-  sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.6, 0.5), 0.15);
-  // sim.addSphereSurface(Ramuh::Vector3d(0.5, 0.55, 0.6), 0.25);
-  sim.addCubeSurface(Ramuh::Vector3d(-15, -15, -15),
-                     Ramuh::Vector3d(15, 0.4, 15));
-  // sim.addCubeSurface(Ramuh::Vector3d(-5, -5, -5),
-  //  Ramuh::Vector3d(0.2, 0.8, 0.2));
+  pugi::xml_node domain = node.child("domain");
+  for (pugi::xml_node sphere : domain.children("sphere")) {
+    Eigen::Array3d position;
+    double radius;
+    std::stringstream line;
+    line << sphere.child("radius").child_value() << " ";
+    line << sphere.child("center").child_value();
+
+    line >> radius;
+    line >> position[0] >> position[1] >> position[2];
+    std::cerr << "Read sphere at ";
+    std::cerr << position.transpose();
+    std::cerr << " with radius " << radius << std::endl;
+    sim.addSphereSurface(position, radius);
+  }
+  for (pugi::xml_node sphere : domain.children("cube")) {
+    Eigen::Array3d lower, upper;
+    std::stringstream line;
+    line << sphere.child("lower").child_value() << " ";
+    line << sphere.child("upper").child_value();
+
+    line >> lower[0] >> lower[1] >> lower[2];
+    line >> upper[0] >> upper[1] >> upper[2];
+    std::cerr << "Read cube from " << lower.transpose();
+    std::cerr << " to " << upper.transpose() << std::endl;
+    sim.addCubeSurface(lower, upper);
+  }
+  // =====================================================
+  // =====================================================
 
   sim.setVelocity();
-  sim.redistance();
+  // sim.redistance();
   std::ostringstream dataname, objname;
 
   dataname << dataFolderName << "/0";
@@ -78,6 +104,7 @@ int main(int argc, char const *argv[]) {
   writer.writeMeshModel(sim.marchingTetrahedra(), objname.str().c_str());
   writer.writeLevelSet(sim, dataname.str().c_str());
 
+  return 0;
   Ramuh::Timer stopwatch;
   for (int frame = 1; frame <= nFrames; frame++) {
     std::cout << std::endl;
@@ -96,8 +123,10 @@ int main(int argc, char const *argv[]) {
         sim.extrapolateVelocity();
         sim.boundaryVelocities();
 
-        // sim.macComarckVelocityAdvection();
-        sim.advectGridVelocity();
+        if (advectionOrder == 1)
+          sim.advectGridVelocity();
+        else if (advectionOrder == 2)
+          sim.macComarckVelocityAdvection();
         stopwatch.registerTime("Velocity advection");
 
         sim.writeVelocityField();
@@ -113,8 +142,10 @@ int main(int argc, char const *argv[]) {
         sim.extrapolateVelocity();
         stopwatch.registerTime("Extrapolate velocity");
 
-        sim.macCormackAdvection();
-        // sim.integrateLevelSet();
+        if (advectionOrder == 1)
+          sim.integrateLevelSet();
+        else if (advectionOrder == 2)
+          sim.macCormackAdvection();
         stopwatch.registerTime("Levelset advection");
 
         // if (frame % 5 == 0) {
