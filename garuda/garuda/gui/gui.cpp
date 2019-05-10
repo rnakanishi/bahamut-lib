@@ -12,7 +12,7 @@ GUI::GUI() {
 GUI::~GUI() { glfwTerminate(); }
 
 void GUI::createWindow() {
-  _window = glfwCreateWindow(1000, 1000, "CG 2019", NULL, NULL);
+  _window = glfwCreateWindow(600, 600, "CG 2019", NULL, NULL);
   if (_window == NULL) {
     std::cout << "Failed to create GLFW window\n";
     glfwTerminate();
@@ -23,7 +23,7 @@ void GUI::createWindow() {
     std::cout << "Failed to initialize GLAD\n";
     exit(-2);
   }
-  glViewport(0, 0, 1000, 1000);
+  glViewport(0, 0, 600, 600);
   glEnable(GL_CULL_FACE);
   glCullFace(GL_FRONT);
   glEnable(GL_DEPTH_TEST);
