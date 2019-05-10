@@ -1,11 +1,12 @@
-#include <iostream>
-#include <gui/gui.hpp>
-#include <gui/event_handler.hpp>
-#include <shader/shader.hpp>
-#include <graphics/mesh_object.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <graphics/camera.hpp>
+#include <graphics/mesh_object.hpp>
+#include <gui/event_handler.hpp>
+#include <gui/gui.hpp>
+#include <iostream>
+#include <shader/shader.hpp>
 
 class MyGui : public Garuda::GUI {
 
@@ -57,10 +58,10 @@ public:
     _shader.loadFragmentShader("./assets/shaders/texture.frag");
 
     _objects.initialize();
-    // _objects.loadObjMesh("./assets/3d_models/newdog.obj");
+    _objects.loadObjMesh("./assets/3d_models/newdog.obj");
     // _objects.loadObjMesh("./assets/3d_models/dragon.obj");
-    _objects.loadObjMesh("./obj/tetra.obj");
-    // _objects.loadTexture();
+    // _objects.loadObjMesh("./obj/tetra.obj");
+    _objects.loadTexture();
   }
 
 protected:

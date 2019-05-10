@@ -104,7 +104,6 @@ int main(int argc, char const *argv[]) {
   writer.writeMeshModel(sim.marchingTetrahedra(), objname.str().c_str());
   writer.writeLevelSet(sim, dataname.str().c_str());
 
-  return 0;
   Ramuh::Timer stopwatch;
   for (int frame = 1; frame <= nFrames; frame++) {
     std::cout << std::endl;
@@ -149,8 +148,8 @@ int main(int argc, char const *argv[]) {
         stopwatch.registerTime("Levelset advection");
 
         // if (frame % 5 == 0) {
-        sim.redistance();
-        stopwatch.registerTime("Redistance");
+        // sim.redistance();
+        // stopwatch.registerTime("Redistance");
         // }
 
         stopwatch.evaluateComponentsTime();

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <simulation>
-    <resolution xyz="64"/>
+    <resolution xyz="32"/>
     <timestep dt="0.01" />
     <pressure order="1"/>
     <advection order="1" />
