@@ -90,6 +90,7 @@ protected:
   void _triangulate(std::vector<glm::ivec3> vertices, TriangleMesh &mesh);
 
   double _interpolatePhi(Eigen::Array3d position);
+  double _interpolatePhi(Eigen::Array3d position, int signal);
 
   glm::vec3 _findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2);
   Eigen::Array3d _findSurfaceCoordinate(Eigen::Array3i v1, Eigen::Array3i v2);

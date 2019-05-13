@@ -190,6 +190,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
           newU = _u[_currBuffer][i][j][k];
         }
         utemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newU));
+        // utemp[i][j][k] = newU;
         //       }
 
         // // Convective term for velocity V
@@ -246,6 +247,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
           newV = _v[_currBuffer][i][j][k];
         }
         vtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newV));
+        // vtemp[i][j][k] = newV;
         //       }
 
         // // Convective term for velocity W
@@ -302,6 +304,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
           newW = _w[_currBuffer][i][j][k];
         }
         wtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newW));
+        // wtemp[i][j][k] = newW;
       }
 
 #pragma omp barrier
@@ -1055,8 +1058,8 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
             << ").\n";
     throw(message.str().c_str());
   }
-  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
-  // return velocity / distanceCount;
+  // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
+  return velocity / distanceCount;
 }
 
 double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
@@ -1116,8 +1119,8 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
             << ").\n";
     throw(message.str().c_str());
   }
-  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
-  // return velocity / distanceCount;
+  // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
+  return velocity / distanceCount;
 }
 
 double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
@@ -1177,8 +1180,8 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
             << ").\n";
     throw(message.str().c_str());
   }
-  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
-  // return velocity / distanceCount;
+  // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
+  return velocity / distanceCount;
 }
 
 std::vector<Eigen::Array3i> RegularGrid3::cellFaces(Eigen::Array3i cell,

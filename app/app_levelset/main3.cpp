@@ -48,7 +48,10 @@ int main(int argc, char const *argv[]) {
   dataFolderName = std::string(node.child("dataFolder").child_value());
   objFolderName = std::string(node.child("objFolder").child_value());
   int pressureOrder = node.child("pressure").attribute("order").as_int();
-  int advectionOrder = node.child("advection").attribute("order").as_int();
+  int velocityAdvectionOrder =
+      node.child("VelocityAdvection").attribute("order").as_int();
+  int levelsetAdvectionOrder =
+      node.child("levelsetAdvection").attribute("order").as_int();
   isPressureSecondOrder = (pressureOrder == 2) ? true : false;
 
   sim.setResolution(Ramuh::Vector3i(resolution));
@@ -98,13 +101,12 @@ int main(int argc, char const *argv[]) {
   // sim.redistance();
   std::ostringstream dataname, objname;
 
-  dataname << dataFolderName << "/0";
+  dataname << dataFolderName << "/0000";
   objname << objFolderName << "/0000.obj";
 
   writer.writeMeshModel(sim.marchingTetrahedra(), objname.str().c_str());
   writer.writeLevelSet(sim, dataname.str().c_str());
 
-  return 0;
   Ramuh::Timer stopwatch;
   for (int frame = 1; frame <= nFrames; frame++) {
     std::cout << std::endl;
@@ -123,9 +125,9 @@ int main(int argc, char const *argv[]) {
         sim.extrapolateVelocity();
         sim.boundaryVelocities();
 
-        if (advectionOrder == 1)
+        if (velocityAdvectionOrder == 1)
           sim.advectGridVelocity();
-        else if (advectionOrder == 2)
+        else if (velocityAdvectionOrder == 2)
           sim.macComarckVelocityAdvection();
         stopwatch.registerTime("Velocity advection");
 
@@ -142,9 +144,9 @@ int main(int argc, char const *argv[]) {
         sim.extrapolateVelocity();
         stopwatch.registerTime("Extrapolate velocity");
 
-        if (advectionOrder == 1)
+        if (levelsetAdvectionOrder == 1)
           sim.integrateLevelSet();
-        else if (advectionOrder == 2)
+        else if (levelsetAdvectionOrder == 2)
           sim.macCormackAdvection();
         stopwatch.registerTime("Levelset advection");
 

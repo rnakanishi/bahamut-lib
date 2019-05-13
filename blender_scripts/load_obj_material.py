@@ -7,8 +7,8 @@ if mat is None:
     # create material
     mat = bpy.data.materials.new(name="Glass")
     
-for f in range(scn.frame_start, scn.frame_end):
-    fpath = bpy.path.abspath('/home/rnakanishi/Documents/blender/ando/objs/mac100-p1/{:04d}.obj'.format(f))
+for f in range(scn.frame_start, scn.frame_end+1):
+    fpath = bpy.path.abspath('/home/rnakanishi/Documents/blender/ando/objs/100-p1-a1/{:04d}.obj'.format(f))
     # fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/obj/{:04d}.obj'.format(f))
     bpy.ops.import_scene.obj(filepath=fpath)
     obj = bpy.context.selected_objects[0]
