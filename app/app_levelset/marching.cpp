@@ -18,7 +18,7 @@ public:
     for (int k = 0; k < _resolution[2]; k++) {
       for (int i = 0; i < _resolution[0]; i++) {
         for (int j = 0; j < _resolution[1]; j++) {
-          file >> _phi[i][j][k];
+          file >> _phi[_currBuffer][i][j][k];
         }
       }
     }

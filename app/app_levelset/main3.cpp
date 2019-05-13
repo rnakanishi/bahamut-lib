@@ -151,8 +151,8 @@ int main(int argc, char const *argv[]) {
         stopwatch.registerTime("Levelset advection");
 
         // if (frame % 5 == 0) {
-        sim.redistance();
-        stopwatch.registerTime("Redistance");
+        // sim.redistance();
+        // stopwatch.registerTime("Redistance");
         // }
 
         stopwatch.evaluateComponentsTime();

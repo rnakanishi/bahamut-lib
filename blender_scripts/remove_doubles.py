@@ -1,4 +1,4 @@
-
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/rnakanishi/git/bahamut-lib/build/CMakeFiles /home/rnakanishi/git/bahamut-lib/build/CMakeFiles/progress.marks
 import bpy
 
 scn = bpy.context.scene
