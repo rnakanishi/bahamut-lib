@@ -2,6 +2,9 @@
 #include <utils/mesh_reader.hpp>
 #include <glm/vec2.hpp>
 #include <iostream>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <GLFW/glfw3.h>
 
 namespace Garuda {
 MeshObject::MeshObject() { _hasTexture = _hasMaterial = _hasNormal = false; }
@@ -10,6 +13,9 @@ void MeshObject::initialize() {
   glGenVertexArrays(1, &_vao);
   glGenBuffers(3, _vbo);
   glGenBuffers(1, &_ebo);
+
+  _instanceCount = 1;
+  _modelMatrix.emplace_back(glm::mat4(1.0));
 }
 
 Texture &MeshObject::getTexture() { return _textureImage; }
@@ -74,12 +80,31 @@ void MeshObject::loadObjMesh(const char *objPath) {
   glBindVertexArray(0);
 }
 
+void MeshObject::centerizeObject() {
+  for (int i = 0; i < _instanceCount; i++) {
+    glm::vec3 size = getBBoxSize(), boxCenter = getBboxCenter();
+    double largerDimension = std::max(std::max(size[0], size[1]), size[2]);
+    _modelMatrix[i] =
+        glm::scale(_modelMatrix[i], glm::vec3(1.5 / largerDimension));
+    _modelMatrix[i] = glm::translate(_modelMatrix[i], -boxCenter);
+  }
+}
+
 void MeshObject::draw(Shader shader) {
   shader.useShader();
-  glBindTexture(GL_TEXTURE_2D, _tex);
-  glBindVertexArray(_vao);
-  // glDrawArrays(GL_TRIANGLES, 0, 3 * getVerticesSize());
-  glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);
+  unsigned int modelUniform = glGetUniformLocation(shader.getId(), "model");
+
+  for (int i = 0; i < _instanceCount; i++) {
+    _modelMatrix[i] =
+        glm::rotate(_modelMatrix[i], 0.001f, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    glUniformMatrix4fv(modelUniform, 1, GL_FALSE,
+                       glm::value_ptr(_modelMatrix[i]));
+
+    glBindTexture(GL_TEXTURE_2D, _tex);
+    glBindVertexArray(_vao);
+    glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);
+  }
 }
 
 void MeshObject::addTextureCoordinate(glm::vec2 texCoord) {
@@ -108,38 +133,8 @@ void MeshObject::addVertexNormal(uint id, glm::vec3 normal) {
     _vertexNormal[id] = normal;
 }
 
-glm::vec3 MeshObject::getCentroid() { return _centroid; }
-
-glm::vec3 MeshObject::getBBoxSize() { return _bboxMax - _bboxMin; }
-
-glm::vec3 MeshObject::getBboxCenter() { return (_bboxMax + _bboxMin) / 2.0f; }
-
 bool &MeshObject::hasTexture() { return _hasTexture; }
 bool &MeshObject::hasNormal() { return _hasNormal; }
 bool &MeshObject::hasMaterial() { return _hasMaterial; }
-
-void MeshObject::_computeCentroid() {
-  _centroid = glm::vec3(0.0);
-  _bboxMax = glm::vec3(-1e8);
-  _bboxMin = glm::vec3(1e8);
-  for (auto vertex : _vertices) {
-    _centroid += vertex;
-
-    if (_bboxMax[0] < vertex[0])
-      _bboxMax[0] = vertex[0];
-    if (_bboxMax[1] < vertex[1])
-      _bboxMax[1] = vertex[1];
-    if (_bboxMax[2] < vertex[2])
-      _bboxMax[2] = vertex[2];
-
-    if (_bboxMin[0] > vertex[0])
-      _bboxMin[0] = vertex[0];
-    if (_bboxMin[1] > vertex[1])
-      _bboxMin[1] = vertex[1];
-    if (_bboxMin[2] > vertex[2])
-      _bboxMin[2] = vertex[2];
-  }
-  _centroid /= (float)_vertices.size();
-}
 
 } // namespace Garuda

@@ -86,7 +86,15 @@ public:
    **/
   glm::ivec3 getFace(uint index);
 
+  glm::vec3 getCentroid();
+
+  glm::vec3 getBboxCenter();
+
+  glm::vec3 getBBoxSize();
+
 protected:
+  void _computeCentroid();
+
   class vec3Compare {
   public:
     bool operator()(const glm::vec3 v1, const glm::vec3 v2) const {
@@ -99,6 +107,10 @@ protected:
     //        lhs.x == rhs.x && (lhs.y < rhs.y || lhs.y == rhs.y && lhs.z <
     //        rhs.z);
   };
+
+  glm::vec3 _centroid;
+  glm::vec3 _bboxMax, _bboxMin;
+
   std::map<glm::vec3, uint, vec3Compare> _vMap;
   std::vector<glm::vec3> _vertices;
   std::vector<glm::vec3> _vertexNormal;
