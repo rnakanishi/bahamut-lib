@@ -91,7 +91,7 @@ public:
   void extrapolateVelocity();
 
   void writeFaceVelocity(const char *filename);
-  
+
   void readFaceVelocity(const char *filename);
 
   void cfl();
@@ -104,6 +104,12 @@ protected:
   double _interpolateVelocityU(Eigen::Array3d position);
   double _interpolateVelocityV(Eigen::Array3d position);
   double _interpolateVelocityW(Eigen::Array3d position);
+  double _interpolateVelocityU(Eigen::Array3d position, double &_min,
+                               double &_max);
+  double _interpolateVelocityV(Eigen::Array3d position, double &_min,
+                               double &_max);
+  double _interpolateVelocityW(Eigen::Array3d position, double &_min,
+                               double &_max);
 
   ///
   /// Change values for spacing. This method is called only through

@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <simulation>
-    <resolution xyz="128"/>
+    <resolution xyz="32"/>
     <maxFrames value="300" />
     <timestep dt="0.01" />
     <pressure order="1"/>
     <velocityAdvection order="2" />
     <levelsetAdvection order="2" />
 
-    <dataFolder>results/data128-p1-va2-la2</dataFolder>
-    <objFolder>results/128-p1-va2-la2</objFolder>
+    <dataFolder>results/datatest</dataFolder>
+    <objFolder>results/test</objFolder>
 
     <domain>
         <size>1.0 1.0 1.0</size>

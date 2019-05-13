@@ -1,4 +1,4 @@
-N = 128;
+N = 32;
 x = linspace(0, 1, N);
 [X, Y, Z] = meshgrid(x, x, x);
 
@@ -6,8 +6,8 @@ figure
 i = 5;
 rotate3d on;
 % figure('Renderer', 'painters', 'Position', [10 10 900 600])
-for i = 1:42
-    v = dlmread(['../results/data128-p1-va2-la2/' int2str(i)]);
+for i = 1:40
+    v = dlmread(['../results/datatest/' int2str(i)]);
     v = reshape(v, N, N, N);
     v = permute(v, [2 3 1]);
     clf;
@@ -27,7 +27,7 @@ for i = 1:42
     set(get(gca, 'ZLabel'), 'String', 'Y axis');
 
     % axis equal tight
-    pause(0.1);
+    pause;
     % saveas(gcf, ['animation3d/' int2str(i) '.png'])
 end
 

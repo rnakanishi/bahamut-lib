@@ -178,7 +178,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
             index[2] >= 0 && index[0] < _resolution[0] &&
             index[1] < _resolution[1] && index[2] < _resolution[2]) {
           double u_n;
-          u_n = _interpolateVelocityU(position);
+          u_n = _interpolateVelocityU(position, clamp[0], clamp[1]);
           velocity[0] = _interpolateVelocityU(position);
           velocity[1] = _interpolateVelocityV(position);
           velocity[2] = _interpolateVelocityW(position);
@@ -235,7 +235,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
             index[2] >= 0 && index[0] < _resolution[0] &&
             index[1] < _resolution[1] && index[2] < _resolution[2]) {
           double v_n;
-          v_n = _interpolateVelocityV(position);
+          v_n = _interpolateVelocityV(position, clamp[0], clamp[1]);
           velocity[0] = _interpolateVelocityU(position);
           velocity[1] = _interpolateVelocityV(position);
           velocity[2] = _interpolateVelocityW(position);
@@ -292,7 +292,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
             index[2] >= 0 && index[0] < _resolution[0] &&
             index[1] < _resolution[1] && index[2] < _resolution[2]) {
           double w_n;
-          w_n = _interpolateVelocityW(position);
+          w_n = _interpolateVelocityW(position, clamp[0], clamp[1]);
           velocity[0] = _interpolateVelocityU(position);
           velocity[1] = _interpolateVelocityV(position);
           velocity[2] = _interpolateVelocityW(position);
@@ -1002,6 +1002,12 @@ void RegularGrid3::solvePressure() {
 }
 
 double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
+  double _min, _max;
+  _interpolateVelocityU(position, _min, _max);
+}
+
+double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
+                                           double &_min, double &_max) {
   Eigen::Array3d h(_h[0], _h[1], _h[2]);
   Eigen::Array3i resolution(_resolution.x(), _resolution.y(), _resolution.z());
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
@@ -1043,8 +1049,11 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
-        if (distance < 1e-6)
+        if (distance < 1e-7) {
+          _min = _u[_currBuffer][u][v][w];
+          _max = _u[_currBuffer][u][v][w];
           return _u[_currBuffer][u][v][w];
+        }
         distanceCount += 1. / distance;
         velocity += _u[_currBuffer][u][v][w] / distance;
         clamp[0] = std::min(clamp[0], _u[_currBuffer][u][v][w]);
@@ -1059,10 +1068,18 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position) {
     throw(message.str().c_str());
   }
   // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
+  _min = clamp[0];
+  _max = clamp[1];
   return velocity / distanceCount;
 }
 
 double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
+  double _min, _max;
+  _interpolateVelocityV(position, _min, _max);
+}
+
+double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
+                                           double &_min, double &_max) {
   Eigen::Array3d h(_h[0], _h[1], _h[2]);
   Eigen::Array3i resolution(_resolution.x(), _resolution.y(), _resolution.z());
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
@@ -1104,8 +1121,11 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
-        if (distance < 1e-7)
+        if (distance < 1e-7) {
+          _min = _v[_currBuffer][u][v][w];
+          _max = _v[_currBuffer][u][v][w];
           return _v[_currBuffer][u][v][w];
+        }
         distanceCount += 1. / distance;
         velocity += _v[_currBuffer][u][v][w] / distance;
         clamp[0] = std::min(clamp[0], _v[_currBuffer][u][v][w]);
@@ -1120,10 +1140,18 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
     throw(message.str().c_str());
   }
   // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
+  _min = clamp[0];
+  _max = clamp[1];
   return velocity / distanceCount;
 }
 
 double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
+  double _min, _max;
+  _interpolateVelocityW(position, _min, _max);
+}
+
+double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
+                                           double &_min, double &_max) {
   Eigen::Array3d h(_h[0], _h[1], _h[2]);
   Eigen::Array3i resolution(_resolution.x(), _resolution.y(), _resolution.z());
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
@@ -1165,8 +1193,11 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
         distance = (position - centerPosition).matrix().norm();
-        if (distance < 1e-7)
+        if (distance < 1e-7) {
+          _min = _w[_currBuffer][u][v][w];
+          _max = _w[_currBuffer][u][v][w];
           return _w[_currBuffer][u][v][w];
+        }
         distanceCount += 1. / distance;
         velocity += _w[_currBuffer][u][v][w] / distance;
         clamp[0] = std::min(clamp[0], _w[_currBuffer][u][v][w]);
@@ -1181,6 +1212,8 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
     throw(message.str().c_str());
   }
   // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
+  _min = clamp[0];
+  _max = clamp[1];
   return velocity / distanceCount;
 }
 
