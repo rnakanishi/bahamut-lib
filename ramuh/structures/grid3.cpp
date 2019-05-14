@@ -1013,9 +1013,9 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
-  index[0] = std::max(0, std::min(_resolution[0], index[0]));
-  index[2] = std::max(0, std::min(_resolution[2], index[2]));
-  index[1] = std::max(0, std::min(_resolution[1], index[1]));
+  index[0] = std::max(0, std::min(_resolution[0] - 1, index[0]));
+  index[1] = std::max(0, std::min(_resolution[1] - 1, index[1]));
+  index[2] = std::max(0, std::min(_resolution[2] - 1, index[2]));
   std::vector<int> iCandidates, jCandidates, kCandidates;
   if (index[0] >= 0)
     iCandidates.push_back(index[0]);
@@ -1085,9 +1085,9 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
-  index[0] = std::max(0, std::min(_resolution[0], index[0]));
-  index[1] = std::max(0, std::min(_resolution[1], index[1]));
-  index[2] = std::max(0, std::min(_resolution[2], index[2]));
+  index[0] = std::max(0, std::min(_resolution[0] - 1, index[0]));
+  index[1] = std::max(0, std::min(_resolution[1] - 1, index[1]));
+  index[2] = std::max(0, std::min(_resolution[2] - 1, index[2]));
   std::vector<int> iCandidates, jCandidates, kCandidates;
   if (index[0] < resolution[0])
     iCandidates.push_back(index[0]);
@@ -1157,9 +1157,9 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
-  index[0] = std::max(0, std::min(_resolution[0], index[0]));
-  index[1] = std::max(0, std::min(_resolution[1], index[1]));
-  index[2] = std::max(0, std::min(_resolution[2], index[2]));
+  index[0] = std::max(0, std::min(_resolution[0] - 1, index[0]));
+  index[1] = std::max(0, std::min(_resolution[1] - 1, index[1]));
+  index[2] = std::max(0, std::min(_resolution[2] - 1, index[2]));
   std::vector<int> iCandidates, jCandidates, kCandidates;
   if (index[0] < resolution[0])
     iCandidates.push_back(index[0]);

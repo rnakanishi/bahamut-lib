@@ -269,9 +269,9 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>().cwiseProduct(h) + h / 2.0;
-  index[0] = std::max(0, std::min(_resolution[0], index[0]));
-  index[1] = std::max(0, std::min(_resolution[1], index[1]));
-  index[2] = std::max(0, std::min(_resolution[2], index[2]));
+  index[0] = std::max(0, std::min(_resolution[0] - 1, index[0]));
+  index[1] = std::max(0, std::min(_resolution[1] - 1, index[1]));
+  index[2] = std::max(0, std::min(_resolution[2] - 1, index[2]));
   std::vector<int> iCandidates, jCandidates, kCandidates;
   if (index[0] >= 0 && index[0] < _resolution[0])
     iCandidates.push_back(index[0]);
@@ -823,9 +823,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -850,9 +849,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -877,9 +875,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
