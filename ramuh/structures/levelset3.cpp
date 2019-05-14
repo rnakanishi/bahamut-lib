@@ -447,7 +447,6 @@ void LevelSet3::solvePressure() {
     return index;
   };
 
-  Timer timer;
   // Solve pressure Poisson equation
   divergent = Eigen::VectorXd::Zero(cellCount());
   int ghostId = _getMapId(-1);
@@ -627,25 +626,22 @@ void LevelSet3::solvePressure() {
 
   Eigen::SparseMatrix<double> pressureMatrix(nCells, nCells);
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
-  timer.registerTime("Assembly");
 
   // SOlve pressure Poisson system
   Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
   solver.setTolerance(1e-10);
   // solver.setMaxIterations(100);
   solver.compute(pressureMatrix);
-  timer.registerTime("Prepare Matrix");
   pressure = solver.solve(divergent);
-  timer.registerTime("System");
 
-  std::cerr << "Solved with " << solver.iterations() << " iterations.\n";
-  std::cerr << "Solver error: " << solver.error() << std::endl;
-  {
-    Eigen::VectorXd x = pressureMatrix * pressure;
-    std::cerr << "L2 norm: " << (x - divergent).norm() << std::endl;
-    if (!x.isApprox(divergent, 1e-2))
-      std::cerr << "Error is too high\n";
-  }
+  // std::cerr << "Solved with " << solver.iterations() << " iterations.\n";
+  // std::cerr << "Solver error: " << solver.error() << std::endl;
+  // {
+  //   Eigen::VectorXd x = pressureMatrix * pressure;
+  //   std::cerr << "L2 norm: " << (x - divergent).norm() << std::endl;
+  //   if (!x.isApprox(divergent, 1e-2))
+  //     std::cerr << "Error is too high\n";
+  // }
 
   // Correct velocity through pressure gradient
   _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
@@ -722,9 +718,6 @@ void LevelSet3::solvePressure() {
     std::cerr << "Vellocity too high\n";
     exit(-41);
   }
-
-  timer.registerTime("Gradient");
-  timer.evaluateComponentsTime();
 
   {
     std::ofstream file;
@@ -843,8 +836,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -869,8 +863,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -895,8 +890,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(

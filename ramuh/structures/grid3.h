@@ -34,6 +34,11 @@ public:
   /// \return Vector3d spacing
   Vector3d h();
 
+  double tolerance();
+
+  void setTolerance(double tol);
+  
+
   ///
   /// Return the total amount of cells present on the grid
   /// \return int
@@ -117,6 +122,7 @@ protected:
   /// \param newH
   void setH(Vector3d newH);
 
+  double _tolerance;
   double _maxVelocity[3];
   double _dt;           // CFL max timestep
   double _ellapsedDt;   // Total ellapsed time in frame
