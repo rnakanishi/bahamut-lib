@@ -275,35 +275,16 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
     index[0]--;
   if (position[1] < cellCenter[1])
     index[1]--;
-  if (position[2] < cellCenter[0])
+  if (position[2] < cellCenter[2])
     index[2]--;
 
   std::vector<int> iCandidates, jCandidates, kCandidates;
-  if (index[0] >= 0)
-    iCandidates.push_back(index[0]);
-  else
-    iCandidates.push_back(0);
-  if (index[1] >= 0)
-    jCandidates.push_back(index[1]);
-  else
-    jCandidates.push_back(0);
-  if (index[2] >= 0)
-    kCandidates.push_back(index[2]);
-  else
-    kCandidates.push_back(0);
-
-  if (index[0] < resolution[0] - 1)
-    iCandidates.push_back(index[0] + 1);
-  else
-    iCandidates.push_back(resolution[0] - 1);
-  if (index[1] < resolution[1] - 1)
-    jCandidates.push_back(index[1] + 1);
-  else
-    jCandidates.push_back(resolution[1] - 1);
-  if (index[2] < resolution[2] - 1)
-    kCandidates.push_back(index[2] + 1);
-  else
-    kCandidates.push_back(resolution[2] - 1);
+  iCandidates.push_back(index[0]);
+  jCandidates.push_back(index[1]);
+  kCandidates.push_back(index[2]);
+  iCandidates.push_back(index[0] + 1);
+  jCandidates.push_back(index[1] + 1);
+  kCandidates.push_back(index[2] + 1);
 
   double intermediateValues[4];
   int it = 0;
@@ -314,8 +295,16 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
       points.push_back(((double)u0 + 0.5) * h[0]);
       points.push_back(((double)u1 + 0.5) * h[0]);
 
-      values.push_back(_phi[_currBuffer][u0][v][w]);
-      values.push_back(_phi[_currBuffer][u1][v][w]);
+      if (u0 < 0)
+        u0 = 0;
+      if (u1 >= resolution[0])
+        u1 = resolution[0] - 1;
+
+      int vv = std::max(0, std::min(resolution[1] - 1, v));
+      int ww = std::max(0, std::min(resolution[2] - 1, w));
+
+      values.push_back(_phi[_currBuffer][u0][vv][ww]);
+      values.push_back(_phi[_currBuffer][u1][vv][ww]);
       intermediateValues[it++] =
           Interpolator::linear(position[0], points, values);
     }
@@ -836,9 +825,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -863,9 +851,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -890,9 +877,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(

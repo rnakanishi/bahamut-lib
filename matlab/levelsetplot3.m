@@ -1,4 +1,4 @@
-N = 32;
+N = 40;
 x = linspace(0, 1, N);
 [X, Y, Z] = meshgrid(x, x, x);
 
