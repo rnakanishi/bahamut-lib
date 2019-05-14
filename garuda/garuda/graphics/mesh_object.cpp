@@ -96,7 +96,7 @@ void MeshObject::draw(Shader shader) {
 
   for (int i = 0; i < _instanceCount; i++) {
     _modelMatrix[i] =
-        glm::rotate(_modelMatrix[i], 0.001f, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::rotate(_modelMatrix[i], 0.05f, glm::vec3(0.0f, 1.0f, 0.0f));
 
     glUniformMatrix4fv(modelUniform, 1, GL_FALSE,
                        glm::value_ptr(_modelMatrix[i]));
