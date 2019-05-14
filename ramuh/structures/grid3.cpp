@@ -1043,6 +1043,12 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
+        clamp[0] = _min = std::min(clamp[0], _u[_currBuffer][u][v][w]);
+        clamp[1] = _max = std::max(clamp[1], _u[_currBuffer][u][v][w]);
+      }
+  for (auto u : iCandidates)
+    for (auto v : jCandidates)
+      for (auto w : kCandidates) {
         if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
             w < 0 || w >= _resolution[2])
           continue;
@@ -1050,14 +1056,10 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-7) {
-          _min = _u[_currBuffer][u][v][w];
-          _max = _u[_currBuffer][u][v][w];
           return _u[_currBuffer][u][v][w];
         }
         distanceCount += 1. / distance;
         velocity += _u[_currBuffer][u][v][w] / distance;
-        clamp[0] = std::min(clamp[0], _u[_currBuffer][u][v][w]);
-        clamp[1] = std::max(clamp[1], _u[_currBuffer][u][v][w]);
       }
   if (distanceCount == 0 || distanceCount > 1e8) {
     std::stringstream message;
@@ -1067,9 +1069,9 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
             << ").\n";
     throw(message.str().c_str());
   }
-  // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   _min = clamp[0];
   _max = clamp[1];
+  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   return velocity / distanceCount;
 }
 
@@ -1115,6 +1117,12 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
+        clamp[0] = _min = std::min(clamp[0], _v[_currBuffer][u][v][w]);
+        clamp[1] = _max = std::max(clamp[1], _v[_currBuffer][u][v][w]);
+      }
+  for (auto u : iCandidates)
+    for (auto v : jCandidates)
+      for (auto w : kCandidates) {
         if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
             w < 0 || w >= _resolution[2])
           continue;
@@ -1122,14 +1130,10 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-7) {
-          _min = _v[_currBuffer][u][v][w];
-          _max = _v[_currBuffer][u][v][w];
           return _v[_currBuffer][u][v][w];
         }
         distanceCount += 1. / distance;
         velocity += _v[_currBuffer][u][v][w] / distance;
-        clamp[0] = std::min(clamp[0], _v[_currBuffer][u][v][w]);
-        clamp[1] = std::max(clamp[1], _v[_currBuffer][u][v][w]);
       }
   if (distanceCount == 0 || distanceCount > 1e8) {
     std::stringstream message;
@@ -1139,9 +1143,9 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
             << ").\n";
     throw(message.str().c_str());
   }
-  // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   _min = clamp[0];
   _max = clamp[1];
+  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   return velocity / distanceCount;
 }
 
@@ -1187,6 +1191,12 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
+        clamp[0] = _min = std::min(clamp[0], _w[_currBuffer][u][v][w]);
+        clamp[1] = _max = std::max(clamp[1], _w[_currBuffer][u][v][w]);
+      }
+  for (auto u : iCandidates)
+    for (auto v : jCandidates)
+      for (auto w : kCandidates) {
         if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
             w < 0 || w >= _resolution[2])
           continue;
@@ -1194,14 +1204,10 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-7) {
-          _min = _w[_currBuffer][u][v][w];
-          _max = _w[_currBuffer][u][v][w];
           return _w[_currBuffer][u][v][w];
         }
         distanceCount += 1. / distance;
         velocity += _w[_currBuffer][u][v][w] / distance;
-        clamp[0] = std::min(clamp[0], _w[_currBuffer][u][v][w]);
-        clamp[1] = std::max(clamp[1], _w[_currBuffer][u][v][w]);
       }
   if (distanceCount == 0 || distanceCount > 1e8) {
     std::stringstream message;
@@ -1211,9 +1217,9 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
             << ").\n";
     throw(message.str().c_str());
   }
-  // return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   _min = clamp[0];
   _max = clamp[1];
+  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   return velocity / distanceCount;
 }
 

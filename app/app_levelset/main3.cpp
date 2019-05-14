@@ -139,7 +139,7 @@ int main(int argc, char const *argv[]) {
 
         sim.solvePressure();
         stopwatch.registerTime("Pressure");
-        // sim.boundaryVelocities();
+        sim.boundaryVelocities();
 
         sim.extrapolateVelocity();
         stopwatch.registerTime("Extrapolate velocity");

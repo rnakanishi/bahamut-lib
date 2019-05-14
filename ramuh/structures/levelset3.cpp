@@ -297,6 +297,14 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
   double clamp[2]; // 0: min, 1: max
   clamp[0] = 1e8;
   clamp[1] = -1e8;
+
+  for (auto u : iCandidates)
+    for (auto v : jCandidates)
+      for (auto w : kCandidates) {
+        clamp[0] = _min = std::min(clamp[0], _phi[_currBuffer][u][v][w]);
+        clamp[1] = _max = std::max(clamp[1], _phi[_currBuffer][u][v][w]);
+      }
+
   for (auto u : iCandidates)
     for (auto v : jCandidates)
       for (auto w : kCandidates) {
@@ -306,14 +314,10 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
         Eigen::Array3d centerPosition = Eigen::Array3d(u, v, w) * h + h / 2.0;
         distance = (position - centerPosition).matrix().norm();
         if (distance < 1e-6) {
-          _min = _phi[_currBuffer][u][v][w];
-          _max = _phi[_currBuffer][u][v][w];
           return _phi[_currBuffer][u][v][w];
         }
         distanceCount += 1. / distance;
         newPhi += _phi[_currBuffer][u][v][w] / distance;
-        clamp[0] = std::min(clamp[0], _phi[_currBuffer][u][v][w]);
-        clamp[1] = std::max(clamp[1], _phi[_currBuffer][u][v][w]);
       }
   if (distanceCount == 0 || distanceCount > 1e8) {
     std::cerr << "LevelSet3::interpolatePhi: distanceCount error: "
@@ -322,9 +326,8 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
     std::cerr << "position: " << position.transpose() << std::endl;
     throw("LevelSet3::interpolatePhi: distanceCount zero or infinity\n");
   }
-  _min = clamp[0];
-  _max = clamp[1];
   return std::max(clamp[0], std::min(clamp[1], newPhi / distanceCount));
+  // return newPhi / distanceCount;
 }
 
 double LevelSet3::_interpolatePhi(Eigen::Array3d position, int originalSignal) {
@@ -823,8 +826,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -849,8 +853,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -875,8 +880,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(

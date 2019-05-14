@@ -1,21 +1,25 @@
 <?xml version="1.0"?>
 <simulation>
-    <resolution xyz="32"/>
-    <maxFrames value="300" />
+    <resolution xyz="40"/>
+    <maxFrames value="100" />
     <timestep dt="0.01" />
     <pressure order="1"/>
-    <velocityAdvection order="2" />
-    <levelsetAdvection order="2" />
+    <velocityAdvection order="1" />
+    <levelsetAdvection order="1" />
 
     <dataFolder>results/datatest</dataFolder>
     <objFolder>results/test</objFolder>
 
     <domain>
         <size>1.0 1.0 1.0</size>
-        <sphere>
+        <!-- <sphere>
             <radius>0.15</radius>
             <center>0.5 0.6 0.5</center>
-        </sphere>
+        </sphere> -->
+        <cube>
+            <lower>0.4 0.7 0.4</lower>
+            <upper>0.7 0.9 0.7</upper>
+        </cube>
         <cube>
             <lower>-15 -15 -15</lower>
             <upper>15 0.4 15</upper>
