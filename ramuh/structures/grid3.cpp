@@ -712,8 +712,8 @@ void RegularGrid3::extrapolateVelocity() {
     j = ijk[1];
     k = ijk[2];
 
-    if (processedCells[i][j][k] > 20)
-      continue;
+    // if (processedCells[i][j][k] > 20)
+    // continue;
 
     // Find the least distance
     int leastDistace = 1e6;

@@ -11,11 +11,14 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/structures/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/blas/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/blas/*.hpp
         )
 file(GLOB SOURCES 
         ${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/structures/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/blas/*.cpp
         )
 
 # include_directories(${CMAKE_CURRENT_SOURCE_DIR})

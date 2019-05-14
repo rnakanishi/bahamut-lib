@@ -12,14 +12,14 @@
 
     <domain>
         <size>1.0 1.0 1.0</size>
-        <!-- <sphere>
+        <sphere>
             <radius>0.15</radius>
             <center>0.5 0.6 0.5</center>
-        </sphere> -->
-        <cube>
+        </sphere>
+        <!-- <cube>
             <lower>0.4 0.7 0.4</lower>
             <upper>0.7 0.9 0.7</upper>
-        </cube>
+        </cube> -->
         <cube>
             <lower>-15 -15 -15</lower>
             <upper>15 0.4 15</upper>
