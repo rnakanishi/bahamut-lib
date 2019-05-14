@@ -22,7 +22,12 @@ RegularGrid3::RegularGrid3() {
   _ellapsedDt = 0.0;
   _originalDt = _dt = 1.0 / 60;
   _currBuffer = 0;
+  _tolerance = 1e-15;
 }
+
+double RegularGrid3::tolerance() { return _tolerance; }
+
+void RegularGrid3::setTolerance(double tol) { _tolerance = tol; }
 
 Vector3d RegularGrid3::domainSize() { return _domainSize; }
 
@@ -107,7 +112,7 @@ void RegularGrid3::cfl() {
 
   // Check if cfl condition applies
   // Half timestep if so
-  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 3 * _h[0]) {
+  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 2 * _h[0]) {
     _dt = _dt / 2;
   }
 }
@@ -138,33 +143,6 @@ void RegularGrid3::macComarckVelocityAdvection() {
         Eigen::Vector3d velocity;
         Eigen::Array3i index;
         double newU = _u[_currBuffer][i][j][k];
-        // Find threshold values for clamping
-        clamp[0] = 1e8;
-        clamp[1] = -1e8;
-        if (i > 0) {
-          clamp[0] = std::min(clamp[0], _u[_currBuffer][i - 1][j][k]);
-          clamp[1] = std::max(clamp[1], _u[_currBuffer][i - 1][j][k]);
-        }
-        if (i < _resolution[0]) {
-          clamp[0] = std::min(clamp[0], _u[_currBuffer][i + 1][j][k]);
-          clamp[1] = std::max(clamp[1], _u[_currBuffer][i + 1][j][k]);
-        }
-        if (j > 0) {
-          clamp[0] = std::min(clamp[0], _u[_currBuffer][i][j - 1][k]);
-          clamp[1] = std::max(clamp[1], _u[_currBuffer][i][j - 1][k]);
-        }
-        if (j < _resolution[1] - 1) {
-          clamp[0] = std::min(clamp[0], _u[_currBuffer][i][j + 1][k]);
-          clamp[1] = std::max(clamp[1], _u[_currBuffer][i][j + 1][k]);
-        }
-        if (k > 0) {
-          clamp[0] = std::min(clamp[0], _u[_currBuffer][i][j][k - 1]);
-          clamp[1] = std::max(clamp[1], _u[_currBuffer][i][j][k - 1]);
-        }
-        if (k < _resolution[2] - 1) {
-          clamp[0] = std::min(clamp[0], _u[_currBuffer][i][j][k + 1]);
-          clamp[1] = std::max(clamp[1], _u[_currBuffer][i][j][k + 1]);
-        }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(0, h[1] / 2, h[2] / 2);
@@ -195,33 +173,6 @@ void RegularGrid3::macComarckVelocityAdvection() {
 
         // // Convective term for velocity V
         double newV = _v[_currBuffer][i][j][k];
-        // Find threshold values for clamping
-        clamp[0] = 1e8;
-        clamp[1] = -1e8;
-        if (i > 0) {
-          clamp[0] = std::min(clamp[0], _v[_currBuffer][i - 1][j][k]);
-          clamp[1] = std::max(clamp[1], _v[_currBuffer][i - 1][j][k]);
-        }
-        if (i < _resolution[0] - 1) {
-          clamp[0] = std::min(clamp[0], _v[_currBuffer][i + 1][j][k]);
-          clamp[1] = std::max(clamp[1], _v[_currBuffer][i + 1][j][k]);
-        }
-        if (j > 0) {
-          clamp[0] = std::min(clamp[0], _v[_currBuffer][i][j - 1][k]);
-          clamp[1] = std::max(clamp[1], _v[_currBuffer][i][j - 1][k]);
-        }
-        if (j < _resolution[1]) {
-          clamp[0] = std::min(clamp[0], _v[_currBuffer][i][j + 1][k]);
-          clamp[1] = std::max(clamp[1], _v[_currBuffer][i][j + 1][k]);
-        }
-        if (k > 0) {
-          clamp[0] = std::min(clamp[0], _v[_currBuffer][i][j][k - 1]);
-          clamp[1] = std::max(clamp[1], _v[_currBuffer][i][j][k - 1]);
-        }
-        if (k < _resolution[2] - 1) {
-          clamp[0] = std::min(clamp[0], _v[_currBuffer][i][j][k + 1]);
-          clamp[1] = std::max(clamp[1], _v[_currBuffer][i][j][k + 1]);
-        }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
@@ -252,33 +203,6 @@ void RegularGrid3::macComarckVelocityAdvection() {
 
         // // Convective term for velocity W
         double newW = _w[_currBuffer][i][j][k];
-        // Find threshold values for clamping
-        clamp[0] = 1e8;
-        clamp[1] = -1e8;
-        if (i > 0) {
-          clamp[0] = std::min(clamp[0], _w[_currBuffer][i - 1][j][k]);
-          clamp[1] = std::max(clamp[1], _w[_currBuffer][i - 1][j][k]);
-        }
-        if (i < _resolution[0] - 1) {
-          clamp[0] = std::min(clamp[0], _w[_currBuffer][i + 1][j][k]);
-          clamp[1] = std::max(clamp[1], _w[_currBuffer][i + 1][j][k]);
-        }
-        if (j > 0) {
-          clamp[0] = std::min(clamp[0], _w[_currBuffer][i][j - 1][k]);
-          clamp[1] = std::max(clamp[1], _w[_currBuffer][i][j - 1][k]);
-        }
-        if (j < _resolution[1] - 1) {
-          clamp[0] = std::min(clamp[0], _w[_currBuffer][i][j + 1][k]);
-          clamp[1] = std::max(clamp[1], _w[_currBuffer][i][j + 1][k]);
-        }
-        if (k > 0) {
-          clamp[0] = std::min(clamp[0], _w[_currBuffer][i][j][k - 1]);
-          clamp[1] = std::max(clamp[1], _w[_currBuffer][i][j][k - 1]);
-        }
-        if (k < _resolution[2]) {
-          clamp[0] = std::min(clamp[0], _w[_currBuffer][i][j][k + 1]);
-          clamp[1] = std::max(clamp[1], _w[_currBuffer][i][j][k + 1]);
-        }
 
         position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
                    Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
@@ -1055,13 +979,14 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
-        if (distance < 1e-7) {
+        distance = distance;
+        if (distance < _tolerance) {
           return _u[_currBuffer][u][v][w];
         }
         distanceCount += 1. / distance;
         velocity += _u[_currBuffer][u][v][w] / distance;
       }
-  if (distanceCount == 0 || distanceCount > 1e8) {
+  if (distanceCount == 0 || distanceCount > (1.0 / _tolerance)) {
     std::stringstream message;
     message << "RegularGrid3::interpolateVelocityU: distanceCount zero or "
                "infinity at ("
@@ -1069,8 +994,6 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
             << ").\n";
     throw(message.str().c_str());
   }
-  _min = clamp[0];
-  _max = clamp[1];
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   return velocity / distanceCount;
 }
@@ -1129,13 +1052,14 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
         distance = (position - centerPosition).matrix().norm();
-        if (distance < 1e-7) {
+        distance = distance;
+        if (distance < _tolerance) {
           return _v[_currBuffer][u][v][w];
         }
         distanceCount += 1. / distance;
         velocity += _v[_currBuffer][u][v][w] / distance;
       }
-  if (distanceCount == 0 || distanceCount > 1e8) {
+  if (distanceCount == 0 || distanceCount > (1.0 / _tolerance)) {
     std::stringstream message;
     message << "RegularGrid3::interpolateVelocityV: distanceCount zero or "
                "infinity at ("
@@ -1143,8 +1067,6 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
             << ").\n";
     throw(message.str().c_str());
   }
-  _min = clamp[0];
-  _max = clamp[1];
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   return velocity / distanceCount;
 }
@@ -1203,13 +1125,14 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
         Eigen::Array3d centerPosition =
             Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
         distance = (position - centerPosition).matrix().norm();
-        if (distance < 1e-7) {
+        distance = distance;
+        if (distance < _tolerance) {
           return _w[_currBuffer][u][v][w];
         }
         distanceCount += 1. / distance;
         velocity += _w[_currBuffer][u][v][w] / distance;
       }
-  if (distanceCount == 0 || distanceCount > 1e8) {
+  if (distanceCount == 0 || distanceCount > (1.0 / _tolerance)) {
     std::stringstream message;
     message << "RegularGrid3::interpolateVelocityW: distanceCount zero or "
                "infinity at ("
@@ -1217,8 +1140,6 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
             << ").\n";
     throw(message.str().c_str());
   }
-  _min = clamp[0];
-  _max = clamp[1];
   return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
   return velocity / distanceCount;
 }
