@@ -2,7 +2,7 @@
 
 namespace Garuda {
 
-Camera::Camera(){}
+Camera::Camera() {}
 
 glm::vec3 Camera::getPosition() { return position; }
 

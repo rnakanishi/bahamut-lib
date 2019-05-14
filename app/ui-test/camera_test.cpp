@@ -2,6 +2,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <graphics/camera.hpp>
+#include <graphics/scene.hpp>
 #include <graphics/mesh_object.hpp>
 #include <gui/event_handler.hpp>
 #include <gui/gui.hpp>
