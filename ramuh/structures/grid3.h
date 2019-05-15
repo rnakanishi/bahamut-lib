@@ -37,7 +37,6 @@ public:
   double tolerance();
 
   void setTolerance(double tol);
-  
 
   ///
   /// Return the total amount of cells present on the grid
@@ -115,6 +114,9 @@ protected:
                                double &_max);
   double _interpolateVelocityW(Eigen::Array3d position, double &_min,
                                double &_max);
+
+  bool _hasOppositeNeighborsWithMaterial(int cellId,
+                                         Material::FluidMaterial material);
 
   ///
   /// Change values for spacing. This method is called only through

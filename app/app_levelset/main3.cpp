@@ -119,7 +119,7 @@ int main(int argc, char const *argv[]) {
       try {
         sim.checkCellMaterial();
         sim.addGravity();
-        // sim.addExternalForce(Eigen::Vector3d(-1.5, -4.5, 0));
+        // sim.addExternalForce(Eigen::Vector3d(0, -2.5, 0));
         stopwatch.registerTime("Gravity");
 
         sim.extrapolateVelocity();
@@ -150,10 +150,10 @@ int main(int argc, char const *argv[]) {
           sim.macCormackAdvection();
         stopwatch.registerTime("Levelset advection");
 
-        if (frame % 5 == 0) {
-          // sim.redistance();
-          // stopwatch.registerTime("Redistance");
-        }
+        // if (frame % 5 == 0) {
+          sim.redistance();
+          stopwatch.registerTime("Redistance");
+        // }
 
         stopwatch.evaluateComponentsTime();
         sim.writeFaceVelocity("results/lastVelocity");

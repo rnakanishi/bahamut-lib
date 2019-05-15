@@ -285,55 +285,22 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
   iCandidates.push_back(index[0] + 1);
   jCandidates.push_back(index[1] + 1);
   kCandidates.push_back(index[2] + 1);
+  std::vector<Eigen::Array3d> points;
+  std::vector<double> values;
 
-  double intermediateValues[4];
-  int it = 0;
   for (auto w : kCandidates)
-    for (auto v : jCandidates) {
-      int u0 = iCandidates[0], u1 = iCandidates[1];
-      std::vector<double> points, values;
-      points.push_back(((double)u0 + 0.5) * h[0]);
-      points.push_back(((double)u1 + 0.5) * h[0]);
-
-      if (u0 < 0)
-        u0 = 0;
-      if (u1 >= resolution[0])
-        u1 = resolution[0] - 1;
-
-      int vv = std::max(0, std::min(resolution[1] - 1, v));
-      int ww = std::max(0, std::min(resolution[2] - 1, w));
-
-      values.push_back(_phi[_currBuffer][u0][vv][ww]);
-      values.push_back(_phi[_currBuffer][u1][vv][ww]);
-      intermediateValues[it++] =
-          Interpolator::linear(position[0], points, values);
-    }
-
-  it = 0;
-  for (auto w : kCandidates) {
-    int v0 = jCandidates[0], v1 = jCandidates[1];
-    std::vector<double> points, values;
-    points.push_back(((double)v0 + 0.5) * h[0]);
-    points.push_back(((double)v1 + 0.5) * h[0]);
-
-    values.push_back(intermediateValues[2 * it + 0]);
-    values.push_back(intermediateValues[2 * it + 1]);
-    intermediateValues[it++] =
-        Interpolator::linear(position[1], points, values);
-  }
-
-  double newPhi;
-  {
-    std::vector<double> points, values;
-    int w0 = kCandidates[0], w1 = kCandidates[1];
-    points.push_back(((double)w0 + 0.5) * h[0]);
-    points.push_back(((double)w1 + 0.5) * h[0]);
-
-    values.push_back(intermediateValues[0]);
-    values.push_back(intermediateValues[1]);
-    newPhi = Interpolator::linear(position[2], points, values);
-  }
-  return newPhi;
+    for (auto v : jCandidates)
+      for (auto u : iCandidates) {
+        int x, y, z;
+        points.emplace_back((u + 0.5) * h[0], (v + 0.5) * h[1],
+                            (w + 0.5) * h[2]);
+        x = std::max(0, std::min(resolution[0] - 1, u));
+        y = std::max(0, std::min(resolution[1] - 1, v));
+        z = std::max(0, std::min(resolution[2] - 1, w));
+        values.emplace_back(_phi[_currBuffer][x][y][z]);
+      }
+  double phi = Interpolator::trilinear(position, points, values);
+  return phi;
 }
 
 double LevelSet3::_interpolatePhi(Eigen::Array3d position, int originalSignal) {

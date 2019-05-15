@@ -637,6 +637,11 @@ void RegularGrid3::extrapolateVelocity() {
     j = ijk[1];
     k = ijk[2];
 
+    if (_material[i][j][k] == Material::FluidMaterial::AIR &&
+        _hasOppositeNeighborsWithMaterial(currCell,
+                                          Material::FluidMaterial::FLUID))
+      continue;
+
     // if (processedCells[i][j][k] > 20)
     // continue;
 
@@ -958,7 +963,7 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
       for (auto u : iCandidates) {
         int x, y, z;
         points.emplace_back(u * h[0], (v + 0.5) * h[1], (w + 0.5) * h[2]);
-        x = std::max(0, std::min(resolution[0] - 1, u));
+        x = std::max(0, std::min(resolution[0], u));
         y = std::max(0, std::min(resolution[1] - 1, v));
         z = std::max(0, std::min(resolution[2] - 1, w));
         values.emplace_back(_u[_currBuffer][x][y][z]);
@@ -1000,7 +1005,7 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
         int x, y, z;
         points.emplace_back((u + 0.5) * h[0], v * h[1], (w + 0.5) * h[2]);
         x = std::max(0, std::min(resolution[0] - 1, u));
-        y = std::max(0, std::min(resolution[1] - 1, v));
+        y = std::max(0, std::min(resolution[1], v));
         z = std::max(0, std::min(resolution[2] - 1, w));
         values.emplace_back(_v[_currBuffer][x][y][z]);
       }
@@ -1042,7 +1047,7 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
         points.emplace_back((u + 0.5) * h[0], (v + 0.5) * h[1], w * h[2]);
         x = std::max(0, std::min(resolution[0] - 1, u));
         y = std::max(0, std::min(resolution[1] - 1, v));
-        z = std::max(0, std::min(resolution[2] - 1, w));
+        z = std::max(0, std::min(resolution[2], w));
         values.emplace_back(_w[_currBuffer][x][y][z]);
       }
   double velocity = Interpolator::trilinear(position, points, values);
@@ -1063,6 +1068,26 @@ std::vector<Eigen::Array3i> RegularGrid3::cellFaces(Eigen::Array3i cell,
   }
 
   return faces;
+}
+
+bool RegularGrid3::_hasOppositeNeighborsWithMaterial(
+    int cellId, Material::FluidMaterial material) {
+  Eigen::Array3i ijk = idToijk(cellId);
+  int i, j, k;
+  i = ijk[0];
+  j = ijk[1];
+  k = ijk[2];
+  if (i > 0 && _material[i - 1][j][k] == material && i < _resolution[0] - 2 &&
+      _material[i + 1][j][k] == material)
+    return true;
+  if (j > 0 && _material[i][j - 1][k] == material && j < _resolution[1] - 2 &&
+      _material[i][j + 1][k] == material)
+    return true;
+  if (k > 0 && _material[i][j][k - 1] == material && k < _resolution[2] - 2 &&
+      _material[i][j][k + 1] == material)
+    return true;
+
+  return false;
 }
 
 } // namespace Ramuh

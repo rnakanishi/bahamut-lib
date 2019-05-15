@@ -12,7 +12,9 @@ public:
   static double linear(double position, std::vector<double> points,
                        std::vector<double> values);
 
-  static double bilinear();
+  static double bilinear(double position[2], std::vector<Eigen::Array2d> points,
+                         std::vector<double> values);
+
   static double trilinear(Eigen::Array3d position,
                           std::vector<Eigen::Array3d> points,
                           std::vector<double> values);
