@@ -1,4 +1,5 @@
 #include <structures/grid3.h>
+#include <blas/interpolator.h>
 #include <geometry/matrix.h>
 #include <utils/macros.h>
 #include <Eigen/Core>
@@ -112,7 +113,7 @@ void RegularGrid3::cfl() {
 
   // Check if cfl condition applies
   // Half timestep if so
-  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 2 * _h[0]) {
+  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 3 * _h[0]) {
     _dt = _dt / 2;
   }
 }
@@ -937,65 +938,33 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
-  index[0] = std::max(0, std::min(_resolution[0] - 1, index[0]));
-  index[1] = std::max(0, std::min(_resolution[1] - 1, index[1]));
-  index[2] = std::max(0, std::min(_resolution[2] - 1, index[2]));
-  std::vector<int> iCandidates, jCandidates, kCandidates;
-  if (index[0] >= 0)
-    iCandidates.push_back(index[0]);
-  if (index[0] < _resolution[0] - 1)
-    iCandidates.push_back(index[0] + 1);
-  if (index[1] < resolution[1])
-    jCandidates.push_back(index[1]);
-  if (index[2] < resolution[2])
-    kCandidates.push_back(index[2]);
-  if (position[1] > cellCenter[1] && index[1] < _resolution[1] - 1)
-    jCandidates.push_back(index[1] + 1);
-  else if (position[1] < cellCenter[1] && index[1] > 0)
-    jCandidates.push_back(index[1] - 1);
-  if (position[2] > cellCenter[2] && index[2] < _resolution[2] - 1)
-    kCandidates.push_back(index[2] + 1);
-  else if (position[2] < cellCenter[2] && index[2] > 0)
-    kCandidates.push_back(index[2] - 1);
+  if (position[1] < cellCenter[1])
+    index[1]--;
+  if (position[2] < cellCenter[2])
+    index[2]--;
 
-  // Catmull-Rom like interpolation of u
-  double clamp[2]; // 0: min, 1: max
-  clamp[0] = 1e8;
-  clamp[1] = -1e8;
-  double distance = 0., distanceCount = 0.;
-  double velocity = 0.0;
-  for (auto u : iCandidates)
+  std::vector<int> iCandidates, jCandidates, kCandidates;
+  iCandidates.push_back(index[0]);
+  jCandidates.push_back(index[1]);
+  kCandidates.push_back(index[2]);
+  iCandidates.push_back(index[0] + 1);
+  jCandidates.push_back(index[1] + 1);
+  kCandidates.push_back(index[2] + 1);
+  std::vector<Eigen::Array3d> points;
+  std::vector<double> values;
+
+  for (auto w : kCandidates)
     for (auto v : jCandidates)
-      for (auto w : kCandidates) {
-        clamp[0] = _min = std::min(clamp[0], _u[_currBuffer][u][v][w]);
-        clamp[1] = _max = std::max(clamp[1], _u[_currBuffer][u][v][w]);
+      for (auto u : iCandidates) {
+        int x, y, z;
+        points.emplace_back(u * h[0], (v + 0.5) * h[1], (w + 0.5) * h[2]);
+        x = std::max(0, std::min(resolution[0] - 1, u));
+        y = std::max(0, std::min(resolution[1] - 1, v));
+        z = std::max(0, std::min(resolution[2] - 1, w));
+        values.emplace_back(_u[_currBuffer][x][y][z]);
       }
-  for (auto u : iCandidates)
-    for (auto v : jCandidates)
-      for (auto w : kCandidates) {
-        if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
-            w < 0 || w >= _resolution[2])
-          continue;
-        Eigen::Array3d centerPosition =
-            Eigen::Array3d(u, v, w) * h + Eigen::Array3d(0, h[1] / 2, h[2] / 2);
-        distance = (position - centerPosition).matrix().norm();
-        distance = distance;
-        if (distance < _tolerance) {
-          return _u[_currBuffer][u][v][w];
-        }
-        distanceCount += 1. / distance;
-        velocity += _u[_currBuffer][u][v][w] / distance;
-      }
-  if (distanceCount == 0 || distanceCount > (1.0 / _tolerance)) {
-    std::stringstream message;
-    message << "RegularGrid3::interpolateVelocityU: distanceCount zero or "
-               "infinity at ("
-            << position[0] << ", " << position[1] << ", " << position[2]
-            << ").\n";
-    throw(message.str().c_str());
-  }
-  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
-  return velocity / distanceCount;
+  double velocity = Interpolator::trilinear(position, points, values);
+  return velocity;
 }
 
 double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position) {
@@ -1010,65 +979,33 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
-  index[0] = std::max(0, std::min(_resolution[0] - 1, index[0]));
-  index[1] = std::max(0, std::min(_resolution[1] - 1, index[1]));
-  index[2] = std::max(0, std::min(_resolution[2] - 1, index[2]));
-  std::vector<int> iCandidates, jCandidates, kCandidates;
-  if (index[0] < resolution[0])
-    iCandidates.push_back(index[0]);
-  if (index[1] >= 0)
-    jCandidates.push_back(index[1]);
-  if (index[1] < _resolution[1] - 1)
-    jCandidates.push_back(index[1] + 1);
-  if (index[2] < resolution[2])
-    kCandidates.push_back(index[2]);
-  if (position[0] > cellCenter[0] && index[0] < resolution[0] - 1)
-    iCandidates.push_back(index[0] + 1);
-  else if (position[0] < cellCenter[0] && index[0] > 0)
-    iCandidates.push_back(index[0] - 1);
-  if (position[2] > cellCenter[2] && index[2] < _resolution[2] - 1)
-    kCandidates.push_back(index[2] + 1);
-  else if (position[2] < cellCenter[2] && index[2] > 0)
-    kCandidates.push_back(index[2] - 1);
+  if (position[0] < cellCenter[0])
+    index[0]--;
+  if (position[2] < cellCenter[2])
+    index[2]--;
 
-  // Catmull-Rom like interpolation of v
-  double clamp[2]; // 0: min, 1: max
-  clamp[0] = 1e8;
-  clamp[1] = -1e8;
-  double distance = 0., distanceCount = 0.;
-  double velocity = 0.0;
-  for (auto u : iCandidates)
+  std::vector<int> iCandidates, jCandidates, kCandidates;
+  iCandidates.push_back(index[0]);
+  jCandidates.push_back(index[1]);
+  kCandidates.push_back(index[2]);
+  iCandidates.push_back(index[0] + 1);
+  jCandidates.push_back(index[1] + 1);
+  kCandidates.push_back(index[2] + 1);
+  std::vector<Eigen::Array3d> points;
+  std::vector<double> values;
+
+  for (auto w : kCandidates)
     for (auto v : jCandidates)
-      for (auto w : kCandidates) {
-        clamp[0] = _min = std::min(clamp[0], _v[_currBuffer][u][v][w]);
-        clamp[1] = _max = std::max(clamp[1], _v[_currBuffer][u][v][w]);
+      for (auto u : iCandidates) {
+        int x, y, z;
+        points.emplace_back((u + 0.5) * h[0], v * h[1], (w + 0.5) * h[2]);
+        x = std::max(0, std::min(resolution[0] - 1, u));
+        y = std::max(0, std::min(resolution[1] - 1, v));
+        z = std::max(0, std::min(resolution[2] - 1, w));
+        values.emplace_back(_v[_currBuffer][x][y][z]);
       }
-  for (auto u : iCandidates)
-    for (auto v : jCandidates)
-      for (auto w : kCandidates) {
-        if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
-            w < 0 || w >= _resolution[2])
-          continue;
-        Eigen::Array3d centerPosition =
-            Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
-        distance = (position - centerPosition).matrix().norm();
-        distance = distance;
-        if (distance < _tolerance) {
-          return _v[_currBuffer][u][v][w];
-        }
-        distanceCount += 1. / distance;
-        velocity += _v[_currBuffer][u][v][w] / distance;
-      }
-  if (distanceCount == 0 || distanceCount > (1.0 / _tolerance)) {
-    std::stringstream message;
-    message << "RegularGrid3::interpolateVelocityV: distanceCount zero or "
-               "infinity at ("
-            << position[0] << ", " << position[1] << ", " << position[2]
-            << ").\n";
-    throw(message.str().c_str());
-  }
-  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
-  return velocity / distanceCount;
+  double velocity = Interpolator::trilinear(position, points, values);
+  return velocity;
 }
 
 double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position) {
@@ -1083,65 +1020,33 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
-  index[0] = std::max(0, std::min(_resolution[0] - 1, index[0]));
-  index[1] = std::max(0, std::min(_resolution[1] - 1, index[1]));
-  index[2] = std::max(0, std::min(_resolution[2] - 1, index[2]));
-  std::vector<int> iCandidates, jCandidates, kCandidates;
-  if (index[0] < resolution[0])
-    iCandidates.push_back(index[0]);
-  if (index[1] < resolution[1])
-    jCandidates.push_back(index[1]);
-  if (index[2] >= 0)
-    kCandidates.push_back(index[2]);
-  if (index[2] < _resolution[2])
-    kCandidates.push_back(index[2] + 1);
-  if (position[0] > cellCenter[0] && index[0] < resolution[0] - 1)
-    iCandidates.push_back(index[0] + 1);
-  else if (position[0] < cellCenter[0] && index[0] > 0)
-    iCandidates.push_back(index[0] - 1);
-  if (position[1] > cellCenter[1] && index[1] < _resolution[1] - 1)
-    jCandidates.push_back(index[1] + 1);
-  else if (position[1] < cellCenter[1] && index[1] > 0)
-    jCandidates.push_back(index[1] - 1);
+  if (position[0] < cellCenter[0])
+    index[0]--;
+  if (position[1] < cellCenter[1])
+    index[1]--;
 
-  // Catmull-Rom like interpolation of w
-  double clamp[2]; // 0: min, 1: max
-  clamp[0] = 1e8;
-  clamp[1] = -1e8;
-  double distance = 0., distanceCount = 0.;
-  double velocity = 0.0;
-  for (auto u : iCandidates)
+  std::vector<int> iCandidates, jCandidates, kCandidates;
+  iCandidates.push_back(index[0]);
+  jCandidates.push_back(index[1]);
+  kCandidates.push_back(index[2]);
+  iCandidates.push_back(index[0] + 1);
+  jCandidates.push_back(index[1] + 1);
+  kCandidates.push_back(index[2] + 1);
+  std::vector<Eigen::Array3d> points;
+  std::vector<double> values;
+
+  for (auto w : kCandidates)
     for (auto v : jCandidates)
-      for (auto w : kCandidates) {
-        clamp[0] = _min = std::min(clamp[0], _w[_currBuffer][u][v][w]);
-        clamp[1] = _max = std::max(clamp[1], _w[_currBuffer][u][v][w]);
+      for (auto u : iCandidates) {
+        int x, y, z;
+        points.emplace_back((u + 0.5) * h[0], (v + 0.5) * h[1], w * h[2]);
+        x = std::max(0, std::min(resolution[0] - 1, u));
+        y = std::max(0, std::min(resolution[1] - 1, v));
+        z = std::max(0, std::min(resolution[2] - 1, w));
+        values.emplace_back(_w[_currBuffer][x][y][z]);
       }
-  for (auto u : iCandidates)
-    for (auto v : jCandidates)
-      for (auto w : kCandidates) {
-        if (u < 0 || u >= _resolution[0] || v < 0 || v >= _resolution[1] ||
-            w < 0 || w >= _resolution[2])
-          continue;
-        Eigen::Array3d centerPosition =
-            Eigen::Array3d(u, v, w) * h + Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
-        distance = (position - centerPosition).matrix().norm();
-        distance = distance;
-        if (distance < _tolerance) {
-          return _w[_currBuffer][u][v][w];
-        }
-        distanceCount += 1. / distance;
-        velocity += _w[_currBuffer][u][v][w] / distance;
-      }
-  if (distanceCount == 0 || distanceCount > (1.0 / _tolerance)) {
-    std::stringstream message;
-    message << "RegularGrid3::interpolateVelocityW: distanceCount zero or "
-               "infinity at ("
-            << position[0] << ", " << position[1] << ", " << position[2]
-            << ").\n";
-    throw(message.str().c_str());
-  }
-  return std::max(clamp[0], std::min(clamp[1], velocity / distanceCount));
-  return velocity / distanceCount;
+  double velocity = Interpolator::trilinear(position, points, values);
+  return velocity;
 }
 
 std::vector<Eigen::Array3i> RegularGrid3::cellFaces(Eigen::Array3i cell,
