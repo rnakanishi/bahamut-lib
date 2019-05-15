@@ -24,8 +24,8 @@ void GUI::createWindow() {
     exit(-2);
   }
   glViewport(0, 0, 600, 600);
-  glEnable(GL_CULL_FACE);
-  glCullFace(GL_FRONT);
+  // glEnable(GL_CULL_FACE);
+  // glCullFace(GL_FRONT);
   glEnable(GL_DEPTH_TEST);
 }
 

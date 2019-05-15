@@ -2,6 +2,7 @@
 #define __GARUDA_EVENT_HANDLER_HPP__
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <graphics/camera.hpp>
 
 namespace Garuda {
 
@@ -9,12 +10,13 @@ class EventHandler {
 public:
   EventHandler();
 
-  void processKeyboardInputs(GLFWwindow *window);
+  static void processKeyboardInputs(GLFWwindow *window);
 
-  void processMouseInputs(GLFWwindow *window);
+  static void cameraKeyboardInputs(Camera &camera);
 
-protected:
-  bool _drawPolygons;
+  static void cameraMouseInputs(Camera &camera);
+
+  static void processMouseInputs(GLFWwindow *window);
 };
 
 } // namespace Garuda

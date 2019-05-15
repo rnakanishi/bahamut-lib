@@ -14,6 +14,8 @@ public:
 
   void draw();
 
+  Camera &getActiveCamera();
+
 protected:
   std::vector<MeshObject> _objects;
   std::vector<Camera> _cameras;

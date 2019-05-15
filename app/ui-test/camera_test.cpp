@@ -17,11 +17,10 @@ public:
     while (!glfwWindowShouldClose(_window)) {
 
       // Comandos de entrada
-      events.processKeyboardInputs(_window);
+      Garuda::EventHandler::processKeyboardInputs(_window);
 
       // Comandos de renderizacao vao aqui
       glClearColor(0.7f, 0.75f, 0.75f, 1.0f);
-      // glClear(GL_COLOR_BUFFER_BIT);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       // etc...

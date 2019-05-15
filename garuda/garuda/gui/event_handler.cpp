@@ -15,4 +15,8 @@ void EventHandler::processKeyboardInputs(GLFWwindow *window) {
 
 void EventHandler::processMouseInputs(GLFWwindow *window) {}
 
+void EventHandler::cameraKeyboardInputs(Camera &camera) {}
+
+void EventHandler::cameraMouseInputs(Camera &camera) {}
+
 } // namespace Garuda
