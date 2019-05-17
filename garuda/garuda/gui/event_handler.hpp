@@ -8,13 +8,11 @@ namespace Garuda {
 
 class EventHandler {
 public:
-  EventHandler();
-
   static void processKeyboardInputs(GLFWwindow *window);
 
-  static void cameraKeyboardInputs(Camera &camera);
+  static void cameraKeyboardInputs(GLFWwindow *window, Camera &camera);
 
-  static void cameraMouseInputs(Camera &camera);
+  static void cameraMouseInputs(GLFWwindow *window, Camera &camera);
 
   static void processMouseInputs(GLFWwindow *window);
 };

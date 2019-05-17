@@ -53,6 +53,7 @@ void MeshObject::loadTexture() {
 void MeshObject::loadObjMesh(const char *objPath) {
   // Read mesh from file
   MeshReader::readObjWithTexture(*this, objPath);
+  // MeshReader::objLoader(*this, objPath);
   _computeCentroid();
 
   glBindVertexArray(_vao);

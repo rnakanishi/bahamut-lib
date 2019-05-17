@@ -8,16 +8,24 @@
 #include <gui/gui.hpp>
 #include <iostream>
 #include <shader/shader.hpp>
+#include <GLFW/glfw3.h>
+#include <utils/callbacks.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 class MyGui : public Garuda::GUI {
 
 public:
   void run() override {
     Garuda::EventHandler events;
+    _scene.getActiveCamera().setLookAt(glm::vec3(0.0f));
     while (!glfwWindowShouldClose(_window)) {
 
       // Comandos de entrada
       Garuda::EventHandler::processKeyboardInputs(_window);
+      Garuda::EventHandler::cameraKeyboardInputs(_window,
+                                                 _scene.getActiveCamera());
+      Garuda::EventHandler::cameraMouseInputs(_window,
+                                              _scene.getActiveCamera());
 
       // Comandos de renderizacao vao aqui
       glClearColor(0.7f, 0.75f, 0.75f, 1.0f);
@@ -34,6 +42,12 @@ public:
 
   void loadScene() { _scene.load(); }
 
+  void prepareCallbacks() {
+    glfwSetWindowUserPointer(_window, &_scene.getActiveCamera());
+    // glfwSetMouseButtonCallback(_window, Garuda::__mouseButton);
+    // glfwSetCursorPosCallback(_window, Garuda::__mouseCursor);
+  }
+
 protected:
   Garuda::Scene _scene;
 };
@@ -42,6 +56,7 @@ int main(int argc, char const *argv[]) {
   MyGui interface;
 
   interface.createWindow();
+  interface.prepareCallbacks();
   interface.loadScene();
 
   interface.run();

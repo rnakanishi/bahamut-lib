@@ -2,13 +2,14 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
-#include <iostream>
 #include <glm/gtx/string_cast.hpp>
+#include <iostream>
 
 namespace Garuda {
 Scene::Scene() {
   _cameras.emplace_back(Camera());
   _objects.emplace_back(MeshObject());
+  activeCamera = 0;
 }
 
 void Scene::load() {
@@ -41,5 +42,6 @@ void Scene::draw() {
   for (auto &object : _objects)
     object.draw(_shader);
 }
+Camera &Scene::getActiveCamera() { return _cameras[activeCamera]; }
 
 } // namespace Garuda

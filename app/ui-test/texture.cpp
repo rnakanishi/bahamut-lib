@@ -58,7 +58,7 @@ public:
     _shader.loadFragmentShader("./assets/shaders/texture.frag");
 
     _objects.initialize();
-    _objects.loadObjMesh("./assets/3d_models/newdog.obj");
+    _objects.loadObjMesh("./assets/3d_models/lotus.obj");
     // _objects.loadObjMesh("./assets/3d_models/dragon.obj");
     // _objects.loadObjMesh("./obj/tetra.obj");
     _objects.loadTexture();

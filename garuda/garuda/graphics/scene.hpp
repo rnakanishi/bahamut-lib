@@ -19,6 +19,7 @@ public:
 protected:
   std::vector<MeshObject> _objects;
   std::vector<Camera> _cameras;
+  int activeCamera;
   Shader _shader;
 };
 } // namespace Garuda
