@@ -1,6 +1,8 @@
 #include <blas/interpolator.h>
 #include <iostream>
 #include <Eigen/Dense>
+#include <functional>
+#include <cmath>
 
 namespace Ramuh {
 
@@ -78,5 +80,47 @@ double Interpolator::trilinear(Eigen::Array3d position,
     interpolated = Interpolator::linear(position[2], points, values);
   }
   return interpolated;
+}
+double Interpolator::cubic(double position, std::vector<double> points,
+                           std::vector<double> values) {}
+
+double Interpolator::catmullRom(double position, std::vector<double> points,
+                                std::vector<double> values) {
+
+  auto tj = [](double t, double points[2], double values[2]) {
+    double distance;
+    distance = std::sqrt((points[1] - points[0]) * (points[1] - points[0]) +
+                         (values[1] - values[0]) * (values[1] - values[0]));
+    return t + std::pow(distance, 0.5);
+  };
+
+  double t[4];
+  t[0] = 0;
+  for (size_t i = 1; i < 4; i++) {
+    double pArray[2] = {points[i - 1], points[i]};
+    double vArray[2] = {values[i - 1], values[i]};
+    t[i] = tj(t[i - 1], pArray, vArray);
+  }
+
+  Eigen::Array2d nodes[4];
+  for (size_t i = 0; i < 4; i++) {
+    nodes[i][0] = points[i];
+    nodes[i][1] = values[i];
+  }
+
+  double ti =
+      (position - points[1]) / (points[2] - points[1]) * (t[2] - t[1]) + t[1];
+  auto A1 = (t[1] - ti) / (t[1] - t[0]) * nodes[0] +
+            (ti - t[0]) / (t[1] - t[0]) * nodes[1];
+  auto A2 = (t[2] - ti) / (t[2] - t[1]) * nodes[1] +
+            (ti - t[1]) / (t[2] - t[1]) * nodes[2];
+  auto A3 = (t[3] - ti) / (t[3] - t[2]) * nodes[2] +
+            (ti - t[2]) / (t[3] - t[2]) * nodes[3];
+
+  auto B1 = (t[2] - ti) / (t[2] - t[0]) * A1 + (ti - t[0]) / (t[2] - t[0]) * A2;
+  auto B2 = (t[3] - ti) / (t[3] - t[1]) * A2 + (ti - t[1]) / (t[3] - t[1]) * A3;
+
+  auto C = (t[2] - ti) / (t[2] - t[1]) * B1 + (ti - t[1]) / (t[2] - t[1]) * B2;
+  return C[1];
 }
 } // namespace Ramuh

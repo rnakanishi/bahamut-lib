@@ -18,6 +18,20 @@ public:
   static double trilinear(Eigen::Array3d position,
                           std::vector<Eigen::Array3d> points,
                           std::vector<double> values);
+
+  static double cubic(double position, std::vector<double> points,
+                      std::vector<double> values);
+
+  static double catmullRom(double position, std::vector<double> points,
+                           std::vector<double> values);
+
+  static double camullRom2(Eigen::Array2d position,
+                           std::vector<Eigen::Array2d> points,
+                           std::vector<double> values);
+
+  static double camullRom2(Eigen::Array3d position,
+                           std::vector<Eigen::Array3d> points,
+                           std::vector<double> values);
 };
 } // namespace Ramuh
 
