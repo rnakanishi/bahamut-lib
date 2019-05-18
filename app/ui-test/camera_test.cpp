@@ -24,8 +24,8 @@ public:
       Garuda::EventHandler::processKeyboardInputs(_window);
       Garuda::EventHandler::cameraKeyboardInputs(_window,
                                                  _scene.getActiveCamera());
-      Garuda::EventHandler::cameraMouseInputs(_window,
-                                              _scene.getActiveCamera());
+      // Garuda::EventHandler::cameraMouseInputs(_window,
+      // _scene.getActiveCamera());
 
       // Comandos de renderizacao vao aqui
       glClearColor(0.7f, 0.75f, 0.75f, 1.0f);
@@ -40,12 +40,17 @@ public:
     }
   }
 
-  void loadScene() { _scene.load(); }
+  void loadScene() {
+    _scene.getActiveCamera().setAspect(600, 600);
+    _scene.load();
+  }
 
   void prepareCallbacks() {
     glfwSetWindowUserPointer(_window, &_scene.getActiveCamera());
     // glfwSetMouseButtonCallback(_window, Garuda::__mouseButton);
-    // glfwSetCursorPosCallback(_window, Garuda::__mouseCursor);
+    glfwSetCursorPosCallback(_window, Garuda::__mouseCursor);
+    glfwSetScrollCallback(_window, Garuda::__mouseScroll);
+    glfwSetFramebufferSizeCallback(_window, Garuda::__viewportChange);
   }
 
 protected:

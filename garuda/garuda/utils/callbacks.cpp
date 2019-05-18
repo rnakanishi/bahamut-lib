@@ -5,38 +5,19 @@
 
 namespace Garuda {
 
-void __mouseButton(GLFWwindow *window, int button, int action, int mods) {
+void __mouseButton(GLFWwindow *window, int button, int action, int mods) {}
+
+void __mouseCursor(GLFWwindow *window, double xPos, double yPos) {
   Camera *camera;
   camera = static_cast<Camera *>(glfwGetWindowUserPointer(window));
-
-  static bool leftPressed = false;
   static bool firstMouse = true;
-  static double lastX, lastY;
-  switch (button) {
-  case GLFW_MOUSE_BUTTON_1:
-    if (action == GLFW_PRESS) {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-      leftPressed = true;
-      firstMouse = true;
-    } else if (action == GLFW_RELEASE) {
-      std::cerr << "Release\n";
-      leftPressed = false;
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
-    break;
-  case GLFW_MOUSE_BUTTON_2:
-    std::cerr << "Button 2\n";
-    break;
-  default:
-    std::cerr << "Other button";
-  }
+  static double lastX = xPos, lastY = yPos;
 
-  if (leftPressed) {
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     double x, y;
     glfwGetCursorPos(window, &x, &y);
-
     if (firstMouse) {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
       firstMouse = false;
       lastX = x;
       lastY = y;
@@ -47,43 +28,50 @@ void __mouseButton(GLFWwindow *window, int button, int action, int mods) {
     float dy = (y - lastY) * sensitivity;
     lastX = x;
     lastY = y;
-    std::cerr << x << ' ' << y << std::endl;
-    std::cerr << dx << ' ' << dy << std::endl;
-    camera->rotateCamera(-dy, -dx);
+    std::cerr << x << " " << y << " " << dx << " " << dy << std::endl;
+    camera->rotateCamera(dy, dx);
   }
-}
-
-void __mouseCursor(GLFWwindow *window, double x, double y) {
-  Camera *camera;
-  camera = static_cast<Camera *>(glfwGetWindowUserPointer(window));
-  static bool firstMouse = true;
-  static double lastX, lastY;
-  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-    // double x, y;
-    // glfwGetCursorPos(window, &x, &y);
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    std::cerr << "Right button pressed\n";
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
     if (firstMouse) {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
       firstMouse = false;
       lastX = x;
       lastY = y;
     }
 
-    float sensitivity = 0.001f;
+    float sensitivity = 1.f;
     float dx = (x - lastX) * sensitivity;
     float dy = (y - lastY) * sensitivity;
+    std::cerr << x << " " << y << " " << dx << " " << dy << std::endl;
     lastX = x;
     lastY = y;
-    std::cerr << x << ' ' << y << std::endl;
-    std::cerr << dx << ' ' << dy << std::endl;
-    camera->rotateCamera(-dy, -dx);
+    camera->moveCamera(glm::vec3(dx, dy, 0.f));
+  } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) ==
+             GLFW_PRESS) {
+    std::cerr << "Middle button pressed\n";
   }
-  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
-    if (!firstMouse)
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE &&
+      glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE) {
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     firstMouse = true;
   }
 }
 
-void __mouseScroll(GLFWwindow *window, double dx, double dy) {}
+void __mouseScroll(GLFWwindow *window, double dx, double dy) {
+  Camera *camera;
+  camera = static_cast<Camera *>(glfwGetWindowUserPointer(window));
+  camera->setFrustum((float)dy);
+  camera->perspectiveProjection();
+}
+
+void __viewportChange(GLFWwindow *window, int width, int height) {
+  Camera *camera;
+  camera = static_cast<Camera *>(glfwGetWindowUserPointer(window));
+  camera->setAspect(width, height);
+}
 
 } // namespace Garuda

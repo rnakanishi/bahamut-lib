@@ -41,6 +41,9 @@ void Scene::draw() {
 
   for (auto &object : _objects)
     object.draw(_shader);
+
+  for (auto &camera : _cameras)
+    camera.draw();
 }
 Camera &Scene::getActiveCamera() { return _cameras[activeCamera]; }
 

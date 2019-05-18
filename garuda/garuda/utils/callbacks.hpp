@@ -30,5 +30,15 @@ void __mouseCursor(GLFWwindow *window, double x, double y);
  * @param dy
  */
 void __mouseScroll(GLFWwindow *window, double dx, double dy);
+
+/**
+ * @brief
+ *
+ * @param window
+ * @param width
+ * @param height
+ **/
+void __viewportChange(GLFWwindow *window, int width, int height);
+
 } // namespace Garuda
 #endif // !__GARUDA_UTILS_CALLBACKS_HPP

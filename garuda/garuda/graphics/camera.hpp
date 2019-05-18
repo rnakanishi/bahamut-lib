@@ -9,6 +9,8 @@ class Camera {
 public:
   Camera();
 
+  Camera(int width, int height);
+
   glm::vec3 getPosition();
 
   void setPosition(glm::vec3 position);
@@ -32,13 +34,21 @@ public:
    */
   void rotateCamera(double pitch, double yaw);
 
+  void draw();
+
+  void setAspect(int width, int height);
+
   void setLookUp(glm::vec3 lookUp);
 
   void setLookAt(glm::vec3 lookAt);
 
+  void setFrustum(float frustum);
+
   void orthogonalProjection();
 
   void perspectiveProjection();
+
+  void updateProjection();
 
   glm::vec3 cameraDirection();
 
@@ -50,8 +60,10 @@ protected:
   glm::vec3 _position;
   glm::vec3 _front, _lookUp, _right, _lookAt;
   glm::mat4 _projection;
-  float _far, _near;
+  float _far, _near, _width, _height;
   float _pitch, _yaw;
+  float _frustum;
+  float _lastFrameTime;
 };
 } // namespace Garuda
 

@@ -1,8 +1,10 @@
+#include <glad/glad.h>
 #include <graphics/camera.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/vec4.hpp>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 namespace Garuda {
@@ -19,19 +21,33 @@ Camera::Camera() {
 
   _yaw = -90.f;
   _pitch = 0.f;
+  _frustum = 45.f;
 
   _right = glm::normalize(glm::cross(_lookUp, _position));
   setLookUp(glm::cross(_position, _right));
+
+  _lastFrameTime = glfwGetTime();
+}
+
+Camera::Camera(int width, int height) : Camera() {
+  _width = width;
+  _height = height;
 }
 
 glm::vec3 Camera::getPosition() { return _position; }
 
 void Camera::setPosition(glm::vec3 position) { _position = position; }
 
+void Camera::draw() { _lastFrameTime = glfwGetTime(); }
+
 void Camera::moveCamera(glm::vec3 direction) {
   // Transform back to original position
   // TODO: Align axis to origin to perform general movementation
-  float speed = 0.05f;
+  float currTime = glfwGetTime();
+  float dt = currTime - _lastFrameTime;
+  _lastFrameTime = currTime;
+  float speed = 2. * dt;
+
   glm::mat4 translate = glm::translate(glm::mat4(1.f), -_position);
   glm::mat4 rotate = viewMatrix();
   glm::mat4 alignment = glm::transpose(rotate * translate);
@@ -69,14 +85,31 @@ void Camera::rotateCamera(double pitch, double yaw) {
   _front = glm::normalize(glm::vec3(front.x, front.y, front.z));
 }
 
+void Camera::setAspect(int width, int height) {
+  _width = width;
+  _height = height;
+  glViewport(0, 0, _width, _height);
+  updateProjection();
+}
+
 void Camera::setLookUp(glm::vec3 lookUp) { _lookUp = glm::normalize(lookUp); }
 
+void Camera::setFrustum(float frustum) {
+  _frustum = std::min(std::max(_frustum - frustum, 1.f), 80.f);
+}
+
 void Camera::orthogonalProjection() {
-  _projection = glm::ortho(0.0f, 600.0f, 0.0f, 600.0f, _near, _far);
+  _projection = glm::ortho(0.0f, _width, 0.0f, _height, _near, _far);
 }
 
 void Camera::perspectiveProjection() {
-  _projection = glm::perspective(glm::radians(45.f), 4.f / 4.f, _near, _far);
+  _projection = glm::perspective(glm::radians(_frustum),
+                                 (float)_width / _height, _near, _far);
+}
+
+void Camera::updateProjection() {
+  orthogonalProjection();
+  perspectiveProjection();
 }
 
 glm::vec3 Camera::cameraDirection() { return glm::normalize(_front); }
