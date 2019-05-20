@@ -60,6 +60,7 @@ protected:
   glm::vec3 _position;
   glm::vec3 _front, _lookUp, _right, _lookAt;
   glm::mat4 _projection;
+  bool _isPerspective;
   float _far, _near, _width, _height;
   float _pitch, _yaw;
   float _frustum;

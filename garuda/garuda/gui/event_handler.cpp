@@ -34,18 +34,23 @@ void EventHandler::processMouseInputs(GLFWwindow *window) {
 }
 
 void EventHandler::cameraKeyboardInputs(GLFWwindow *window, Camera &camera) {
-  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
     camera.moveCamera(glm::vec3(0.f, 0.f, -1.f));
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+  if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
     camera.moveCamera(glm::vec3(0.f, 0.f, 1.f));
   if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     camera.moveCamera(glm::vec3(-1.f, 0.f, 0.f));
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     camera.moveCamera(glm::vec3(1.f, 0.f, 0.f));
-  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     camera.moveCamera(glm::vec3(0.f, 1.f, 0.f));
-  if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     camera.moveCamera(glm::vec3(0.f, -1.f, 0.f));
+
+  if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS)
+    camera.orthogonalProjection();
+  if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
+    camera.perspectiveProjection();
 
   static bool firstMouse = true;
   static double lastX, lastY;

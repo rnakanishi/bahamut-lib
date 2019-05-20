@@ -15,6 +15,7 @@ Camera::Camera() {
   _lookAt = glm::vec3(0.f);
   _front = glm::normalize(_lookAt - _position);
 
+  _isPerspective = true;
   _projection = glm::mat4();
   _near = 0.1f;
   _far = 100.0f;
@@ -99,17 +100,25 @@ void Camera::setFrustum(float frustum) {
 }
 
 void Camera::orthogonalProjection() {
+  _isPerspective = false;
+  float wide, tall;
+  wide = 1;
+  tall = 1;
   _projection = glm::ortho(0.0f, _width, 0.0f, _height, _near, _far);
+  _projection = glm::ortho(-wide, wide, -tall, tall, _near, _far);
 }
 
 void Camera::perspectiveProjection() {
+  _isPerspective = true;
   _projection = glm::perspective(glm::radians(_frustum),
                                  (float)_width / _height, _near, _far);
 }
 
 void Camera::updateProjection() {
+  bool keepProjection = _isPerspective;
   orthogonalProjection();
   perspectiveProjection();
+  _isPerspective = keepProjection;
 }
 
 glm::vec3 Camera::cameraDirection() { return glm::normalize(_front); }
