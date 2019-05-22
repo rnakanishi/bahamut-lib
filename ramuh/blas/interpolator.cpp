@@ -170,7 +170,36 @@ double Interpolator::bicubic(double position[2],
   return result;
 }
 
-static double tricubic(Eigen::Array3d position,
-                       std::vector<Eigen::Array3d> points,
-                       std::vector<double> values) {}
+double Interpolator::tricubic(Eigen::Array3d position,
+                              std::vector<Eigen::Array3d> samples,
+                              std::vector<double> values) {
+  double intermediateValues[4];
+  std::vector<Eigen::Array2d> points;
+  std::vector<double> f;
+  f.resize(16);
+  double p[2];
+
+  // Bicubic interp in X and Y
+  for (int i = 0; i < 16; i++) {
+    points.emplace_back(samples[i][0], samples[i][1]);
+  }
+  for (int i = 0; i < 4; i++) {
+    for (int k = 0; k < 16; k++) {
+      f[k] = values[16 * i + k];
+    }
+    p[0] = position[0];
+    p[1] = position[1];
+    intermediateValues[i] = Interpolator::bicubic(p, points, f);
+  }
+
+  // Cubic interp in Z
+  std::vector<double> zpoints;
+  f.resize(4);
+  for (int i = 0; i < 4; i++) {
+    zpoints.push_back(samples[16 * i][2]);
+    f[i] = intermediateValues[i];
+  }
+  double result = Interpolator::cubic(position[2], zpoints, f);
+  return result;
+}
 } // namespace Ramuh

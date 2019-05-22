@@ -16,14 +16,15 @@ void test3D() {
   std::vector<double> values;
   double h = 1.0 / 40;
 
-  points.emplace_back(0.1, 0.1, 0.1);
-  points.emplace_back(0.1 + h, 0.1, 0.1);
-  points.emplace_back(0.1, 0.1 + h, 0.1);
-  points.emplace_back(0.1 + h, 0.1 + h, 0.1);
-  points.emplace_back(0.1, 0.1, 0.1 + h);
-  points.emplace_back(0.1 + h, 0.1, 0.1 + h);
-  points.emplace_back(0.1, 0.1 + h, 0.1 + h);
-  points.emplace_back(0.1 + h, 0.1 + h, 0.1 + h);
+  Eigen::Array3d mostBottom(0.1 - h, 0.1 - h, 0.1 - h);
+  for (int k = 0; k < 4; k++) {
+    for (int j = 0; j < 4; j++) {
+      for (int i = 0; i < 4; i++) {
+        points.emplace_back(mostBottom[0] + i * h, mostBottom[1] + j * h,
+                            mostBottom[2] + k * h);
+      }
+    }
+  }
 
   for (auto p : points)
     values.emplace_back(_f(p));
@@ -33,12 +34,12 @@ void test3D() {
     target[0] = (double)(rand() % 100) / 100 * h + 0.1;
     target[1] = (double)(rand() % 100) / 100 * h + 0.1;
     target[2] = (double)(rand() % 100) / 100 * h + 0.1;
-    double value = Ramuh::Interpolator::trilinear(target, points, values);
+    double value = Ramuh::Interpolator::tricubic(target, points, values);
 
     std::cout << std::setw(8) << target[0] << ", ";
     std::cout << std::setw(8) << target[1] << ", ";
     std::cout << std::setw(8) << target[2] << ":\t\t";
-    std::cout << std::setw(8) << value << std::setw(8) << _f(target);
+    std::cout << std::setw(8) << value << std::setw(3) << " " << _f(target);
     std::cout << "\t Error: ";
     std::cout << std::fabs(value - _f(target)) << std::endl;
   }
@@ -70,7 +71,7 @@ void test2D() {
     std::cout << std::setw(8) << target[0] << ", ";
     std::cout << std::setw(8) << target[1] << ":\t\t";
     std::cout << std::setw(8) << std::setprecision(5) << value << std::setw(8)
-              << ' ' << _f(Eigen::Array2d(target[0], target[1]));
+              << "\t" << _f(Eigen::Array2d(target[0], target[1]));
     std::cout << "\t Error: ";
     std::cout << std::fabs(value - _f(Eigen::Array2d(target[0], target[1])))
               << std::endl;
@@ -104,6 +105,6 @@ void test1D() {
 }
 
 int main(int argc, char const *argv[]) {
-  test2D();
+  test3D();
   return 0;
 }
