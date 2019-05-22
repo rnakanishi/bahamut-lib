@@ -93,6 +93,9 @@ void LevelSet3::addCubeSurface(Eigen::Array3d lower, Eigen::Array3d upper) {
 }
 
 void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
+  Vector3d center = (lower + upper) / 2;
+  Vector3d size = upper - lower;
+
   for (int k = 0; k < _resolution.z(); k++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int i = 0; i < _resolution.x(); i++) {
@@ -101,15 +104,25 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
         Vector3d distanceUpper = (position - upper).abs();
         double phi;
         if (position > lower && position < upper) {
+          // Inside cube
           phi = std::min(std::fabs(_phi[_currBuffer][i][j][k]),
                          std::min(distanceLower.min(), distanceUpper.min()));
           _phi[_currBuffer][i][j][k] =
               -std::min(std::fabs(_phi[_currBuffer][i][j][k]), phi);
         } else {
-          phi = std::min(_phi[_currBuffer][i][j][k],
-                         std::min(distanceLower.min(), distanceUpper.min()));
+          // Compute distance to the cube
+          position = position - center;
+          position = position * 2 / size;
+
+          position = position.abs();
+
+          phi = 0.0;
+          phi += std::max(0.0, position[0] - 1);
+          phi += std::max(0.0, position[1] - 1);
+          phi += std::max(0.0, position[2] - 1);
+          phi = sqrt(phi);
           _phi[_currBuffer][i][j][k] =
-              std::min(std::fabs(_phi[_currBuffer][i][j][k]), phi);
+              std::min((_phi[_currBuffer][i][j][k]), phi);
         }
       }
   checkCellMaterial();
@@ -168,8 +181,8 @@ void LevelSet3::integrateLevelSet() {
     index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
 
     // Check if inside domain
-    if ((velocity.matrix().norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
-        index[2] >= 0 && index[0] < _resolution[0] &&
+    if ((velocity.matrix().norm() > _tolerance) && index[0] >= 0 &&
+        index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1] && index[2] < _resolution[2]) {
       newPhi = _interpolatePhi(backPosition);
     }
@@ -221,7 +234,7 @@ void LevelSet3::macCormackAdvection() {
 
     index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
     // TODO: look for a better solution
-    if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+    if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
         index[2] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1] && index[2] < _resolution[2]) {
 
@@ -288,6 +301,9 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
   std::vector<Eigen::Array3d> points;
   std::vector<double> values;
 
+  _min = 1e8;
+  _max = -1e8;
+
   for (auto w : kCandidates)
     for (auto v : jCandidates)
       for (auto u : iCandidates) {
@@ -298,6 +314,9 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
         y = std::max(0, std::min(resolution[1] - 1, v));
         z = std::max(0, std::min(resolution[2] - 1, w));
         values.emplace_back(_phi[_currBuffer][x][y][z]);
+
+        _min = std::min(values.back(), _min);
+        _max = std::max(values.back(), _max);
       }
   double phi = Interpolator::trilinear(position, points, values);
   return phi;
@@ -739,7 +758,7 @@ double LevelSet3::_solveEikonal(glm::ivec3 cellId) {
       newPhi /= 3;
     }
   }
-  if (std::fabs(newPhi) < 1e-8 || std::isnan(newPhi) || newPhi == 0 ||
+  if (std::fabs(newPhi) < _tolerance || std::isnan(newPhi) || newPhi == 0 ||
       newPhi > 5)
     float np = newPhi;
   return newPhi;
@@ -792,8 +811,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -818,8 +838,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -844,8 +865,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -873,7 +895,7 @@ void LevelSet3::redistance() {
       double distance = glm::length(proj - position);
       if (std::isnan(distance) || distance == 0 || distance > 5)
         float d = distance;
-      if (std::fabs(distance) < 1e-8)
+      if (std::fabs(distance) < _tolerance)
         distance = 0;
 
       tempPhi[i][j][k] = cellSign * distance;

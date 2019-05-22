@@ -23,7 +23,7 @@ RegularGrid3::RegularGrid3() {
   _ellapsedDt = 0.0;
   _originalDt = _dt = 1.0 / 60;
   _currBuffer = 0;
-  _tolerance = 1e-15;
+  _tolerance = 1e-12;
 }
 
 double RegularGrid3::tolerance() { return _tolerance; }
@@ -153,7 +153,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         position -= velocity.array() * _dt;
         index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
 
-        if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+        if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
             index[2] >= 0 && index[0] < _resolution[0] &&
             index[1] < _resolution[1] && index[2] < _resolution[2]) {
           double u_n;
@@ -183,7 +183,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         position -= velocity.array() * _dt;
         index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
 
-        if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+        if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
             index[2] >= 0 && index[0] < _resolution[0] &&
             index[1] < _resolution[1] && index[2] < _resolution[2]) {
           double v_n;
@@ -213,7 +213,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         position -= velocity.array() * _dt;
         index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
 
-        if ((velocity.norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
+        if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
             index[2] >= 0 && index[0] < _resolution[0] &&
             index[1] < _resolution[1] && index[2] < _resolution[2]) {
           double w_n;
@@ -306,8 +306,8 @@ void RegularGrid3::advectGridVelocity() {
     backPosition = position - velocity * _dt;
     index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
 
-    if (velocity.matrix().norm() > 1e-8 && index[0] >= 0 && index[1] >= 0 &&
-        index[2] >= 0 && index[0] < _resolution[0] &&
+    if (velocity.matrix().norm() > _tolerance && index[0] >= 0 &&
+        index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1] && index[2] < _resolution[2]) {
       newVelocity = _interpolateVelocityU(backPosition);
     }
@@ -344,8 +344,8 @@ void RegularGrid3::advectGridVelocity() {
     backPosition = position - velocity * _dt;
     index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
 
-    if ((velocity.matrix().norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
-        index[2] >= 0 && index[0] < _resolution[0] &&
+    if ((velocity.matrix().norm() > _tolerance) && index[0] >= 0 &&
+        index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1] && index[2] < _resolution[2]) {
       newVelocity = _interpolateVelocityV(backPosition);
     }
@@ -383,8 +383,8 @@ void RegularGrid3::advectGridVelocity() {
     backPosition = position - velocity * _dt;
     index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
 
-    if ((velocity.matrix().norm() > 1e-8) && index[0] >= 0 && index[1] >= 0 &&
-        index[2] >= 0 && index[0] < _resolution[0] &&
+    if ((velocity.matrix().norm() > _tolerance) && index[0] >= 0 &&
+        index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1] && index[2] < _resolution[2]) {
       newVelocity = _interpolateVelocityW(backPosition);
     }
@@ -969,6 +969,8 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
         y = std::max(0, std::min(resolution[1] - 1, v));
         z = std::max(0, std::min(resolution[2] - 1, w));
         values.emplace_back(_u[_currBuffer][x][y][z]);
+        _min = std::min(values.back(), _min);
+        _max = std::max(values.back(), _max);
       }
   double velocity = Interpolator::trilinear(position, points, values);
   return velocity;
@@ -1010,6 +1012,8 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
         y = std::max(0, std::min(resolution[1], v));
         z = std::max(0, std::min(resolution[2] - 1, w));
         values.emplace_back(_v[_currBuffer][x][y][z]);
+        _min = std::min(values.back(), _min);
+        _max = std::max(values.back(), _max);
       }
   double velocity = Interpolator::trilinear(position, points, values);
   return velocity;
@@ -1051,6 +1055,8 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
         y = std::max(0, std::min(resolution[1] - 1, v));
         z = std::max(0, std::min(resolution[2], w));
         values.emplace_back(_w[_currBuffer][x][y][z]);
+        _min = std::min(values.back(), _min);
+        _max = std::max(values.back(), _max);
       }
   double velocity = Interpolator::trilinear(position, points, values);
   return velocity;

@@ -98,10 +98,10 @@ int main(int argc, char const *argv[]) {
   // =====================================================
 
   sim.setVelocity();
-  // sim.redistance();
+  sim.redistance();
   std::ostringstream dataname, objname;
 
-  dataname << dataFolderName << "/0000";
+  dataname << dataFolderName << "/0";
   objname << objFolderName << "/0000.obj";
 
   writer.writeMeshModel(sim.marchingTetrahedra(), objname.str().c_str());
@@ -151,8 +151,8 @@ int main(int argc, char const *argv[]) {
         stopwatch.registerTime("Levelset advection");
 
         // if (frame % 5 == 0) {
-          sim.redistance();
-          stopwatch.registerTime("Redistance");
+        sim.redistance();
+        stopwatch.registerTime("Redistance");
         // }
 
         stopwatch.evaluateComponentsTime();

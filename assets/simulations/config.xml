@@ -4,8 +4,8 @@
     <maxFrames value="100" />
     <timestep dt="0.01" />
     <pressure order="1"/>
-    <levelsetAdvection order="1" />
-    <velocityAdvection order="1" />
+    <levelsetAdvection order="2" />
+    <velocityAdvection order="2" />
 
     <dataFolder>results/datatest</dataFolder>
     <objFolder>results/test</objFolder>
@@ -16,13 +16,15 @@
             <radius>0.15</radius>
             <center>0.5 0.6 0.5</center>
         </sphere> -->
+
         <cube>
             <lower>-15 -15 -15</lower>
             <upper>15 0.4 15</upper>
         </cube>
         <cube>
-            <lower>0.4 0.3 0.6</lower>
-            <upper>0.4 0.75 0.6</upper>
+            <lower>-2 0.4 -2</lower>
+            <upper>0.3 0.6 0.3</upper>
         </cube>
+        
     </domain>   
 </simulation>

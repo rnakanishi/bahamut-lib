@@ -112,7 +112,7 @@ public:
   double sqrtLength() { return _x * _x + _y * _y + _z * _z; }
 
   Vector3<T> abs() {
-    return Vector3<T>(std::abs(_x), std::abs(_y), std::abs(_z));
+    return Vector3<T>(std::fabs(_x), std::fabs(_y), std::fabs(_z));
   }
 
   void set(const Vector3<T> &v) {

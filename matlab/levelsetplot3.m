@@ -1,4 +1,7 @@
-N = 128;
+
+v = dlmread('../results/datatest/0');
+N = round(length(v)^(1/3));
+
 x = linspace(0, 1, N);
 [X, Y, Z] = meshgrid(x, x, x);
 
@@ -6,7 +9,7 @@ figure
 i = 5;
 rotate3d on;
 % figure('Renderer', 'painters', 'Position', [10 10 900 600])
-for i = 1:60
+for i = 0:45
     [az,el] = view();
     v = dlmread(['../results/datatest/' int2str(i)]);
     v = reshape(v, N, N, N);
@@ -28,7 +31,7 @@ for i = 1:60
     set(get(gca, 'ZLabel'), 'String', 'Y axis');
 
     % axis equal tight
-    pause;
+    pause(0);
     % saveas(gcf, ['animation3d/' int2str(i) '.png'])
 end
 
