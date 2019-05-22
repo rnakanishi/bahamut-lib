@@ -49,21 +49,23 @@ void test2D() {
   std::vector<double> values;
   double h = 1.0 / 40;
 
-  points.emplace_back(0.1, 0.1);
-  points.emplace_back(0.1 + h, 0.1);
-  points.emplace_back(0.1, 0.1 + h);
-  points.emplace_back(0.1 + h, 0.1 + h);
+  Eigen::Array2d mostBottom(0.1 - h, 0.1 - h);
+  for (int j = 0; j < 4; j++) {
+    for (int i = 0; i < 4; i++) {
+      points.emplace_back(mostBottom[0] + i * h, mostBottom[1] + j * h);
+    }
+  }
 
   for (auto p : points)
     values.emplace_back(_f(p));
 
   double target[2];
   for (size_t i = 0; i < 10; i++) {
-    // target[0] = (double)(rand() % 100) / 100.0 * 2 * h + 0.1 - h / 2.;
-    // target[1] = (double)(rand() % 100) / 100.0 * 2 * h + 0.1 - h / 2.;
     target[0] = (double)(rand() % 1000) / 1000.0 * h + 0.1;
     target[1] = (double)(rand() % 1000) / 1000.0 * h + 0.1;
-    double value = Ramuh::Interpolator::bilinear(target, points, values);
+    // target[0] = (double)(rand() % 100) / 100.0 * 2 * h + 0.1 - h / 2.;
+    // target[1] = (double)(rand() % 100) / 100.0 * 2 * h + 0.1 - h / 2.;
+    double value = Ramuh::Interpolator::bicubic(target, points, values);
 
     std::cout << std::setw(8) << target[0] << ", ";
     std::cout << std::setw(8) << target[1] << ":\t\t";
@@ -91,7 +93,7 @@ void test1D() {
   double target;
   for (size_t i = 0; i < 10; i++) {
     target = (double)(rand() % 1000) / 1000.0 * h + 0.1;
-    double value = Ramuh::Interpolator::linear(target, points, values);
+    double value = Ramuh::Interpolator::cubic(target, points, values);
 
     std::cout << std::setw(8) << target << ":\t\t";
     std::cout << std::setw(8) << std::setprecision(5) << value << std::setw(8)

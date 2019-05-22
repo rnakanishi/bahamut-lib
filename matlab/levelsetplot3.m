@@ -1,4 +1,4 @@
-N = 40;
+N = 128;
 x = linspace(0, 1, N);
 [X, Y, Z] = meshgrid(x, x, x);
 
@@ -28,7 +28,7 @@ for i = 1:60
     set(get(gca, 'ZLabel'), 'String', 'Y axis');
 
     % axis equal tight
-    pause(0.05);
+    pause;
     % saveas(gcf, ['animation3d/' int2str(i) '.png'])
 end
 

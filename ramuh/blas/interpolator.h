@@ -19,8 +19,26 @@ public:
                           std::vector<Eigen::Array3d> points,
                           std::vector<double> values);
 
-  static double cubic(double position, std::vector<double> points,
-                      std::vector<double> values);
+  /**
+   * @brief Cubic Hermite Splines interpolation for arbitrary interval
+   *  Assumes that only four points are passed as parameter. It computes cubic
+   *splines using conventional tangents. TODO: Monotone interpolation is yet to
+   *be implemented
+   *
+   * @param position points between second and third sample point
+   * @param points Vector with fout points
+   * @param values Function values for given points
+   * @return double Interpolated value at position
+   **/
+  static double cubic(const double position, const std::vector<double> &points,
+                      const std::vector<double> &values);
+
+  static double bicubic(double position[2], std::vector<Eigen::Array2d> points,
+                        std::vector<double> values);
+
+  static double tricubic(Eigen::Array3d position,
+                         std::vector<Eigen::Array3d> points,
+                         std::vector<double> values);
 
   static double catmullRom(double position, std::vector<double> points,
                            std::vector<double> values);

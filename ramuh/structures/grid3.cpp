@@ -943,6 +943,8 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
+  // Treating values that are outside domain
+
   if (position[1] < cellCenter[1])
     index[1]--;
   if (position[2] < cellCenter[2])

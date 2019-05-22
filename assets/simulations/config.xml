@@ -12,13 +12,17 @@
 
     <domain>
         <size>1.0 1.0 1.0</size>
-        <sphere>
+        <!-- <sphere>
             <radius>0.15</radius>
             <center>0.5 0.6 0.5</center>
-        </sphere>
+        </sphere> -->
         <cube>
             <lower>-15 -15 -15</lower>
             <upper>15 0.4 15</upper>
+        </cube>
+        <cube>
+            <lower>0.4 0.3 0.6</lower>
+            <upper>0.4 0.75 0.6</upper>
         </cube>
     </domain>   
 </simulation>

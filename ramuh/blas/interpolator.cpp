@@ -81,8 +81,6 @@ double Interpolator::trilinear(Eigen::Array3d position,
   }
   return interpolated;
 }
-double Interpolator::cubic(double position, std::vector<double> points,
-                           std::vector<double> values) {}
 
 double Interpolator::catmullRom(double position, std::vector<double> points,
                                 std::vector<double> values) {
@@ -123,4 +121,56 @@ double Interpolator::catmullRom(double position, std::vector<double> points,
   auto C = (t[2] - ti) / (t[2] - t[1]) * B1 + (ti - t[1]) / (t[2] - t[1]) * B2;
   return C[1];
 }
+
+double Interpolator::cubic(const double position,
+                           const std::vector<double> &points,
+                           const std::vector<double> &values) {
+  double dx = points[2] - points[1];
+  double p0 = values[1];
+  double p1 = values[2];
+  double t = (position - points[1]) / (points[2] - points[1]);
+  double t2 = t * t, t3 = t2 * t;
+  double h00 = 2 * t3 - 3 * t2 + 1;
+  double h10 = t3 - 2 * t2 + t;
+  double h01 = -2 * t3 + 3 * t2;
+  double h11 = t2 - t2;
+  // Hermite cubic splines
+  double m0 = (values[2] - values[0]) / 2;
+  double m1 = (values[3] - values[1]) / 2;
+  // Catmull Rom splines
+  // double m0 = (values[2] - values[0])/(points[2] - points[0]);
+  // double m1 = (values[3] - values[1])/(points[3] - points[1]);
+
+  return h00 * p0 + h10 * dx * m0 + h01 * p1 + h11 * dx * m1;
+}
+
+double Interpolator::bicubic(double position[2],
+                             std::vector<Eigen::Array2d> points,
+                             std::vector<double> values) {
+  double intermediateValues[4];
+  std::vector<double> samples;
+  std::vector<double> f;
+  f.resize(4);
+  for (int i = 0; i < 4; i++) {
+    samples.push_back(points[i][0]);
+  }
+  for (int i = 0; i < 4; i++) {
+    f[0] = values[4 * i + 0];
+    f[1] = values[4 * i + 1];
+    f[2] = values[4 * i + 2];
+    f[3] = values[4 * i + 3];
+
+    intermediateValues[i] = Interpolator::cubic(position[0], samples, f);
+  }
+  for (int j = 0; j < 4; j++) {
+    samples[j] = points[4 * j][1];
+    f[j] = intermediateValues[j];
+  }
+  double result = Interpolator::cubic(position[1], samples, f);
+  return result;
+}
+
+static double tricubic(Eigen::Array3d position,
+                       std::vector<Eigen::Array3d> points,
+                       std::vector<double> values) {}
 } // namespace Ramuh
