@@ -1,10 +1,10 @@
 #ifndef __RAMUH_TRIANGLE_MESH_H__
 #define __RAMUH_TRIANGLE_MESH_H__
 
-#include <Eigen/Dense>
-#include <vector>
-#include <map>
+#include <cmath>
 #include <glm/vec3.hpp>
+#include <map>
+#include <vector>
 
 namespace Ramuh {
 class TriangleMesh {
@@ -86,26 +86,21 @@ public:
    **/
   glm::ivec3 getFace(uint index);
 
+  glm::vec3 getCentroid();
+
+  glm::vec3 getBboxCenter();
+
+  glm::vec3 getBBoxSize();
+
 protected:
-  class vec3Compare {
-  public:
-    bool operator()(const glm::vec3 v1, const glm::vec3 v2) const {
-      return v1[0] < v2[0] ||
-             std::fabs(v1[0] - v2[0]) < 1e-8 &&
-                 (v1[1] < v2[1] ||
-                  std::fabs(v1[1] - v2[1]) < 1e-8 && v1[2] < v2[2]);
-    }
-    // return lhs.x < rhs.x ||
-    //        lhs.x == rhs.x && (lhs.y < rhs.y || lhs.y == rhs.y && lhs.z <
-    //        rhs.z);
-  };
-  std::map<glm::vec3, uint, vec3Compare> _vMap;
+  void _computeCentroid();
+
+  glm::vec3 _centroid;
+  glm::vec3 _bboxMax, _bboxMin;
+
   std::vector<glm::vec3> _vertices;
   std::vector<glm::vec3> _vertexNormal;
   std::vector<glm::ivec3> _faces; //!< Face composed by three vertices
-  std::vector<std::vector<uint>> _usedVertices; //!< Map which faces use which
-                                                //!< vertices. First index
-                                                //!< correspond to vertex.
 };
 
 } // namespace Ramuh

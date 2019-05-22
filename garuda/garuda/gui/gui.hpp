@@ -21,6 +21,8 @@ public:
   /// \TODO: Fix window size to be class attribute
   void createWindow();
 
+  void changeViewport(int width, int height);
+
   /// \TODO: create window resizing function
 
   ///
@@ -29,6 +31,7 @@ public:
 
 protected:
   int _viewPortSize;
+  int _width, _height;
   GLFWwindow *_window;
 };
-}
+} // namespace Garuda
