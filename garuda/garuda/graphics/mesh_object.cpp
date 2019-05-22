@@ -53,6 +53,7 @@ void MeshObject::loadTexture() {
 void MeshObject::loadObjMesh(const char *objPath) {
   // Read mesh from file
   MeshReader::readObjWithTexture(*this, objPath);
+  // MeshReader::objLoader(*this, objPath);
   _computeCentroid();
 
   glBindVertexArray(_vao);
@@ -95,8 +96,6 @@ void MeshObject::draw(Shader shader) {
   unsigned int modelUniform = glGetUniformLocation(shader.getId(), "model");
 
   for (int i = 0; i < _instanceCount; i++) {
-    _modelMatrix[i] =
-        glm::rotate(_modelMatrix[i], 0.001f, glm::vec3(0.0f, 1.0f, 0.0f));
 
     glUniformMatrix4fv(modelUniform, 1, GL_FALSE,
                        glm::value_ptr(_modelMatrix[i]));

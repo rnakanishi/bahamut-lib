@@ -12,7 +12,9 @@ GUI::GUI() {
 GUI::~GUI() { glfwTerminate(); }
 
 void GUI::createWindow() {
-  _window = glfwCreateWindow(600, 600, "CG 2019", NULL, NULL);
+  _width = 600;
+  _height = 600;
+  _window = glfwCreateWindow(_width, _height, "CG 2019", NULL, NULL);
   if (_window == NULL) {
     std::cout << "Failed to create GLFW window\n";
     glfwTerminate();
@@ -23,20 +25,21 @@ void GUI::createWindow() {
     std::cout << "Failed to initialize GLAD\n";
     exit(-2);
   }
-  glViewport(0, 0, 600, 600);
-  glEnable(GL_CULL_FACE);
-  glCullFace(GL_FRONT);
+  glViewport(0, 0, _width, _height);
+  // glEnable(GL_CULL_FACE);
+  // glCullFace(GL_FRONT);
   glEnable(GL_DEPTH_TEST);
+}
+
+void GUI::changeViewport(int width, int height) {
+  _width = width;
+  _height = height;
+  glViewport(0, 0, _width, _height);
 }
 
 void GUI::run() {
 
-  EventHandler events;
   while (!glfwWindowShouldClose(_window)) {
-
-    // Comandos de entrada
-    events.processKeyboardInputs(_window);
-
     // Comandos de renderizacao vao aqui
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);

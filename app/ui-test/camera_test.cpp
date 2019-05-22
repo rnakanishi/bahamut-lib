@@ -2,34 +2,37 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <graphics/camera.hpp>
-#include <graphics/scene.hpp>
 #include <graphics/mesh_object.hpp>
+#include <graphics/scene.hpp>
 #include <gui/event_handler.hpp>
 #include <gui/gui.hpp>
 #include <iostream>
 #include <shader/shader.hpp>
+#include <GLFW/glfw3.h>
+#include <utils/callbacks.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 class MyGui : public Garuda::GUI {
 
 public:
   void run() override {
-
     Garuda::EventHandler events;
-    _objects.centerizeObject();
+    _scene.getActiveCamera().setLookAt(glm::vec3(0.0f));
     while (!glfwWindowShouldClose(_window)) {
 
       // Comandos de entrada
-      events.processKeyboardInputs(_window);
+      Garuda::EventHandler::processKeyboardInputs(_window);
+      Garuda::EventHandler::cameraKeyboardInputs(_window,
+                                                 _scene.getActiveCamera());
+      // Garuda::EventHandler::cameraMouseInputs(_window,
+      // _scene.getActiveCamera());
 
       // Comandos de renderizacao vao aqui
-      glClearColor(0.7f, 0.75f, 0.75f, 1.0f);
-      // glClear(GL_COLOR_BUFFER_BIT);
+      glClearColor(1.f, 1.f, 1.f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       // etc...
-      _shader.useShader();
-
-      _objects.draw(_shader);
+      _scene.draw();
 
       // Controla eventos e troca os buffers para renderizacao
       glfwSwapBuffers(_window);
@@ -38,25 +41,27 @@ public:
   }
 
   void loadScene() {
-    _shader.loadVertexShader("./assets/shaders/camera.vert");
-    _shader.loadFragmentShader("./assets/shaders/texture.frag");
+    _scene.getActiveCamera().setAspect(600, 600);
+    _scene.load();
+  }
 
-    _objects.initialize();
-    _objects.loadObjMesh("./assets/3d_models/newdog.obj");
-    // _objects.loadObjMesh("./assets/3d_models/dragon.obj");
-    // _objects.loadObjMesh("./obj/tetra.obj");
-    _objects.loadTexture();
+  void prepareCallbacks() {
+    glfwSetWindowUserPointer(_window, &_scene.getActiveCamera());
+    // glfwSetMouseButtonCallback(_window, Garuda::__mouseButton);
+    glfwSetCursorPosCallback(_window, Garuda::__mouseCursor);
+    glfwSetScrollCallback(_window, Garuda::__mouseScroll);
+    glfwSetFramebufferSizeCallback(_window, Garuda::__viewportChange);
   }
 
 protected:
-  Garuda::Shader _shader;
-  Garuda::MeshObject _objects;
+  Garuda::Scene _scene;
 };
 
 int main(int argc, char const *argv[]) {
   MyGui interface;
 
   interface.createWindow();
+  interface.prepareCallbacks();
   interface.loadScene();
 
   interface.run();

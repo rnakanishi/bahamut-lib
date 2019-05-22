@@ -1,18 +1,14 @@
-#include <structures/triangle_mesh.h>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <structures/triangle_mesh.h>
 
 namespace Ramuh {
 TriangleMesh::TriangleMesh() {}
 TriangleMesh::~TriangleMesh() {}
 
 uint TriangleMesh::addVertex(glm::vec3 vertex) {
-  // if (_vMap.find(vertex) == _vMap.end()) {
   _vertices.emplace_back(vertex);
   return _vertices.size() - 1;
-  // _vMap[vertex] = _vertices.size() - 1;
-  // }
-  // return _vMap[vertex];
 }
 
 uint TriangleMesh::addFace(glm::ivec3 face) {

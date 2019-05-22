@@ -2,11 +2,11 @@
 #define __GARUDA_TRIANGLE_MESH_HPP__
 
 #include <glad/glad.h>
-#include <structures/triangle_mesh.h>
+#include <glm/mat4x4.hpp>
+#include <map>
 #include <shader/shader.hpp>
 #include <shader/texture.hpp>
-#include <map>
-#include <glm/mat4x4.hpp>
+#include <structures/triangle_mesh.h>
 
 namespace Garuda {
 class MeshObject : public Ramuh::TriangleMesh {

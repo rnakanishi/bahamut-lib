@@ -7,8 +7,39 @@
 #include <tiny_obj_loader.h>
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
+#include <utils/OBJ_loader.hpp>
 
 namespace Garuda {
+
+void MeshReader::objLoader(MeshObject &structure, const char *path) {
+  objl::Loader loader;
+  std::string baseDir(path);
+  int lastSlash = baseDir.find_last_of("/\\");
+
+  if (loader.LoadFile(path)) {
+    for (auto mesh : loader.LoadedMeshes) {
+      structure.hasTexture() =
+          (!mesh.MeshMaterial.map_Kd.empty()) ? true : false;
+      if (structure.hasTexture()) {
+        structure.getTexture().setTextureFilename(
+            baseDir.substr(0, lastSlash + 1).append(mesh.MeshMaterial.map_Kd));
+      }
+      for (auto vertex : mesh.Vertices) {
+        glm::vec3 coord =
+            glm::vec3(vertex.Position.X, vertex.Position.Y, vertex.Position.Z);
+        glm::vec2 tex =
+            glm::vec2(vertex.TextureCoordinate.X, vertex.TextureCoordinate.Y);
+        structure.addVertex(coord);
+        structure.addTextureCoordinate(tex);
+      }
+      for (int i = 0; i < mesh.Indices.size(); i += 3) {
+        glm::ivec3 indices = glm::ivec3(mesh.Indices[i], mesh.Indices[i + 1],
+                                        mesh.Indices[i + 2]);
+        structure.addFace(indices);
+      }
+    }
+  }
+}
 
 void MeshReader::readObjWithTexture(MeshObject &structure, const char *path) {
   std::string warning, error;
