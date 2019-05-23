@@ -141,7 +141,8 @@ double Interpolator::cubic(const double position,
   // double m0 = (values[2] - values[0])/(points[2] - points[0]);
   // double m1 = (values[3] - values[1])/(points[3] - points[1]);
 
-  return h00 * p0 + h10 * dx * m0 + h01 * p1 + h11 * dx * m1;
+  double result = h00 * p0 + h10 * dx * m0 + h01 * p1 + h11 * dx * m1;
+  return result;
 }
 
 double Interpolator::bicubic(double position[2],
@@ -202,4 +203,67 @@ double Interpolator::tricubic(Eigen::Array3d position,
   double result = Interpolator::cubic(position[2], zpoints, f);
   return result;
 }
+
+double Interpolator::shepard(Eigen::Array3d position,
+                             std::vector<Eigen::Array3d> samples,
+                             std::vector<double> values) {
+  double distance, dSum = 0.0;
+  double result = 0.0;
+  double _min = 1e8;
+  double _max = -1e8;
+  for (int i = 0; i < samples.size(); i++) {
+    distance = (position - samples[i]).matrix().norm();
+    if (distance < 1e-14) {
+      return values[i];
+    }
+    dSum += 1. / distance;
+    result += values[i] / distance;
+    _min = std::min(_min, values[i]);
+    _max = std::max(_max, values[i]);
+  }
+  result = result / dSum;
+  return std::max(_min, std::min(_max, result));
+}
+
+double Interpolator::rbf(Eigen::Array3d position,
+                         std::vector<Eigen::Array3d> samples,
+                         std::vector<double> values) {
+  // Quintic kernel
+  // TODO: Change kernel to be parameter as well
+  auto _kernel = [](Eigen::Array3d p1, Eigen::Array3d p2) {
+    double d = (p1 - p2).matrix().norm();
+    return d * d * d * d * d;
+  };
+
+  // Linear polynomial base approximation
+  Eigen::MatrixXd M =
+      Eigen::MatrixXd::Zero(samples.size() + 1, samples.size() + 1);
+  Eigen::VectorXd b = Eigen::VectorXd::Zero(samples.size() + 1);
+  Eigen::VectorXd _f = Eigen::VectorXd::Zero(values.size() + 1);
+
+  int n = samples.size();
+  for (size_t i = 0; i < samples.size(); i++) {
+    b[i] = values[i];
+    double base[1] = {1.0};
+    for (size_t d = 0; d < 1; d++)
+      M(n + d, i) = M(i, n + d) = base[d];
+
+    for (size_t j = i; j < samples.size(); j++)
+      M(i, j) = M(j, i) = _kernel(samples[i], samples[i]);
+    _f[i] = _kernel(position, samples[i]);
+  }
+
+  // Setting rhs polynomial augmentation base
+  double base[1] = {1.0};
+  for (size_t d = 0; d < 1; d++) {
+    b[n + d] = 0;
+    _f[n + d] = base[d];
+  }
+
+  // Solving rbf system
+  Eigen::VectorXd w = M.colPivHouseholderQr().solve(b);
+  double value = w.transpose() * _f;
+  return value;
+}
+
 } // namespace Ramuh

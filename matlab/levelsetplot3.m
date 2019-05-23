@@ -9,7 +9,7 @@ figure
 i = 5;
 rotate3d on;
 % figure('Renderer', 'painters', 'Position', [10 10 900 600])
-for i = 0:45
+for i = 0:40
     [az,el] = view();
     v = dlmread(['../results/datatest/' int2str(i)]);
     v = reshape(v, N, N, N);
@@ -17,7 +17,7 @@ for i = 0:45
     clf;
     % std(gcf,'Position', [10 10 900 600]);
     [face, vert] = isosurface(X, Y, Z, v, 0.0);
-    % p = patch('faces', face, 'vertices', vert, 'EdgeColor', 'none');
+    % p = patch('faces', face, 'vertices', ver55t, 'EdgeColor', 'none');
     set(gcf, 'Position', [0 200 900 900])
     p = trisurf(face, vert(:, 1), vert(:, 2), vert(:, 3));
     light('Position', [2 1 5]);
@@ -31,7 +31,7 @@ for i = 0:45
     set(get(gca, 'ZLabel'), 'String', 'Y axis');
 
     % axis equal tight
-    pause(0);
+    pause();
     % saveas(gcf, ['animation3d/' int2str(i) '.png'])
 end
 

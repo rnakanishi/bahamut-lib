@@ -22,8 +22,8 @@
             <upper>15 0.4 15</upper>
         </cube>
         <cube>
-            <lower>-2 0.4 -2</lower>
-            <upper>0.3 0.6 0.3</upper>
+            <lower>0.15 0.4 0.35</lower>
+            <upper>0.3 0.6 0.65</upper>
         </cube>
         
     </domain>   

@@ -6,7 +6,7 @@
 #include <iomanip>
 
 double _f(Eigen::Array3d p) {
-  return (std::cos(p[0]) + std::sin(p[1]) - std::cos(p[2]));
+  return 5 * (std::cos(p[0]) + std::sin(p[1]) - std::cos(p[2]));
 }
 double _f(Eigen::Array2d p) { return (std::cos(p[0]) + std::sin(p[1])); }
 double _f(double p) { return std::cos(5 * p); }
@@ -95,13 +95,13 @@ void test1D() {
 
     std::cout << std::setw(8) << target << ":\t\t";
     std::cout << std::setw(8) << std::setprecision(5) << value << std::setw(8)
-              << ' ' << _f(target);
+              << "\t" << _f(target);
     std::cout << "\t Error: ";
     std::cout << std::fabs(value - _f(target)) << std::endl;
   }
 }
 
 int main(int argc, char const *argv[]) {
-  test2D();
+  test3D();
   return 0;
 }

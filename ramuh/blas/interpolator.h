@@ -40,6 +40,18 @@ public:
                          std::vector<Eigen::Array3d> points,
                          std::vector<double> values);
 
+  static double shepard(double position, std::vector<double> samples,
+                        std::vector<double> values);
+
+  static double shepard(Eigen::Array3d position,
+                        std::vector<Eigen::Array3d> samples,
+                        std::vector<double> values);
+
+static double rbf(Eigen::Array3d position,
+                        std::vector<Eigen::Array3d> samples,
+                        std::vector<double> values);
+
+
   static double catmullRom(double position, std::vector<double> points,
                            std::vector<double> values);
 

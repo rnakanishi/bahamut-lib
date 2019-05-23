@@ -6,7 +6,7 @@
 #include <iomanip>
 
 double _f(Eigen::Array3d p) {
-  return (std::cos(p[0]) + std::sin(p[1]) - std::cos(p[2]));
+  return (5 * (std::cos(p[0]) + std::sin(p[1]) - std::cos(p[2])));
 }
 double _f(Eigen::Array2d p) { return (std::cos(p[0]) + std::sin(p[1])); }
 double _f(double p) { return std::cos(5 * p); }
@@ -34,7 +34,7 @@ void test3D() {
     target[0] = (double)(rand() % 100) / 100 * h + 0.1;
     target[1] = (double)(rand() % 100) / 100 * h + 0.1;
     target[2] = (double)(rand() % 100) / 100 * h + 0.1;
-    double value = Ramuh::Interpolator::tricubic(target, points, values);
+    double value = Ramuh::Interpolator::rbf(target, points, values);
 
     std::cout << std::setw(8) << target[0] << ", ";
     std::cout << std::setw(8) << target[1] << ", ";

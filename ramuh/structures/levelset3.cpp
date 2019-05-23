@@ -213,10 +213,10 @@ void LevelSet3::macCormackAdvection() {
     j = ijk[1];
     k = ijk[2];
 
-    // if (std::fabs(_phi[_currBuffer][i][j][k]) > 5 * _h[0]) {
-    //   newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
-    //   continue;
-    // }
+    if (std::fabs(_phi[_currBuffer][i][j][k]) > 5 * _h[0]) {
+      newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
+      continue;
+    }
     Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
     Eigen::Vector3d velocity;
     Eigen::Array3i index;
@@ -292,12 +292,12 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
     index[2]--;
 
   std::vector<int> iCandidates, jCandidates, kCandidates;
-  iCandidates.push_back(index[0]);
-  jCandidates.push_back(index[1]);
-  kCandidates.push_back(index[2]);
-  iCandidates.push_back(index[0] + 1);
-  jCandidates.push_back(index[1] + 1);
-  kCandidates.push_back(index[2] + 1);
+  for (int i = -1; i < 3; i++) {
+    iCandidates.push_back(index[0] + i);
+    jCandidates.push_back(index[1] + i);
+    kCandidates.push_back(index[2] + i);
+  }
+
   std::vector<Eigen::Array3d> points;
   std::vector<double> values;
 
@@ -318,8 +318,9 @@ double LevelSet3::_interpolatePhi(Eigen::Array3d position, double &_min,
         _min = std::min(values.back(), _min);
         _max = std::max(values.back(), _max);
       }
-  double phi = Interpolator::trilinear(position, points, values);
-  return phi;
+  double phi = Interpolator::tricubic(position, points, values);
+  return std::min(_max, std::max(_min, phi));
+  // return phi;
 }
 
 double LevelSet3::_interpolatePhi(Eigen::Array3d position, int originalSignal) {
@@ -773,6 +774,7 @@ void LevelSet3::redistance() {
       cellsQueue;
   std::set<int> cellsAdded;
 
+  // Copying a backup values from previous frmae
   tempPhi.changeSize(_resolution, 1e8);
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
@@ -800,6 +802,7 @@ void LevelSet3::redistance() {
 
     bool isSurface = false, intersected = false;
     double theta = 1e8;
+    // Find whether edge has an intersection with fluid surface
     if (i < _resolution.x() - 1 &&
         std::signbit(cellSign) !=
             std::signbit(_phi[_currBuffer][i + 1][j][k])) {
@@ -811,9 +814,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -838,9 +840,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -865,9 +866,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -883,6 +883,7 @@ void LevelSet3::redistance() {
 
     if (isSurface) {
       glm::vec3 proj;
+      // Find intersection point (nearest to the intersecting geometry)
       if (nintersecs == 1) {
         proj = intersections[0];
       } else if (nintersecs == 2) {
@@ -892,12 +893,14 @@ void LevelSet3::redistance() {
         proj = Geometry::closestPointTriangle(
             position, intersections[0], intersections[1], intersections[2]);
       }
+      // Distance itself
       double distance = glm::length(proj - position);
       if (std::isnan(distance) || distance == 0 || distance > 5)
         float d = distance;
       if (std::fabs(distance) < _tolerance)
         distance = 0;
 
+      // Keep signalfrom original distance
       tempPhi[i][j][k] = cellSign * distance;
       // _phi[_currBuffer][i][j][k];
       // cellSign * _solveEikonal(glm::ivec3(i, j, k));

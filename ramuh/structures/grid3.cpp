@@ -951,12 +951,11 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
     index[2]--;
 
   std::vector<int> iCandidates, jCandidates, kCandidates;
-  iCandidates.push_back(index[0]);
-  jCandidates.push_back(index[1]);
-  kCandidates.push_back(index[2]);
-  iCandidates.push_back(index[0] + 1);
-  jCandidates.push_back(index[1] + 1);
-  kCandidates.push_back(index[2] + 1);
+  for (int i = -1; i < 3; i++) {
+    iCandidates.push_back(index[0] + i);
+    jCandidates.push_back(index[1] + i);
+    kCandidates.push_back(index[2] + i);
+  }
   std::vector<Eigen::Array3d> points;
   std::vector<double> values;
 
@@ -972,7 +971,7 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
         _min = std::min(values.back(), _min);
         _max = std::max(values.back(), _max);
       }
-  double velocity = Interpolator::trilinear(position, points, values);
+  double velocity = Interpolator::tricubic(position, points, values);
   return velocity;
 }
 
@@ -994,12 +993,11 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
     index[2]--;
 
   std::vector<int> iCandidates, jCandidates, kCandidates;
-  iCandidates.push_back(index[0]);
-  jCandidates.push_back(index[1]);
-  kCandidates.push_back(index[2]);
-  iCandidates.push_back(index[0] + 1);
-  jCandidates.push_back(index[1] + 1);
-  kCandidates.push_back(index[2] + 1);
+  for (int i = -1; i < 3; i++) {
+    iCandidates.push_back(index[0] + i);
+    jCandidates.push_back(index[1] + i);
+    kCandidates.push_back(index[2] + i);
+  }
   std::vector<Eigen::Array3d> points;
   std::vector<double> values;
 
@@ -1015,7 +1013,7 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
         _min = std::min(values.back(), _min);
         _max = std::max(values.back(), _max);
       }
-  double velocity = Interpolator::trilinear(position, points, values);
+  double velocity = Interpolator::tricubic(position, points, values);
   return velocity;
 }
 
@@ -1037,12 +1035,11 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
     index[1]--;
 
   std::vector<int> iCandidates, jCandidates, kCandidates;
-  iCandidates.push_back(index[0]);
-  jCandidates.push_back(index[1]);
-  kCandidates.push_back(index[2]);
-  iCandidates.push_back(index[0] + 1);
-  jCandidates.push_back(index[1] + 1);
-  kCandidates.push_back(index[2] + 1);
+  for (int i = -1; i < 3; i++) {
+    iCandidates.push_back(index[0] + i);
+    jCandidates.push_back(index[1] + i);
+    kCandidates.push_back(index[2] + i);
+  }
   std::vector<Eigen::Array3d> points;
   std::vector<double> values;
 
@@ -1058,7 +1055,7 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
         _min = std::min(values.back(), _min);
         _max = std::max(values.back(), _max);
       }
-  double velocity = Interpolator::trilinear(position, points, values);
+  double velocity = Interpolator::tricubic(position, points, values);
   return velocity;
 }
 
