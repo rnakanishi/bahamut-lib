@@ -49,7 +49,7 @@ int main(int argc, char const *argv[]) {
   objFolderName = std::string(node.child("objFolder").child_value());
   int pressureOrder = node.child("pressure").attribute("order").as_int();
   int velocityAdvectionOrder =
-      node.child("VelocityAdvection").attribute("order").as_int();
+      node.child("velocityAdvection").attribute("order").as_int();
   int levelsetAdvectionOrder =
       node.child("levelsetAdvection").attribute("order").as_int();
   isPressureSecondOrder = (pressureOrder == 2) ? true : false;
@@ -136,12 +136,14 @@ int main(int argc, char const *argv[]) {
 
         sim.extrapolateVelocity();
         stopwatch.registerTime("Extrapolate velocity");
+        sim.boundaryVelocities();
 
         sim.solvePressure();
         stopwatch.registerTime("Pressure");
         sim.boundaryVelocities();
 
         sim.extrapolateVelocity();
+        sim.boundaryVelocities();
         stopwatch.registerTime("Extrapolate velocity");
 
         if (levelsetAdvectionOrder == 1)

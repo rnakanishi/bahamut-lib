@@ -139,8 +139,9 @@ protected:
   std::vector<std::vector<std::vector<double>>> _u[2], _v[2],
       _w[2]; // Velocity components stored on faces
   std::vector<int> _fluidCells, _surfaceCells;
-  std::vector<std::vector<std::vector<Material::FluidMaterial>>>
-      _material; // Wheter the cell is a fluid, solid or air
+  std::vector<std::vector<std::vector<Material::FluidMaterial>>> _material,
+      _uFaceMaterial, _vFaceMaterial,
+      _wFaceMaterial; // Wheter the cell is a fluid, solid or air
 };
 
 } // namespace Ramuh

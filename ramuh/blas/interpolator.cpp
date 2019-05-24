@@ -132,6 +132,15 @@ double Interpolator::cubic(const double position,
   double dyk_1 = values[3] - values[2];
   double yk_ = 0.5 * (values[2] - values[0]);
   double yk1_ = 0.5 * (values[3] - values[1]);
+
+  if (std::signbit(yk_) != std::signbit(dyk))
+    yk_ *= -1;
+  if (std::signbit(yk1_) != std::signbit(dyk))
+    yk1_ *= -1;
+  if (std::fabs(dyk) < 1e-12) {
+    yk_ = yk1_ = 0.0;
+  }
+
   double ak = -2 * dyk + yk_ + yk1_;
   double bk = 3 * dyk - 2 * yk_ - yk1_;
   double ck = yk_;

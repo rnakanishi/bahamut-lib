@@ -137,12 +137,33 @@ void LevelSet3::checkCellMaterial() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
+    _material[i][j][k] = Material::FluidMaterial::AIR;
+    _uFaceMaterial[i][j][k] = Material::FluidMaterial::AIR;
+    _vFaceMaterial[i][j][k] = Material::FluidMaterial::AIR;
+    _wFaceMaterial[i][j][k] = Material::FluidMaterial::AIR;
+    _uFaceMaterial[i + 1][j][k] = Material::FluidMaterial::AIR;
+    _vFaceMaterial[i][j + 1][k] = Material::FluidMaterial::AIR;
+    _wFaceMaterial[i][j][k + 1] = Material::FluidMaterial::AIR;
+  }
+#pragma omp parallel for
+  for (int _id = 0; _id < cellCount(); _id++) {
+    Eigen::Array3i ijk = idToijk(_id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
     if (_phi[_currBuffer][i][j][k] <= 0) {
       _material[i][j][k] = Material::FluidMaterial::FLUID;
+      _uFaceMaterial[i][j][k] = Material::FluidMaterial::FLUID;
+      _vFaceMaterial[i][j][k] = Material::FluidMaterial::FLUID;
+      _wFaceMaterial[i][j][k] = Material::FluidMaterial::FLUID;
+      _uFaceMaterial[i + 1][j][k] = Material::FluidMaterial::FLUID;
+      _vFaceMaterial[i][j + 1][k] = Material::FluidMaterial::FLUID;
+      _wFaceMaterial[i][j][k + 1] = Material::FluidMaterial::FLUID;
+
 #pragma omp critical
       { _fluidCells.emplace_back(_id); }
-    } else
-      _material[i][j][k] = Material::FluidMaterial::AIR;
+    }
   }
 } // namespace Ramuh
 
@@ -609,6 +630,7 @@ void LevelSet3::solvePressure() {
   // solver.setMaxIterations(100);
   solver.compute(pressureMatrix);
   pressure = solver.solve(divergent);
+  // std::cerr << divergent.transpose() << std::endl;
 
   // std::cerr << "Solved with " << solver.iterations() << " iterations.\n";
   // std::cerr << "Solver error: " << solver.error() << std::endl;

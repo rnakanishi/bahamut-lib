@@ -46,27 +46,38 @@ void RegularGrid3::setSize(Vector3d newSize) {
 void RegularGrid3::setResolution(Vector3i newResolution) {
   _resolution = newResolution;
   setH(_domainSize / _resolution);
-
   for (int buffer = 0; buffer < 2; buffer++) {
     _u[buffer].resize(_resolution.x() + 1);
-    for (auto &row : _u[buffer]) {
-      row.resize(_resolution.y());
-      for (auto &depth : row)
-        depth.resize(_resolution.z());
+    _uFaceMaterial.resize(_resolution.x() + 1);
+    for (int i = 0; i < _resolution.x(); i++) {
+      _u[buffer][i].resize(_resolution.y());
+      _uFaceMaterial[i].resize(_resolution.y());
+      for (int j = 0; j < _resolution.y(); j++) {
+        _uFaceMaterial[i][j].resize(_resolution.y());
+        _u[buffer][i][j].resize(_resolution.z());
+      }
     }
 
     _v[buffer].resize(_resolution.x());
-    for (auto &row : _v[buffer]) {
-      row.resize(_resolution.y() + 1);
-      for (auto &depth : row)
-        depth.resize(_resolution.z());
+    _vFaceMaterial.resize(_resolution.x());
+    for (int i = 0; i < _resolution.x(); i++) {
+      _vFaceMaterial[i].resize(_resolution.y() + 1);
+      _v[buffer][i].resize(_resolution.y() + 1);
+      for (int j = 0; j < _resolution.y() + 1; j++) {
+        _v[buffer][i][j].resize(_resolution.z());
+        _vFaceMaterial[i][j].resize(_resolution.z());
+      }
     }
 
     _w[buffer].resize(_resolution.x());
-    for (auto &row : _w[buffer]) {
-      row.resize(_resolution.y());
-      for (auto &depth : row)
-        depth.resize(_resolution.z() + 1);
+    _wFaceMaterial.resize(_resolution.x());
+    for (int i = 0; i < _resolution.y(); i++) {
+      _w[buffer][i].resize(_resolution.y());
+      _wFaceMaterial[i].resize(_resolution.y());
+      for (int j = 0; j < _resolution.y(); j++) {
+        _w[buffer][i][j].resize(_resolution.z() + 1);
+        _wFaceMaterial[i][j].resize(_resolution.z() + 1);
+      }
     }
 
     _material.resize(_resolution.x());
@@ -133,103 +144,109 @@ void RegularGrid3::macComarckVelocityAdvection() {
   for (int i = 0; i < _resolution.x(); i++)
     for (int j = 0; j < _resolution.y(); j++)
       for (int k = 0; k < _resolution.z(); k++) {
-        if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
-          utemp[i][j][k] = _u[_currBuffer][i][j][k];
-          vtemp[i][j][k] = _v[_currBuffer][i][j][k];
-          wtemp[i][j][k] = _w[_currBuffer][i][j][k];
-          continue;
-        }
-
         Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
         Eigen::Vector3d velocity;
         Eigen::Array3i index;
-        double newU = _u[_currBuffer][i][j][k];
 
-        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
-                   Eigen::Array3d(0, h[1] / 2, h[2] / 2);
-        velocity[0] = _u[_currBuffer][i][j][k];
-        velocity[1] = _interpolateVelocityV(position);
-        velocity[2] = _interpolateVelocityW(position);
-        position -= velocity.array() * _dt;
-        index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+        if (_uFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
+          utemp[i][j][k] = _u[_currBuffer][i][j][k];
+        } else {
+          double newU = _u[_currBuffer][i][j][k];
 
-        if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
-            index[2] >= 0 && index[0] < _resolution[0] &&
-            index[1] < _resolution[1] && index[2] < _resolution[2]) {
-          double u_n;
-          u_n = _interpolateVelocityU(position, clamp[0], clamp[1]);
-          velocity[0] = _interpolateVelocityU(position);
+          position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+                     Eigen::Array3d(0, h[1] / 2, h[2] / 2);
+          velocity[0] = _u[_currBuffer][i][j][k];
           velocity[1] = _interpolateVelocityV(position);
           velocity[2] = _interpolateVelocityW(position);
-          position += velocity.array() * _dt;
-          double u_n1_hat = _interpolateVelocityU(position);
-          double error = 0.5 * (_u[_currBuffer][i][j][k] - u_n1_hat);
-          newU = u_n + error;
-        } else {
-          newU = _u[_currBuffer][i][j][k];
+          position -= velocity.array() * _dt;
+          index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+
+          if ((velocity.norm() > _tolerance) && index[0] >= 0 &&
+              index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
+              index[1] < _resolution[1] && index[2] < _resolution[2]) {
+            double u_n;
+            u_n = _interpolateVelocityU(position, clamp[0], clamp[1]);
+            velocity[0] = _interpolateVelocityU(position);
+            velocity[1] = _interpolateVelocityV(position);
+            velocity[2] = _interpolateVelocityW(position);
+            position += velocity.array() * _dt;
+            double u_n1_hat = _interpolateVelocityU(position);
+            double error = 0.5 * (_u[_currBuffer][i][j][k] - u_n1_hat);
+            newU = u_n + error;
+          } else {
+            newU = _u[_currBuffer][i][j][k];
+          }
+          utemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newU));
         }
-        utemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newU));
         // utemp[i][j][k] = newU;
         //       }
 
         // // Convective term for velocity V
-        double newV = _v[_currBuffer][i][j][k];
-
-        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
-                   Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
-        velocity[0] = _interpolateVelocityU(position);
-        velocity[1] = _v[_currBuffer][i][j][k];
-        velocity[2] = _interpolateVelocityW(position);
-        position -= velocity.array() * _dt;
-        index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
-
-        if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
-            index[2] >= 0 && index[0] < _resolution[0] &&
-            index[1] < _resolution[1] && index[2] < _resolution[2]) {
-          double v_n;
-          v_n = _interpolateVelocityV(position, clamp[0], clamp[1]);
-          velocity[0] = _interpolateVelocityU(position);
-          velocity[1] = _interpolateVelocityV(position);
-          velocity[2] = _interpolateVelocityW(position);
-          position += velocity.array() * _dt;
-          double v_n1_hat = _interpolateVelocityV(position);
-          double error = 0.5 * (_v[_currBuffer][i][j][k] - v_n1_hat);
-          newV = v_n + error;
+        if (_uFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
+          vtemp[i][j][k] = _v[_currBuffer][i][j][k];
         } else {
-          newV = _v[_currBuffer][i][j][k];
+          double newV = _v[_currBuffer][i][j][k];
+
+          position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+                     Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
+          velocity[0] = _interpolateVelocityU(position);
+          velocity[1] = _v[_currBuffer][i][j][k];
+          velocity[2] = _interpolateVelocityW(position);
+          position -= velocity.array() * _dt;
+          index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+
+          if ((velocity.norm() > _tolerance) && index[0] >= 0 &&
+              index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
+              index[1] < _resolution[1] && index[2] < _resolution[2]) {
+            double v_n;
+            v_n = _interpolateVelocityV(position, clamp[0], clamp[1]);
+            velocity[0] = _interpolateVelocityU(position);
+            velocity[1] = _interpolateVelocityV(position);
+            velocity[2] = _interpolateVelocityW(position);
+            position += velocity.array() * _dt;
+            double v_n1_hat = _interpolateVelocityV(position);
+            double error = 0.5 * (_v[_currBuffer][i][j][k] - v_n1_hat);
+            newV = v_n + error;
+          } else {
+            newV = _v[_currBuffer][i][j][k];
+          }
+          vtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newV));
         }
-        vtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newV));
         // vtemp[i][j][k] = newV;
         //       }
 
         // // Convective term for velocity W
-        double newW = _w[_currBuffer][i][j][k];
+        if (_uFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
+          wtemp[i][j][k] = _w[_currBuffer][i][j][k];
+        } else {
+          double newW = _w[_currBuffer][i][j][k];
 
-        position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
-                   Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
-        velocity[0] = _interpolateVelocityU(position);
-        velocity[1] = _interpolateVelocityV(position);
-        velocity[2] = _w[_currBuffer][i][j][k];
-        position -= velocity.array() * _dt;
-        index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
-
-        if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
-            index[2] >= 0 && index[0] < _resolution[0] &&
-            index[1] < _resolution[1] && index[2] < _resolution[2]) {
-          double w_n;
-          w_n = _interpolateVelocityW(position, clamp[0], clamp[1]);
+          position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
+                     Eigen::Array3d(h[0] / 2, h[1] / 2, 0);
           velocity[0] = _interpolateVelocityU(position);
           velocity[1] = _interpolateVelocityV(position);
-          velocity[2] = _interpolateVelocityW(position);
-          position += velocity.array() * _dt;
-          double w_n1_hat = _interpolateVelocityW(position);
-          double error = 0.5 * (_w[_currBuffer][i][j][k] - w_n1_hat);
-          newW = w_n + error;
-        } else {
-          newW = _w[_currBuffer][i][j][k];
+          velocity[2] = _w[_currBuffer][i][j][k];
+          position -= velocity.array() * _dt;
+          index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+
+          if ((velocity.norm() > _tolerance) && index[0] >= 0 &&
+              index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
+              index[1] < _resolution[1] && index[2] < _resolution[2]) {
+            double w_n;
+            w_n = _interpolateVelocityW(position, clamp[0], clamp[1]);
+            velocity[0] = _interpolateVelocityU(position);
+            velocity[1] = _interpolateVelocityV(position);
+            velocity[2] = _interpolateVelocityW(position);
+            position += velocity.array() * _dt;
+            double w_n1_hat = _interpolateVelocityW(position);
+            double error = 0.5 * (_w[_currBuffer][i][j][k] - w_n1_hat);
+            newW = w_n + error;
+          } else {
+            newW = _w[_currBuffer][i][j][k];
+          }
+          wtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newW));
+          // wtemp[i][j][k] = newW;
         }
-        wtemp[i][j][k] = std::max(clamp[0], std::min(clamp[1], newW));
-        // wtemp[i][j][k] = newW;
       }
 
 #pragma omp barrier
@@ -552,12 +569,12 @@ void RegularGrid3::addGravity() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
-          _v[_currBuffer][i][j][k] -= 9.81 * _dt;
-          if (j < _resolution[1] - 1 &&
-              _material[i][j + 1][k] == Material::FluidMaterial::AIR)
-            _v[_currBuffer][i][j + 1][k] -= 9.81 * _dt;
-        }
+        // if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
+        _v[_currBuffer][i][j][k] -= 9.81 * _dt;
+        // if (j < _resolution[1] - 1 &&
+        // _material[i][j + 1][k] == Material::FluidMaterial::AIR)
+        // _v[_currBuffer][i][j + 1][k] -= 9.81 * _dt;
+        // }
       }
     }
   }
