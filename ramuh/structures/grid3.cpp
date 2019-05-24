@@ -49,11 +49,11 @@ void RegularGrid3::setResolution(Vector3i newResolution) {
   for (int buffer = 0; buffer < 2; buffer++) {
     _u[buffer].resize(_resolution.x() + 1);
     _uFaceMaterial.resize(_resolution.x() + 1);
-    for (int i = 0; i < _resolution.x(); i++) {
+    for (int i = 0; i < _resolution.x() + 1; i++) {
       _u[buffer][i].resize(_resolution.y());
       _uFaceMaterial[i].resize(_resolution.y());
       for (int j = 0; j < _resolution.y(); j++) {
-        _uFaceMaterial[i][j].resize(_resolution.y());
+        _uFaceMaterial[i][j].resize(_resolution.z());
         _u[buffer][i][j].resize(_resolution.z());
       }
     }
@@ -574,7 +574,7 @@ void RegularGrid3::addGravity() {
         // if (j < _resolution[1] - 1 &&
         // _material[i][j + 1][k] == Material::FluidMaterial::AIR)
         // _v[_currBuffer][i][j + 1][k] -= 9.81 * _dt;
-        // }
+        // }extrapolateVel
       }
     }
   }

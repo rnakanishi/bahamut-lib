@@ -3,7 +3,7 @@
     <resolution xyz="32"/>
     <maxFrames value="100" />
     <timestep dt="0.01" />
-    <pressure order="1"/>
+    <pressure order="2"/>
     <levelsetAdvection order="2" />
     <velocityAdvection order="2" />
 

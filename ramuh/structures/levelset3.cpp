@@ -130,7 +130,7 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
 
 void LevelSet3::checkCellMaterial() {
   _fluidCells.clear();
-#pragma omp parallel for
+  // #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
