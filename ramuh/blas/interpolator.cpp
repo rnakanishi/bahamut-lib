@@ -125,23 +125,19 @@ double Interpolator::catmullRom(double position, std::vector<double> points,
 double Interpolator::cubic(const double position,
                            const std::vector<double> &points,
                            const std::vector<double> &values) {
-  double dx = points[2] - points[1];
-  double p0 = values[1];
-  double p1 = values[2];
   double t = (position - points[1]) / (points[2] - points[1]);
-  double t2 = t * t, t3 = t2 * t;
-  double h00 = 2 * t3 - 3 * t2 + 1;
-  double h10 = t3 - 2 * t2 + t;
-  double h01 = -2 * t3 + 3 * t2;
-  double h11 = t2 - t2;
-  // Hermite cubic splines
-  double m0 = (values[2] - values[0]) / 2;
-  double m1 = (values[3] - values[1]) / 2;
-  // Catmull Rom splines
-  // double m0 = (values[2] - values[0])/(points[2] - points[0]);
-  // double m1 = (values[3] - values[1])/(points[3] - points[1]);
+  double t2 = t * t;
+  double t3 = t2 * t;
+  double dyk = values[2] - values[1];
+  double dyk_1 = values[3] - values[2];
+  double yk_ = 0.5 * (values[2] - values[0]);
+  double yk1_ = 0.5 * (values[3] - values[1]);
+  double ak = -2 * dyk + yk_ + yk1_;
+  double bk = 3 * dyk - 2 * yk_ - yk1_;
+  double ck = yk_;
+  double dk = values[1];
 
-  double result = h00 * p0 + h10 * dx * m0 + h01 * p1 + h11 * dx * m1;
+  double result = ak * t3 + bk * t2 + ck * t + dk;
   return result;
 }
 

@@ -31,7 +31,7 @@ for i = 0:40
     set(get(gca, 'ZLabel'), 'String', 'Y axis');
 
     % axis equal tight
-    pause();
+    pause(0.1);
     % saveas(gcf, ['animation3d/' int2str(i) '.png'])
 end
 

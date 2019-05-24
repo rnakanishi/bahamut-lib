@@ -6,10 +6,11 @@
 #include <iomanip>
 
 double _f(Eigen::Array3d p) {
-  return (5 * (std::cos(p[0]) + std::sin(p[1]) - std::cos(p[2])));
+  return (5 * (std::cos(p[0]) + std::sin(p[1]) + std::cos(p[2])));
 }
-double _f(Eigen::Array2d p) { return (std::cos(p[0]) + std::sin(p[1])); }
-double _f(double p) { return std::cos(5 * p); }
+double _f(Eigen::Array2d p) { return 4 * (std::cos(p[0]) + std::sin(p[1])); }
+
+double _f(double p) { return 15 * std::cos(p); }
 
 void test3D() {
   std::vector<Eigen::Array3d> points;
@@ -34,7 +35,7 @@ void test3D() {
     target[0] = (double)(rand() % 100) / 100 * h + 0.1;
     target[1] = (double)(rand() % 100) / 100 * h + 0.1;
     target[2] = (double)(rand() % 100) / 100 * h + 0.1;
-    double value = Ramuh::Interpolator::rbf(target, points, values);
+    double value = Ramuh::Interpolator::tricubic(target, points, values);
 
     std::cout << std::setw(8) << target[0] << ", ";
     std::cout << std::setw(8) << target[1] << ", ";
@@ -105,6 +106,12 @@ void test1D() {
 }
 
 int main(int argc, char const *argv[]) {
+  std::cerr << "==========TEST 1D==========\n";
+  test1D();
+  std::cerr << "===========================\n==========TEST 2D==========\n";
+  test2D();
+  std::cerr << "===========================\n==========TEST 3D==========\n";
   test3D();
+  std::cerr << "===========================\n";
   return 0;
 }
