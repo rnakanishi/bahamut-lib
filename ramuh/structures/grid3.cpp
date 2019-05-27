@@ -182,7 +182,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         //       }
 
         // // Convective term for velocity V
-        if (_uFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
+        if (_vFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
           vtemp[i][j][k] = _v[_currBuffer][i][j][k];
         } else {
           double newV = _v[_currBuffer][i][j][k];
@@ -216,7 +216,7 @@ void RegularGrid3::macComarckVelocityAdvection() {
         //       }
 
         // // Convective term for velocity W
-        if (_uFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
+        if (_wFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
           wtemp[i][j][k] = _w[_currBuffer][i][j][k];
         } else {
           double newW = _w[_currBuffer][i][j][k];
@@ -901,7 +901,7 @@ void RegularGrid3::solvePressure() {
 
   Eigen::SparseMatrix<double> pressureMatrix(nCells, nCells);
   pressureMatrix.setFromTriplets(triplets.begin(), triplets.end());
-  timer.registerTime("Assemblyplo");
+  timer.registerTime("Assembly");
 
   // SOlve pressure Poisson system
   Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;

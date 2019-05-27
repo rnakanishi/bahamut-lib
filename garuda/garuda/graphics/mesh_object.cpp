@@ -119,6 +119,14 @@ void MeshObject::assignVertices(std::vector<glm::vec3> &vertices) {
   _vertices.assign(vertices.begin(), vertices.end());
 }
 
+void MeshObject::removeAllVertices() {
+  int nVertices = _vertices.size();
+  _vertices.clear();
+  std::cout << "Removed " << nVertices << " vertices\n";
+}
+
+uint MeshObject::removeDoubles() {}
+
 void MeshObject::addVertexNormal(uint id, glm::vec3 normal) {
   if (id >= _vertices.size()) {
     std::cerr << "MeshObject::addVertexNormal: vertexId out of range.\n";

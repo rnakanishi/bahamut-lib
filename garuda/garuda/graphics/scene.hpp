@@ -16,6 +16,14 @@ public:
 
   Camera &getActiveCamera();
 
+  /**
+   * @brief Get the MeshObject object
+   *
+   * @param index
+   * @return MeshObject& referred by the index value
+   */
+  MeshObject &getObject(int index);
+
 protected:
   std::vector<MeshObject> _objects;
   std::vector<Camera> _cameras;

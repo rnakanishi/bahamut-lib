@@ -37,6 +37,12 @@ public:
     return Vector2<double>(_x / s, _y / s);
   }
 
+  T &operator[](int i) {
+    if (i == 0)
+      return _x;
+    return _y;
+  }
+
   bool operator>(const Vector2<T> v) {
     if (_x <= v.x())
       return false;

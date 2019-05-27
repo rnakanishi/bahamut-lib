@@ -42,8 +42,8 @@ public:
   /// \param center center of the sphere
   /// \param radius radius of the sphere
   void addSphereSurface(Vector3d center, double radius);
-  void addSphereSurface(Eigen::Array3d center, double radius);
   void addCubeSurface(Vector3d lower, Vector3d upper);
+  void addSphereSurface(Eigen::Array3d center, double radius);
   void addCubeSurface(Eigen::Array3d lower, Eigen::Array3d upper);
 
   /**

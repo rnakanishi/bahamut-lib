@@ -45,6 +45,9 @@ void Scene::draw() {
   for (auto &camera : _cameras)
     camera.draw();
 }
+
 Camera &Scene::getActiveCamera() { return _cameras[activeCamera]; }
+
+MeshObject &Scene::getObject(int index) { return _objects[index]; }
 
 } // namespace Garuda

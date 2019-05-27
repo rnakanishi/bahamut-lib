@@ -41,6 +41,10 @@ public:
 
   void assignVertices(std::vector<glm::vec3> &vertices);
 
+  void removeAllVertices();
+
+  uint removeDoubles() override;
+
   void addVertexNormal(uint vertexId, glm::vec3 normal) override;
 
   Texture &getTexture();

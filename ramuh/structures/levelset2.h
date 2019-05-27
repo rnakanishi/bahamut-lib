@@ -3,6 +3,7 @@
 
 #include <structures/grid2.h>
 #include <utils/material.h>
+#include <structures/triangle_mesh.h>
 
 namespace Ramuh {
 
@@ -20,20 +21,26 @@ public:
   /// TODO: Change to semi lagrangean method
   void integrateLevelSet();
 
+  void macCormackAdvection();
+
   ///
   /// Level set often gets unusual beahvior when advected. To avoid unphysical
   /// behavior, a redistancing function is applied so the level set keep its
   /// property as signed distance
   void redistance();
 
+  void solvePressure() override;
+
   /**
    * @brief Define a value for each vertex of the grid correspnoding to the
-   * isocontour of a sphere given its center and radius \param center center of
-   * the sphere \param radius radius of the sphere
+   * isocontour of a sphere given its center and radius \param center center
+   *of the sphere \param radius radius of the sphere
    *
    **/
   void addSphereSurface(Vector2d center, double radius);
   void addCubeSurface(Vector2d lower, Vector2d upper);
+  void addSphereSurface(Eigen::Array2d center, double radius);
+  void addCubeSurface(Eigen::Array2d lower, Eigen::Array2d upper);
 
   /**
    * @brief Walks by all level set values (distance field) and check its signal.
@@ -45,17 +52,24 @@ public:
 
   void printVertexVelocity();
 
+  void setPressureOrder(bool order);
+
   void printLevelSetValue();
 
-  void setResolution(Vector2i newResolution) override;
+  void setResolution(Eigen::Array2i newResolution) override;
+
+  TriangleMesh marchingTriangles();
 
   std::vector<double> &operator[](const int i);
 
   Vector2d operator()(int i, int j);
 
-  void solvePressure() override;
-
 protected:
+  bool _isPressure2nd;
+  double _maxVelocity[2];
+  double _interpolatePhi(Eigen::Array2d position);
+  double _interpolatePhi(Eigen::Array2d position, double &min, double &max);
+
   // TODO: Change to Matrix3 type
   std::vector<std::vector<Vector2d>> _gradPhi,
       _velocity; // level set gradient and velocity on the corners

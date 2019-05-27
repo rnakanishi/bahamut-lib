@@ -130,7 +130,8 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
 
 void LevelSet3::checkCellMaterial() {
   _fluidCells.clear();
-  // #pragma omp parallel for
+  // Mark all cells and faces as air
+#pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
@@ -145,6 +146,8 @@ void LevelSet3::checkCellMaterial() {
     _vFaceMaterial[i][j + 1][k] = Material::FluidMaterial::AIR;
     _wFaceMaterial[i][j][k + 1] = Material::FluidMaterial::AIR;
   }
+
+  // Walk through all cell/faces again to mark them as fluid
 #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
@@ -234,10 +237,10 @@ void LevelSet3::macCormackAdvection() {
     j = ijk[1];
     k = ijk[2];
 
-    if (std::fabs(_phi[_currBuffer][i][j][k]) > 5 * _h[0]) {
-      newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
-      continue;
-    }
+    // if (std::fabs(_phi[_currBuffer][i][j][k]) > 5 * _h[0]) {
+    //   newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
+    //   continue;
+    // }
     Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
     Eigen::Vector3d velocity;
     Eigen::Array3i index;
