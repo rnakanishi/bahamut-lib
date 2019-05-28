@@ -36,7 +36,7 @@ int main(int argc, char const *argv[]) {
   // =====================================================
 
   sim.setVelocity();
-  sim.redistance();
+  // sim.redistance();
   std::ostringstream dataname, objname;
 
   std::string &dataFolderName = sim.getDataFolderName();
@@ -51,6 +51,7 @@ int main(int argc, char const *argv[]) {
   int nFrames = sim.getFramesNumber();
   int velocityAdvectionOrder = sim.getVelocityOrder();
   int levelsetAdvectionOrder = sim.getLevelsetOrder();
+
   for (int frame = 1; frame <= nFrames; frame++) {
     std::cout << std::endl;
     Ramuh::TriangleMesh surface;

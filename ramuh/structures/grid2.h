@@ -94,6 +94,14 @@ protected:
   double _interpolateVelocityU(Eigen::Array2d position);
   double _interpolateVelocityV(Eigen::Array2d position);
 
+  /**
+   * @brief Return if both sides of a given cell have the same material
+   *
+   * @param cellId query cell
+   * @param material Material we are querying
+   * @return true if both cells have same material
+   * @return false otherwise
+   */
   bool _hasOppositeNeighborsWithMaterial(int cellId,
                                          Material::FluidMaterial material);
   ///

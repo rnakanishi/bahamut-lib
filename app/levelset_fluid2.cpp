@@ -40,6 +40,7 @@ void LevelSetFluid2::run() {
       solvePressure();
       stopwatch.registerTime("Pressure");
       boundaryVelocities();
+      writeVelocityField();
 
       extrapolateVelocity();
       boundaryVelocities();
@@ -100,9 +101,9 @@ void LevelSetFluid2::loadConfiguration(std::string filename) {
   _dataFolderName = std::string(node.child("dataFolder").child_value());
   _objFolderName = std::string(node.child("objFolder").child_value());
   int pressureOrder = node.child("pressure").attribute("order").as_int();
-  int velocityAdvectionOrder =
+  _velocityAdvectionOrder =
       node.child("velocityAdvection").attribute("order").as_int();
-  int levelsetAdvectionOrder =
+  _levelsetAdvectionOrder =
       node.child("levelsetAdvection").attribute("order").as_int();
   _isPressure2nd = (pressureOrder == 2) ? true : false;
 
@@ -124,20 +125,21 @@ void LevelSetFluid2::loadConfiguration(std::string filename) {
     line << sphere.child("center").child_value();
 
     line >> radius;
-    line >> position[0] >> position[1] >> position[2];
+    line >> position[0] >> position[1];
     std::cerr << "Read sphere at ";
     std::cerr << position.transpose();
     std::cerr << " with radius " << radius << std::endl;
     addSphereSurface(position, radius);
   }
-  for (pugi::xml_node sphere : domain.children("cube")) {
+  for (pugi::xml_node cube : domain.children("cube")) {
     Eigen::Array2d lower, upper;
+    double skip;
     std::stringstream line;
-    line << sphere.child("lower").child_value() << " ";
-    line << sphere.child("upper").child_value();
+    line << cube.child("lower").child_value() << " ";
+    line << cube.child("upper").child_value();
 
-    line >> lower[0] >> lower[1] >> lower[2];
-    line >> upper[0] >> upper[1] >> upper[2];
+    line >> lower[0] >> lower[1] >> skip;
+    line >> upper[0] >> upper[1];
     std::cerr << "Read cube from " << lower.transpose();
     std::cerr << " to " << upper.transpose() << std::endl;
     addCubeSurface(lower, upper);

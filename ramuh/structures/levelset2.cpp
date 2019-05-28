@@ -8,6 +8,8 @@
 #include <queue>
 #include <set>
 #include <blas/interpolator.h>
+#include <geometry/geometry_utils.h>
+#include <glm/vector_relational.hpp>
 #include <fstream>
 
 namespace Ramuh {
@@ -87,26 +89,21 @@ void LevelSet2::addCubeSurface(Vector2d lower, Vector2d upper) {
   for (int j = 0; j < _resolution.y(); j++)
     for (int i = 0; i < _resolution.x(); i++) {
       Vector2d position(Vector2i(i, j) * h + h / 2);
-      Vector2d distanceLower = (position - lower).abs();
-      Vector2d distanceUpper = (position - upper).abs();
-      double phi;
+      Vector2d projection;
+      double phi = 0.0;
       if (position > lower && position < upper) {
         // Inside cube
-        phi = std::min(std::fabs(_phi[i][j]),
-                       std::min(distanceLower.min(), distanceUpper.min()));
-        _phi[i][j] = -std::min(std::fabs(_phi[i][j]), phi);
+        phi = std::min(
+            std::min(std::min(position[0] - lower[0], position[1] - lower[1]),
+                     upper[0] - position[0]),
+            upper[1] - position[1]);
+        _phi[i][j] = std::min(_phi[i][j], -phi);
       } else {
-        // Compute distance to the cube
-        position = position - center;
-        position = position * 2 / size;
+        projection[0] = std::min(lower[0], std::max(upper[0], position[0]));
+        projection[1] = std::min(lower[1], std::max(upper[1], position[1]));
 
-        position = position.abs();
-
-        phi = 0.0;
-        phi += std::max(0.0, position[0] - 1);
-        phi += std::max(0.0, position[1] - 1);
-        phi = sqrt(phi);
-        _phi[i][j] = std::min((_phi[i][j]), phi);
+        phi = (projection - position).length();
+        _phi[i][j] = std::min(_phi[i][j], phi);
       }
     }
   checkCellMaterial();
@@ -159,7 +156,7 @@ void LevelSet2::macCormackAdvection() {
   }
   phiChanged.resize(_resolution.x() + 1);
   for (auto &row : phiChanged) {
-    row.resize(_resolution.y());
+    row.resize(_resolution.y(), false);
   }
   Eigen::Array2i resolution(_resolution[0], _resolution[1]);
 #pragma omp for
@@ -190,8 +187,7 @@ void LevelSet2::macCormackAdvection() {
     index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
     // TODO: look for a better solution
     if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
-        index[2] >= 0 && index[0] < _resolution[0] &&
-        index[1] < _resolution[1] && index[2] < _resolution[2]) {
+        index[0] < _resolution[0] && index[1] < _resolution[1]) {
 
       double phi_n;
       int phiSignal = (_phi[i][j] >= 0) ? 1 : -1;
@@ -238,11 +234,6 @@ void LevelSet2::integrateLevelSet() {
     i = ij[0];
     j = ij[1];
 
-    // if (std::fabs(_phi[i][j]) > 5 * _h[0]) {
-    //   oldPhi[i][j] = _phi[i][j];
-    //   continue;
-    // }
-
     Eigen::Array2d position, backPosition, velocity, h(_h.x(), _h.y()),
         cellCenter;
     Eigen::Array2i index;
@@ -254,14 +245,14 @@ void LevelSet2::integrateLevelSet() {
     velocity[0] = _interpolateVelocityU(position);
     velocity[1] = _interpolateVelocityV(position);
 
-    backPosition = position - (velocity * _dt);
-    index = Eigen::floor(backPosition.cwiseQuotient(h)).cast<int>();
+    position = position - (velocity * _dt);
+    index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
 
     // Check if inside domain
     if ((velocity.matrix().norm() > _tolerance) && index[0] >= 0 &&
         index[1] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1]) {
-      newPhi = _interpolatePhi(backPosition);
+      newPhi = _interpolatePhi(position);
     }
     oldPhi[i][j] = newPhi;
   }
@@ -274,6 +265,31 @@ void LevelSet2::integrateLevelSet() {
 
     _phi[i][j] = oldPhi[i][j];
   }
+}
+
+double LevelSet2::_solveEikonal(glm::ivec2 cellId) {
+  int i, j;
+  i = cellId[0];
+  j = cellId[1];
+  std::vector<double> distances(3, 0);
+  distances[0] =
+      std::min(std::fabs(_phi[std::max(0, i - 1)][j]),
+               std::fabs(_phi[std::min(_resolution.x() - 1, i + 1)][j]));
+  distances[1] =
+      std::min(std::fabs(_phi[i][std::max(0, j - 1)]),
+               std::fabs(_phi[i][std::min(_resolution.y() - 1, j + 1)]));
+
+  std::sort(distances.begin(), distances.end());
+
+  double newPhi = distances[0] + _h.x();
+  if (newPhi > distances[1]) {
+    double h2 = _h.x() * _h.x();
+    newPhi = 0.5 * (distances[0] + distances[1] +
+                    std::sqrt(2 * h2 - ((distances[1] - distances[0]) *
+                                        (distances[1] - distances[0]))));
+  }
+
+  return newPhi;
 }
 
 void LevelSet2::redistance() {
@@ -292,101 +308,122 @@ void LevelSet2::redistance() {
     tempPhi[i].resize(_resolution[1], 1e8);
     processed[i].resize(_resolution[1], false);
   }
+
 #pragma omp parallel for
-  // While setting remaining cells to infinity
-  for (int i = 0; i < _resolution[0]; i++)
-    for (int j = 0; j < _resolution[1]; j++) {
-      double cellPhi;
-      int cellSign;
-      Material::FluidMaterial cellMaterial;
-      cellMaterial = _material[i][j];
-      cellPhi = _phi[i][j];
-      cellSign = cellPhi / std::fabs(cellPhi);
+  for (int _id = 0; _id < cellCount(); _id++) {
+    Eigen::Array2i ij = idToij(_id);
+    int i, j;
+    i = ij[0];
+    j = ij[1];
 
-      // Look for surface cells and compute distance over them
-      if (i < _resolution[0] - 1 &&
-          std::signbit(cellPhi) != std::signbit(_phi[i + 1][j])) {
-        // compute distance to the surface
-        double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i + 1][j]));
-        tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
-                                            std::fabs(theta * _h.x()));
-        processed[i][j] = true;
-      }
-      if (i > 0 && std::signbit(cellPhi) != std::signbit(_phi[i - 1][j])) {
-        double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i - 1][j]));
-        tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
-                                            std::fabs(theta * _h.x()));
-        processed[i][j] = true;
-      }
-      if (j < _resolution[1] - 1 &&
-          std::signbit(cellPhi) != std::signbit(_phi[i][j + 1])) {
-        double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i][j + 1]));
-        tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
-                                            std::fabs(theta * _h.x()));
-        processed[i][j] = true;
-      }
-      if (j > 0 && std::signbit(cellPhi) != std::signbit(_phi[i][j - 1])) {
-        double theta = cellSign * cellPhi / ((cellPhi) - (_phi[i][j - 1]));
-        tempPhi[i][j] = cellSign * std::min(std::fabs(tempPhi[i][j]),
-                                            std::fabs(theta * _h.x()));
-        processed[i][j] = true;
-      }
+    glm::vec2 position = glm::vec2(i * _h.x(), j * _h.y());
+    glm::vec2 intersections[2];
+    int nintersecs = 0;
+    double cellPhi = _phi[i][j];
+    int cellSign = (cellPhi >= 0) ? 1 : -1;
+    if (cellPhi == 0)
+      cellSign = 1;
 
-      if (processed[i][j]) {
+    bool isSurface = false, intersected = false;
+    double theta = 1e8;
+    // Find whether edge has an intersection with fluid surface
+    if (i < _resolution.x() - 1 &&
+        std::signbit(cellSign) != std::signbit(_phi[i + 1][j])) {
+      isSurface = true;
+      intersected = true;
+      theta = std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i + 1][j])));
+      intersections[nintersecs] =
+          glm::vec2(position[0] + theta * _h.x(), position[1]);
+    }
+    if (i > 0 && std::signbit(cellSign) != std::signbit(_phi[i - 1][j])) {
+      isSurface = true;
+      intersected = true;
+      theta = std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i - 1][j])));
+      intersections[nintersecs] =
+          glm::vec2(position[0] - theta * _h.x(), position[1]);
+    }
+    theta = 1e8;
+    if (intersected) {
+      intersected = false;
+      nintersecs++;
+    }
+    if (j < _resolution.y() - 1 &&
+        std::signbit(cellSign) != std::signbit(_phi[i][j + 1])) {
+      isSurface = true;
+      intersected = true;
+      theta = std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j + 1])));
+      intersections[nintersecs] =
+          glm::vec2(position[0], position[1] + theta * _h.y());
+    }
+    if (j > 0 && std::signbit(cellSign) != std::signbit(_phi[i][j - 1])) {
+      isSurface = true;
+      intersected = true;
+      theta = std::min(theta, std::fabs(cellPhi / (cellPhi - _phi[i][j - 1])));
+      intersections[nintersecs] =
+          glm::vec2(position[0], position[1] - theta * _h.y());
+    }
+    theta = 1e8;
+    if (intersected) {
+      intersected = false;
+      nintersecs++;
+    }
+    if (isSurface) {
+      glm::vec2 proj;
+      // Find intersection point (nearest to the intersecting geometry)
+      if (nintersecs == 1) {
+        proj = intersections[0];
+      } else if (nintersecs == 2) {
+        proj = Geometry::closestPointPlane(position, intersections[0],
+                                           intersections[1]);
+      }
+      // Distance itself
+      double distance = glm::length(proj - position);
+      if (std::isnan(distance) || distance == 0 || distance > 5)
+        float d = distance;
+      if (std::fabs(distance) < _tolerance)
+        distance = 0;
+
+      // Keep signalfrom original distance
+      tempPhi[i][j] = cellSign * distance;
+      processed[i][j] = true;
 #pragma omp critical
-        {
-          cellsQueue.push(
-              std::make_pair(std::fabs(tempPhi[i][j]), ijToId(i, j)));
-          cellsAdded.insert(ijToId(i, j));
-        }
+      {
+        cellsQueue.push(std::make_pair(std::fabs(tempPhi[i][j]), ijToId(i, j)));
+        cellsAdded.insert(ijToId(i, j));
       }
     }
+  }
 
   // Propagating distances
+  double maxDistance = 5 * _h[0];
   while (!cellsQueue.empty()) {
     int cellId = cellsQueue.top().second;
     cellsQueue.pop();
-    int i = cellId % _resolution[0], j = cellId / _resolution[0];
-    // std::cerr << "Id " << cellId << " -> " << i << ' ' << j << std::endl;
-    // If the cell is not processed yet, compute its distance
+    Eigen::Array2i ij = idToij(cellId);
+    int i, j;
+    i = ij[0];
+    j = ij[1];
+    // TODO: check this caculation
+
     if (!processed[i][j]) {
       processed[i][j] = true;
-      double distances[2] = {1e8, 1e8};
-      int distanceSignal = _phi[i][j] / std::fabs(_phi[i][j]);
-      distances[0] =
-          std::min(std::fabs(tempPhi[std::max(0, i - 1)][j]),
-                   std::fabs(tempPhi[std::min(_resolution[0] - 1, i + 1)][j]));
-      distances[1] =
-          std::min(std::fabs(tempPhi[i][std::max(0, j - 1)]),
-                   std::fabs(tempPhi[i][std::min(_resolution[1] - 1, j + 1)]));
-      if (distances[0] > distances[1]) {
-        double aux = distances[0];
-        distances[0] = distances[1];
-        distances[1] = aux;
-      }
-      // std::cerr << "Distances " << distances[0] << ' ' << distances[1]
-      // << std::endl;
-      double newPhi = distances[0] + _h.x();
-      if (std::signbit(distances[0]) == std::signbit(distances[1]) &&
-          std::fabs(newPhi) > std::fabs(distances[1])) {
-        double h = _h.x() * _h.x();
-        newPhi =
-            0.5 *
-            (distances[0] + distances[1] +
-             std::sqrt(2 * _h.x() * _h.x() - ((distances[1] - distances[0]) *
-                                              (distances[1] - distances[0]))));
-      }
-      newPhi *= distanceSignal;
-      if (std::fabs(newPhi) < std::fabs(tempPhi[i][j]))
-        tempPhi[i][j] = newPhi;
+      int distanceSignal = (_phi[i][j] >= 0) ? 1 : -1;
+      if (std::fabs(_phi[i][j]) < 1e-7)
+        distanceSignal = 1;
+      double newPhi = _solveEikonal(glm::ivec2(i, j));
+
+      if (newPhi < std::fabs(tempPhi[i][j]))
+        tempPhi[i][j] = distanceSignal * newPhi;
     }
-    // Compute neighbor distance to the levelset and add it to queue
+    if (tempPhi[i][j] > maxDistance)
+      continue;
+    // Add all neighbors of the cell to queue
     if (i > 0 && cellsAdded.find(ijToId(i - 1, j)) == cellsAdded.end()) {
       cellsQueue.push(
           std::make_pair(std::fabs(_phi[i - 1][j]), ijToId(i - 1, j)));
       cellsAdded.insert(ijToId(i - 1, j));
     }
-    if (i < _resolution[0] - 1 &&
+    if (i < _resolution.x() - 1 &&
         cellsAdded.find(ijToId(i + 1, j)) == cellsAdded.end()) {
       cellsQueue.push(
           std::make_pair(std::fabs(_phi[i + 1][j]), ijToId(i + 1, j)));
@@ -397,19 +434,17 @@ void LevelSet2::redistance() {
           std::make_pair(std::fabs(_phi[i][j - 1]), ijToId(i, j - 1)));
       cellsAdded.insert(ijToId(i, j - 1));
     }
-    if (j < _resolution[1] - 1 &&
+    if (j < _resolution.y() - 1 &&
         cellsAdded.find(ijToId(i, j + 1)) == cellsAdded.end()) {
       cellsQueue.push(
           std::make_pair(std::fabs(_phi[i][j + 1]), ijToId(i, j + 1)));
       cellsAdded.insert(ijToId(i, j + 1));
     }
   }
-  // Solve Eikonal function
-  for (int j = 0; j < _resolution[1]; j++) {
-    for (int i = 0; i < _resolution[0]; i++) {
+
+  for (int i = 0; i < _resolution.x(); i++)
+    for (int j = 0; j < _resolution.y(); j++)
       _phi[i][j] = tempPhi[i][j];
-    }
-  }
 }
 
 void LevelSet2::printLevelSetValue() {
@@ -450,7 +485,7 @@ void LevelSet2::solvePressure() {
   // Solve pressure Poisson equation
   divergent = Eigen::VectorXd::Zero(cellCount());
   int ghostId = _getMapId(-1);
-#pragma omp parallel for
+#pragma omp for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array2i ij = idToij(_id);
     int i, j;
@@ -681,8 +716,8 @@ double LevelSet2::_interpolatePhi(Eigen::Array2d position, double &min,
     index[1]--;
   std::vector<int> iCandidates, jCandidates;
   for (int i = -1; i < 3; i++) {
-    iCandidates.push_back(index[0] + 1);
-    jCandidates.push_back(index[1] + 1);
+    iCandidates.push_back(index[0] + i);
+    jCandidates.push_back(index[1] + i);
   }
   std::vector<Eigen::Array2d> points;
   std::vector<double> values;

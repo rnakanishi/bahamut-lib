@@ -291,7 +291,7 @@ void RegularGrid3::advectGridVelocity() {
     k = ijk[2];
     fluidFaces.emplace_back(std::make_tuple(i, j, k));
     if (i < _resolution[0] - 1 &&
-        _material[i + 1][j][k] == Material::FluidMaterial::AIR) {
+        _uFaceMaterial[i + 1][j][k] == Material::FluidMaterial::AIR) {
       fluidFaces.emplace_back(std::make_tuple(i + 1, j, k));
     }
   }
@@ -306,7 +306,7 @@ void RegularGrid3::advectGridVelocity() {
     Eigen::Array3i index;
     std::tie(i, j, k) = fluidFaces[it];
 
-    if (_material[i][j][k] != Material::FluidMaterial::FLUID) {
+    if (_uFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
       utemp[i][j][k] = _u[_currBuffer][i][j][k];
       vtemp[i][j][k] = _v[_currBuffer][i][j][k];
       wtemp[i][j][k] = _w[_currBuffer][i][j][k];
@@ -340,7 +340,7 @@ void RegularGrid3::advectGridVelocity() {
     k = ijk[2];
     fluidFaces.emplace_back(std::make_tuple(i, j, k));
     if (j < _resolution[1] - 1 &&
-        _material[i][j + 1][k] == Material::FluidMaterial::AIR) {
+        _vFaceMaterial[i][j + 1][k] == Material::FluidMaterial::AIR) {
       fluidFaces.emplace_back(std::make_tuple(i, j + 1, k));
     }
   }
@@ -350,10 +350,16 @@ void RegularGrid3::advectGridVelocity() {
     Eigen::Array3d position, backPosition, velocity, cellCenter;
     Eigen::Array3i index;
     std::tie(i, j, k) = fluidFaces[it];
+    if (_vFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
+      utemp[i][j][k] = _u[_currBuffer][i][j][k];
+      vtemp[i][j][k] = _v[_currBuffer][i][j][k];
+      wtemp[i][j][k] = _w[_currBuffer][i][j][k];
+      continue;
+    }
 
     double newVelocity = _v[_currBuffer][i][j][k];
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) +
-               Eigen::Array3d(h[0] / 2, 0, h[2] / 2);
+               Eigen::Array3d(h[0] / 2, 0.0, h[2] / 2);
     velocity[0] = _interpolateVelocityU(position);
     velocity[1] = _v[_currBuffer][i][j][k];
     velocity[2] = _interpolateVelocityW(position);
@@ -378,7 +384,7 @@ void RegularGrid3::advectGridVelocity() {
     k = ijk[2];
     fluidFaces.emplace_back(std::make_tuple(i, j, k));
     if (k < _resolution[2] &&
-        _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
+        _wFaceMaterial[i][j][k + 1] == Material::FluidMaterial::AIR) {
       fluidFaces.emplace_back(std::make_tuple(i, j, k + 1));
     }
   }
@@ -388,6 +394,12 @@ void RegularGrid3::advectGridVelocity() {
     Eigen::Array3d position, backPosition, velocity, cellCenter;
     Eigen::Array3i index;
     std::tie(i, j, k) = fluidFaces[it];
+    if (_wFaceMaterial[i][j][k] != Material::FluidMaterial::FLUID) {
+      utemp[i][j][k] = _u[_currBuffer][i][j][k];
+      vtemp[i][j][k] = _v[_currBuffer][i][j][k];
+      wtemp[i][j][k] = _w[_currBuffer][i][j][k];
+      continue;
+    }
 
     double newVelocity = _w[_currBuffer][i][j][k];
 

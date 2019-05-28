@@ -4,6 +4,7 @@
 #include <structures/grid2.h>
 #include <utils/material.h>
 #include <structures/triangle_mesh.h>
+#include <glm/glm.hpp>
 
 namespace Ramuh {
 
@@ -69,6 +70,8 @@ protected:
   double _maxVelocity[2];
   double _interpolatePhi(Eigen::Array2d position);
   double _interpolatePhi(Eigen::Array2d position, double &min, double &max);
+
+  double _solveEikonal(glm::ivec2 cellId);
 
   // TODO: Change to Matrix3 type
   std::vector<std::vector<Vector2d>> _gradPhi,

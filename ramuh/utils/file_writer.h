@@ -13,9 +13,9 @@ class FileWriter {
 public:
   FileWriter();
 
-  void writeLevelSet(LevelSet2 data, const std::string &filename);
+  void writeLevelSet(LevelSet2 &data, const std::string &filename);
 
-  void writeLevelSet(LevelSet3 data, const std::string &filename);
+  void writeLevelSet(LevelSet3 &data, const std::string &filename);
 
   void writeMeshModel(TriangleMesh model, const std::string &filename);
 

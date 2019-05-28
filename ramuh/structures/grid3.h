@@ -105,6 +105,12 @@ public:
   void swapBuffers();
 
 protected:
+  /**
+   * @brief Assemble the stencil for interpolation method
+   *
+   * @param position query position where values are wanted
+   * @return double interpolated value
+   */
   double _interpolateVelocityU(Eigen::Array3d position);
   double _interpolateVelocityV(Eigen::Array3d position);
   double _interpolateVelocityW(Eigen::Array3d position);
@@ -115,6 +121,14 @@ protected:
   double _interpolateVelocityW(Eigen::Array3d position, double &_min,
                                double &_max);
 
+  /**
+   * @brief Return if all 3 sides of a given cell have the same material
+   *
+   * @param cellId query cell
+   * @param material Material we are querying
+   * @return true if any opposing cells have same material
+   * @return false otherwise
+   */
   bool _hasOppositeNeighborsWithMaterial(int cellId,
                                          Material::FluidMaterial material);
 

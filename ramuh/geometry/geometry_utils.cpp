@@ -107,4 +107,17 @@ glm::vec3 Geometry::closestPointPlane(glm::vec3 p, glm::vec3 a, glm::vec3 b) {
   return a + t * ab;
 }
 
+glm::vec2 Geometry::closestPointPlane(glm::vec2 p, glm::vec2 a, glm::vec2 b) {
+  glm::vec2 ab = b - a;
+  // Project c onto ab, computing parameterized position d(t) = a + t*(b – a)
+  float t = glm::dot(p - a, ab) / glm::dot(ab, ab);
+  // If outside segment, clamp t (and therefore d) to the closest endpoint
+  if (t < 0.0f)
+    t = 0.0f;
+  if (t > 1.0f)
+    t = 1.0f;
+  // Compute projected position from the clamped t
+  return a + t * ab;
+}
+
 } // namespace Ramuh

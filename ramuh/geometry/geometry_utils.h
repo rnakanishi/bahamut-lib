@@ -12,6 +12,7 @@ public:
                                         glm::vec3 c);
 
   static glm::vec3 closestPointPlane(glm::vec3 p, glm::vec3 a, glm::vec3 b);
+  static glm::vec2 closestPointPlane(glm::vec2 p, glm::vec2 a, glm::vec2 b);
 };
 
 } // namespace Ramuh

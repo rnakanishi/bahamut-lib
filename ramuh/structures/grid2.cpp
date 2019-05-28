@@ -53,9 +53,9 @@ void RegularGrid2::setResolution(Eigen::Array2i newResolution) {
 
   _v.resize(_resolution[0]);
   _vFaceMaterial.resize(_resolution[0]);
-  for (int i = 0; i < _resolution[0] + 1; i++) {
-    _u[i].resize(_resolution[1]);
-    _uFaceMaterial[i].resize(_resolution[1]);
+  for (int i = 0; i < _resolution[0]; i++) {
+    _v[i].resize(_resolution[1] + 1);
+    _vFaceMaterial[i].resize(_resolution[1] + 1);
   }
 
   _material.resize(_resolution[0]);
@@ -102,18 +102,18 @@ void RegularGrid2::cfl() {
 
 void RegularGrid2::macCormackVelocityAdvection() {
   std::vector<std::vector<double>> utemp, vtemp;
-  utemp.resize(_resolution.x() + 1);
+  utemp.resize(_resolution[0] + 1);
   for (auto &row : utemp) {
     row.resize(_resolution[1]);
   }
-  vtemp.resize(_resolution.x() + 1);
+  vtemp.resize(_resolution[0]);
   for (auto &row : vtemp) {
-    row.resize(_resolution[1]);
+    row.resize(_resolution[1] + 1);
   }
   double clamp[2]; // 0: min, 1: max
 // Convective term for velocity U
 #pragma omp parellel for
-  for (int i = 0; i < _resolution.x(); i++)
+  for (int i = 0; i < _resolution[0]; i++)
     for (int j = 0; j < _resolution[1]; j++) {
       Eigen::Array2d position, h(_h[0], _h[1]);
       Eigen::Vector2d velocity;
@@ -203,7 +203,6 @@ void RegularGrid2::advectGridVelocity() {
   for (auto &row : utemp) {
     row.resize(_resolution[1]);
   }
-
   vtemp.resize(_resolution.x());
   for (auto &row : vtemp) {
     row.resize(_resolution[1] + 1);
@@ -216,7 +215,7 @@ void RegularGrid2::advectGridVelocity() {
     j = ij[1];
     fluidFaces.emplace_back(std::make_tuple(i, j));
     if (i < _resolution[0] - 1 &&
-        _material[i + 1][j] == Material::FluidMaterial::AIR) {
+        _uFaceMaterial[i + 1][j] == Material::FluidMaterial::AIR) {
       fluidFaces.emplace_back(std::make_tuple(i + 1, j));
     }
   }
@@ -229,7 +228,7 @@ void RegularGrid2::advectGridVelocity() {
     Eigen::Array2i index;
     std::tie(i, j) = fluidFaces[it];
 
-    if (_material[i][j] != Material::FluidMaterial::FLUID) {
+    if (_uFaceMaterial[i][j] != Material::FluidMaterial::FLUID) {
       utemp[i][j] = _u[i][j];
       vtemp[i][j] = _v[i][j];
       continue;
@@ -247,7 +246,7 @@ void RegularGrid2::advectGridVelocity() {
     if (velocity.matrix().norm() > _tolerance && index[0] >= 0 &&
         index[1] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1]) {
-      newVelocity = _interpolateVelocityU(backPosition);
+      newVelocity = _interpolateVelocityU(position);
     }
     utemp[i][j] = (newVelocity);
   }
@@ -260,7 +259,7 @@ void RegularGrid2::advectGridVelocity() {
     j = ij[1];
     fluidFaces.emplace_back(std::make_tuple(i, j));
     if (j < _resolution[1] - 1 &&
-        _material[i][j + 1] == Material::FluidMaterial::AIR) {
+        _vFaceMaterial[i][j + 1] == Material::FluidMaterial::AIR) {
       fluidFaces.emplace_back(std::make_tuple(i, j + 1));
     }
   }
@@ -270,7 +269,11 @@ void RegularGrid2::advectGridVelocity() {
     Eigen::Array2d position, backPosition, velocity, cellCenter;
     Eigen::Array2i index;
     std::tie(i, j) = fluidFaces[it];
-
+    if (_vFaceMaterial[i][j] != Material::FluidMaterial::FLUID) {
+      utemp[i][j] = _u[i][j];
+      vtemp[i][j] = _v[i][j];
+      continue;
+    }
     double newVelocity = _v[i][j];
     position =
         Eigen::Array2d(i, j).cwiseProduct(_h) + Eigen::Array2d(_h[0] / 2, 0.0);
@@ -283,7 +286,7 @@ void RegularGrid2::advectGridVelocity() {
     if ((velocity.matrix().norm() > _tolerance) && index[0] >= 0 &&
         index[1] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1]) {
-      newVelocity = _interpolateVelocityV(backPosition);
+      newVelocity = _interpolateVelocityV(position);
     }
     vtemp[i][j] = (newVelocity);
   }
@@ -374,7 +377,7 @@ void RegularGrid2::extrapolateVelocity() {
   std::vector<std::vector<int>> processedCells;
   processedCells.resize(_resolution[0]);
   for (auto &row : processedCells) {
-    row.resize(_resolution[1] + 1);
+    row.resize(_resolution[1] + 1, 1e8);
   }
 
   // Find first wavefront of surface fluid cells
@@ -428,7 +431,7 @@ void RegularGrid2::extrapolateVelocity() {
     // continue;
 
     // Find the least distance
-    int leastDistace = 1e6;
+    int leastDistace = processedCells[i][j];
     std::vector<Eigen::Array2i> neighborCells;
     if (i > 0 && processedCells[i - 1][j] <= leastDistace) {
       if (processedCells[i - 1][j] < leastDistace) {
@@ -459,18 +462,23 @@ void RegularGrid2::extrapolateVelocity() {
       neighborCells.emplace_back(i, j + 1);
     }
     processedCells[i][j] = leastDistace + 1;
-    // Find which faces need update
+
+    // Find which faces need update (replace velocity value for that face)
+    // Since the cells are those that gave the smallest distance, check which
+    // side are they coming from
     // TODO: Change this to an enumerate
     bool faceNeedUpdate[] = {1, 1, 1, 1}; // LEFT RIGHT BOTTOM TOP
     for (auto cell : neighborCells) {
-      if (cell[0] < i)
-        faceNeedUpdate[0] = false;
-      else if (cell[0] > i)
-        faceNeedUpdate[1] = false;
-      if (cell[1] < j)
-        faceNeedUpdate[2] = false;
-      else if (cell[1] > j)
-        faceNeedUpdate[3] = false;
+      if (cell[1] == j)
+        if (cell[0] < i)
+          faceNeedUpdate[0] = false;
+        else if (cell[0] > i)
+          faceNeedUpdate[1] = false;
+      if (cell[0] == i)
+        if (cell[1] < j)
+          faceNeedUpdate[2] = false;
+        else if (cell[1] > j)
+          faceNeedUpdate[3] = false;
     }
     // Update the faces
     int nCells = neighborCells.size();

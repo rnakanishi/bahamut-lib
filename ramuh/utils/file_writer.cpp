@@ -7,7 +7,7 @@ FileWriter::FileWriter() { _stdout = false; }
 
 void FileWriter::setDebug(bool out) { _stdout = out; }
 
-void FileWriter::writeLevelSet(LevelSet2 data, const std::string &filename) {
+void FileWriter::writeLevelSet(LevelSet2 &data, const std::string &filename) {
   std::ofstream file;
   file.open(filename, std::ofstream::out);
 
@@ -31,7 +31,7 @@ void FileWriter::writeLevelSet(LevelSet2 data, const std::string &filename) {
   file.close();
 }
 
-void FileWriter::writeLevelSet(LevelSet3 data, const std::string &filename) {
+void FileWriter::writeLevelSet(LevelSet3 &data, const std::string &filename) {
   std::ofstream file;
   file.open(filename, std::ofstream::out);
 
