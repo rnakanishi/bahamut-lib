@@ -150,7 +150,7 @@ void RegularGrid2::macCormackVelocityAdvection() {
       //       }
 
       // // Convective term for velocity V
-      if (_uFaceMaterial[i][j] != Material::FluidMaterial::FLUID) {
+      if (_vFaceMaterial[i][j] != Material::FluidMaterial::FLUID) {
         vtemp[i][j] = _v[i][j];
       } else {
         double newV = _v[i][j];
@@ -377,7 +377,7 @@ void RegularGrid2::extrapolateVelocity() {
   std::vector<std::vector<int>> processedCells;
   processedCells.resize(_resolution[0]);
   for (auto &row : processedCells) {
-    row.resize(_resolution[1] + 1, 1e8);
+    row.resize(_resolution[1], 1e8);
   }
 
   // Find first wavefront of surface fluid cells

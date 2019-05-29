@@ -581,12 +581,12 @@ void RegularGrid3::addGravity() {
   for (int k = 0; k < _resolution.z(); k++) {
     for (int j = 1; j < _resolution.y(); j++) {
       for (int i = 0; i < _resolution.x(); i++) {
-        // if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
-        _v[_currBuffer][i][j][k] -= 9.81 * _dt;
-        // if (j < _resolution[1] - 1 &&
-        // _material[i][j + 1][k] == Material::FluidMaterial::AIR)
-        // _v[_currBuffer][i][j + 1][k] -= 9.81 * _dt;
-        // }extrapolateVel
+        if (_material[i][j][k] == Material::FluidMaterial::FLUID) {
+          _v[_currBuffer][i][j][k] -= 9.81 * _dt;
+          if (j < _resolution[1] - 1 &&
+              _material[i][j + 1][k] == Material::FluidMaterial::AIR)
+            _v[_currBuffer][i][j + 1][k] -= 9.81 * _dt;
+        }
       }
     }
   }
@@ -647,7 +647,7 @@ void RegularGrid3::extrapolateVelocity() {
         processedCells[i][j][k - 1] = 1;
         processingCells.push(ijkToId(i, j, k - 1));
       }
-      if (k < _resolution.y() - 1 &&
+      if (k < _resolution.z() - 1 &&
           _material[i][j][k + 1] == Material::FluidMaterial::AIR) {
         processedCells[i][j][k + 1] = 1;
         processingCells.push(ijkToId(i, j, k + 1));
@@ -675,7 +675,7 @@ void RegularGrid3::extrapolateVelocity() {
     // continue;
 
     // Find the least distance
-    int leastDistace = 1e6;
+    int leastDistace = processedCells[i][j][k];
     std::vector<Eigen::Array3i> neighborCells;
     if (i > 0 && processedCells[i - 1][j][k] <= leastDistace) {
       if (processedCells[i - 1][j][k] < leastDistace) {

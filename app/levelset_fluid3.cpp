@@ -105,9 +105,9 @@ void LevelSetFluid3::loadConfiguration(std::string filename) {
   _dataFolderName = std::string(node.child("dataFolder").child_value());
   _objFolderName = std::string(node.child("objFolder").child_value());
   int pressureOrder = node.child("pressure").attribute("order").as_int();
-  int velocityAdvectionOrder =
+  _velocityAdvectionOrder =
       node.child("velocityAdvection").attribute("order").as_int();
-  int levelsetAdvectionOrder =
+  _levelsetAdvectionOrder =
       node.child("levelsetAdvection").attribute("order").as_int();
   _isPressure2nd = (pressureOrder == 2) ? true : false;
 

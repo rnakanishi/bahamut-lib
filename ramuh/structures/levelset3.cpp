@@ -147,7 +147,7 @@ void LevelSet3::checkCellMaterial() {
     _wFaceMaterial[i][j][k + 1] = Material::FluidMaterial::AIR;
   }
 
-  // Walk through all cell/faces again to mark them as fluid
+    // Walk through all cell/faces again to mark them as fluid
 #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
@@ -646,7 +646,7 @@ void LevelSet3::solvePressure() {
 
   // Correct velocity through pressure gradient
   _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
-#pragma omp parallel for
+#pragma omp for
   for (int id = 0; id < cellCount(); id++) {
     Eigen::Array3i ijk = idToijk(id);
     int i, j, k;

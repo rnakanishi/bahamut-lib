@@ -7,7 +7,7 @@ x = linspace(0, 1, N);
 figure
 i = 5;
 
-for i = 0:100
+for i = 0:30
     z = dlmread(['../results/datatest/' int2str(i)]);
     clf;
     contourf(X, Y, z, [-0 0]);
@@ -16,7 +16,7 @@ for i = 0:100
     set(gcf, 'Renderer', 'OpenGL');
     set(gcf,'Position',[0 0 800 601]);
     % axis equal tight
-    pause(0)
+    pause(1.0/60)
     % print( ["animation/" int2str(i) ".png" ])
     % saveas(gcf, ['animation/' int2str(i) '.png'])
 end

@@ -1,4 +1,3 @@
-
 v = dlmread('../results/datatest/0');
 N = round(length(v)^(1/3));
 
@@ -8,10 +7,10 @@ x = linspace(0, 1, N);
 figure
 i = 5;
 rotate3d on;
-a=5
+a = 5
 % figure('Renderer', 'painters', 'Position', [10 10 900 600])
 for i = 0:25
-    [az,el] = view();
+    [az, el] = view();
     v = dlmread(['../results/datatest/' int2str(i)]);
     v = reshape(v, N, N, N);
     v = permute(v, [2 3 1]);
@@ -25,7 +24,7 @@ for i = 0:25
     set(p, 'EdgeColor', 'none');
     set(p, 'FaceLighting', 'phong');
     title(int2str(i));
-    view(az,el);
+    view(az, el);
     axis([0 1 0 1 0 1], 'square');
     set(get(gca, 'XLabel'), 'String', 'Z axis');
     set(get(gca, 'YLabel'), 'String', 'X axis');
