@@ -130,7 +130,7 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
 
 void LevelSet3::checkCellMaterial() {
   _fluidCells.clear();
-  // Mark all cells and faces as air
+// Mark all cells and faces as air
 #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
@@ -147,7 +147,7 @@ void LevelSet3::checkCellMaterial() {
     _wFaceMaterial[i][j][k + 1] = Material::FluidMaterial::AIR;
   }
 
-    // Walk through all cell/faces again to mark them as fluid
+// Walk through all cell/faces again to mark them as fluid
 #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
@@ -177,7 +177,7 @@ void LevelSet3::integrateLevelSet() {
   Matrix3<double> oldPhi;
   oldPhi.changeSize(_resolution);
 
-#pragma omp for
+#pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
@@ -229,7 +229,7 @@ void LevelSet3::macCormackAdvection() {
   newPhi.changeSize(_resolution);
   phiChanged.changeSize(_resolution, false);
   Eigen::Array3i resolution(_resolution[0], _resolution[1], _resolution[2]);
-#pragma omp for
+#pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
@@ -646,7 +646,7 @@ void LevelSet3::solvePressure() {
 
   // Correct velocity through pressure gradient
   _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
-#pragma omp for
+#pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     Eigen::Array3i ijk = idToijk(id);
     int i, j, k;
@@ -666,17 +666,34 @@ void LevelSet3::solvePressure() {
         continue;
     }
     double pressure1, pressure2;
+    double weight;
     auto it = idMap.find(id);
 
     pressure1 = (it == idMap.end()) ? 0.0 : pressure[it->second];
     pressure2 = 0.0;
     if (i > 0) {
+      int neighId = ijkToId(i - 1, j, k);
       auto it = idMap.find(ijkToId(i - 1, j, k));
       if (it == idMap.end())
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _u[_currBuffer][i][j][k] -= (_dt * (pressure1 - pressure2) / _h.x());
+      if (_isPressureSecondOrder &&
+          std::signbit(_phi[_currBuffer][i][j][k]) !=
+              std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+        if (_phi[_currBuffer][i][j][k] <= 0)
+          weight = -_phi[_currBuffer][i][j][k] /
+                   std::fabs(_phi[_currBuffer][i - 1][j][k] -
+                             _phi[_currBuffer][i][j][k]);
+        else
+          weight = -_phi[_currBuffer][i - 1][j][k] /
+                   std::fabs(_phi[_currBuffer][i - 1][j][k] -
+                             _phi[_currBuffer][i][j][k]);
+
+      } else
+        weight = 1.0;
+      _u[_currBuffer][i][j][k] -=
+          (_dt * (pressure1 - pressure2) / (_h.x() * weight));
       if (std::isnan(_u[_currBuffer][i][j][k]) ||
           std::isinf(_u[_currBuffer][i][j][k])) {
         std::cerr << "Infinite velocity component";
@@ -685,13 +702,29 @@ void LevelSet3::solvePressure() {
           std::max(_maxVelocity[0], std::fabs(_u[_currBuffer][i][j][k]));
     }
     pressure2 = 0.0;
+    int neighId = ijkToId(i, j - 1, k);
     if (j > 0) {
       auto it = idMap.find(ijkToId(i, j - 1, k));
       if (it == idMap.end())
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _v[_currBuffer][i][j][k] -= (_dt * (pressure1 - pressure2) / _h.y());
+      if (_isPressureSecondOrder &&
+          std::signbit(_phi[_currBuffer][i][j][k]) !=
+              std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+        if (_phi[_currBuffer][i][j][k] <= 0)
+          weight = -_phi[_currBuffer][i][j][k] /
+                   std::fabs(_phi[_currBuffer][i][j - 1][k] -
+                             _phi[_currBuffer][i][j][k]);
+        else
+          weight = -_phi[_currBuffer][i][j - 1][k] /
+                   std::fabs(_phi[_currBuffer][i][j - 1][k] -
+                             _phi[_currBuffer][i][j][k]);
+
+      } else
+        weight = 1.0;
+      _v[_currBuffer][i][j][k] -=
+          (_dt * (pressure1 - pressure2) / (_h.y() * weight));
       if (std::isnan(_v[_currBuffer][i][j][k]) ||
           std::isinf(_v[_currBuffer][i][j][k])) {
         std::cerr << "Infinite velocity component";
@@ -706,7 +739,22 @@ void LevelSet3::solvePressure() {
         pressure2 = 0.0;
       else
         pressure2 = pressure[it->second];
-      _w[_currBuffer][i][j][k] -= (_dt * (pressure1 - pressure2) / _h.z());
+      if (_isPressureSecondOrder &&
+          std::signbit(_phi[_currBuffer][i][j][k]) !=
+              std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+        if (_phi[_currBuffer][i][j][k] <= 0)
+          weight = -_phi[_currBuffer][i][j][k] /
+                   std::fabs(_phi[_currBuffer][i][j][k - 1] -
+                             _phi[_currBuffer][i][j][k]);
+        else
+          weight = -_phi[_currBuffer][i][j][k - 1] /
+                   std::fabs(_phi[_currBuffer][i][j][k - 1] -
+                             _phi[_currBuffer][i][j][k]);
+
+      } else
+        weight = 1.0;
+      _w[_currBuffer][i][j][k] -=
+          (_dt * (pressure1 - pressure2) / (_h.z() * weight));
       if (std::isnan(_w[_currBuffer][i][j][k]) ||
           std::isinf(_w[_currBuffer][i][j][k])) {
         std::cerr << "Infinite velocity component";
@@ -839,8 +887,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -865,8 +914,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -891,8 +941,9 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 &&
+        std::signbit(cellSign) !=
+            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(

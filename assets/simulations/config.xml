@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <simulation>
     <resolution xyz="40"/>
-    <maxFrames value="30" />
+    <maxFrames value="250" />
     <timestep dt="0.01" />
-    <pressure order="1"/>
+    <pressure order="2"/>
     <levelsetAdvection order="2" />
     <velocityAdvection order="2" />
 

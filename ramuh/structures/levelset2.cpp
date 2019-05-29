@@ -159,7 +159,7 @@ void LevelSet2::macCormackAdvection() {
     row.resize(_resolution.y(), false);
   }
   Eigen::Array2i resolution(_resolution[0], _resolution[1]);
-#pragma omp for
+#pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array2i ij = idToij(_id);
     int i, j;
@@ -227,7 +227,7 @@ void LevelSet2::integrateLevelSet() {
     row.resize(_resolution.y());
   }
 
-#pragma omp for
+#pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array2i ij = idToij(_id);
     int i, j;
@@ -465,7 +465,6 @@ void LevelSet2::solvePressure() {
   Eigen::VectorXd divergent, pressure;
   Eigen::Array2d h(_h[0], _h[1]);
   std::vector<Eigen::Triplet<double>> triplets;
-  std::map<std::pair<int, int>, double> cellWeights;
 
   std::map<int, int> idMap;
   std::function<int(int)> _getMapId = [&](int cellId) {
@@ -486,7 +485,7 @@ void LevelSet2::solvePressure() {
   // Solve pressure Poisson equation
   divergent = Eigen::VectorXd::Zero(cellCount());
   int ghostId = _getMapId(-1);
-#pragma omp for
+#pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array2i ij = idToij(_id);
     int i, j;
@@ -509,8 +508,6 @@ void LevelSet2::solvePressure() {
       int neighId = _getMapId(ijToId(i - 1, j));
       if (_phi[i - 1][j] < 0.0) {
         centerWeight += 1 / h2;
-        cellWeights[std::make_pair(id, neighId)] = 1;
-        cellWeights[std::make_pair(neighId, id)] = 1;
         threadTriplet.emplace_back(id, _getMapId(ijToId(i - 1, j)), -1 / (h2));
       } else {
         if (_isPressure2nd) {
@@ -520,8 +517,6 @@ void LevelSet2::solvePressure() {
           // theta = (surface - center).matrix().norm() / _h.x();
           theta = -_phi[i][j] / (_phi[i - 1][j] - _phi[i][j]);
           centerWeight += (1 / (h2 * theta));
-          cellWeights[std::make_pair(id, neighId)] = theta;
-          cellWeights[std::make_pair(neighId, id)] = theta;
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
@@ -534,8 +529,6 @@ void LevelSet2::solvePressure() {
       int neighId = _getMapId(ijToId(i - 1, j));
       if (_phi[i + 1][j] < 0.0) {
         centerWeight += 1 / h2;
-        cellWeights[std::make_pair(id, neighId)] = 1;
-        cellWeights[std::make_pair(neighId, id)] = 1;
         threadTriplet.emplace_back(id, _getMapId(ijToId(i + 1, j)), -1 / (h2));
       } else {
         if (_isPressure2nd) {
@@ -545,8 +538,6 @@ void LevelSet2::solvePressure() {
           // theta = (surface - center).matrix().norm() / _h.x();
           theta = -_phi[i][j] / (_phi[i + 1][j] - _phi[i][j]);
           centerWeight += (1 / (h2 * theta));
-          cellWeights[std::make_pair(id, neighId)] = theta;
-          cellWeights[std::make_pair(neighId, id)] = theta;
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
@@ -559,8 +550,6 @@ void LevelSet2::solvePressure() {
       int neighId = _getMapId(ijToId(i - 1, j));
       if (_phi[i][j - 1] < 0.0) {
         centerWeight += 1 / h2;
-        cellWeights[std::make_pair(id, neighId)] = 1;
-        cellWeights[std::make_pair(neighId, id)] = 1;
         threadTriplet.emplace_back(id, _getMapId(ijToId(i, j - 1)), -1 / (h2));
       } else {
         if (_isPressure2nd) {
@@ -570,8 +559,6 @@ void LevelSet2::solvePressure() {
           // theta = (surface - center).matrix().norm() / _h.y();
           theta = -_phi[i][j] / (_phi[i][j - 1] - _phi[i][j]);
           centerWeight += (1 / (h2 * theta));
-          cellWeights[std::make_pair(id, neighId)] = theta;
-          cellWeights[std::make_pair(neighId, id)] = theta;
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
@@ -584,8 +571,6 @@ void LevelSet2::solvePressure() {
       int neighId = _getMapId(ijToId(i - 1, j));
       if (_phi[i][j + 1] < 0.0) {
         centerWeight += 1 / h2;
-        cellWeights[std::make_pair(id, neighId)] = 1;
-        cellWeights[std::make_pair(neighId, id)] = 1;
         threadTriplet.emplace_back(id, _getMapId(ijToId(i, j + 1)), -1 / (h2));
       } else {
         if (_isPressure2nd) {
@@ -595,8 +580,6 @@ void LevelSet2::solvePressure() {
           // theta = (surface - center).matrix().norm() / _h.y();
           theta = -_phi[i][j] / (_phi[i][j + 1] - _phi[i][j]);
           centerWeight += (1 / (h2 * theta));
-          cellWeights[std::make_pair(id, neighId)] = theta;
-          cellWeights[std::make_pair(neighId, id)] = theta;
           threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
@@ -683,11 +666,14 @@ void LevelSet2::solvePressure() {
         pressure2 = pressure[it->second];
       }
       if (_isPressure2nd &&
-          std::signbit(_phi[i][j]) != std::signbit(_phi[i - 1][j]))
-        weight = _phi[i][j] / std::fabs(_phi[i - 1][j] - _phi[i][j]);
-      else
+          std::signbit(_phi[i][j]) != std::signbit(_phi[i - 1][j])) {
+        if (_phi[i][j] < 0)
+          weight = -_phi[i][j] / std::fabs(_phi[i - 1][j] - _phi[i][j]);
+        else
+          weight = -_phi[i - 1][j] / std::fabs(_phi[i - 1][j] - _phi[i][j]);
+      } else
         weight = 1.0;
-      _u[i][j] -= (_dt * (pressure1 - pressure2) / _h.x()) * weight;
+      _u[i][j] -= (_dt * (pressure1 - pressure2) / (_h.x() * weight));
       if (std::isnan(_u[i][j]) || std::isinf(_u[i][j])) {
         std::cerr << "Infinite velocity component";
       }
@@ -703,11 +689,14 @@ void LevelSet2::solvePressure() {
         pressure2 = pressure[it->second];
       }
       if (_isPressure2nd &&
-          std::signbit(_phi[i][j]) != std::signbit(_phi[i][j - 1]))
-        weight = _phi[i][j] / std::fabs(_phi[i][j - 1] - _phi[i][j]);
-      else
+          std::signbit(_phi[i][j]) != std::signbit(_phi[i][j - 1])) {
+        if (_phi[i][j] < 0)
+          weight = -_phi[i][j] / std::fabs(_phi[i][j - 1] - _phi[i][j]);
+        else
+          weight = -_phi[i][j - 1] / std::fabs(_phi[i][j - 1] - _phi[i][j]);
+      } else
         weight = 1.0;
-      _v[i][j] -= (_dt * (pressure1 - pressure2) / _h.y()) * weight;
+      _v[i][j] -= (_dt * (pressure1 - pressure2) / (_h.y() * weight));
       if (std::isnan(_v[i][j]) || std::isinf(_v[i][j])) {
         std::cerr << "Infinite velocity component";
       }
