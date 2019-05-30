@@ -629,7 +629,7 @@ void LevelSet2::solvePressure() {
   //------------------------------------------------------------------
   // Correct velocity through pressure gradient
   _maxVelocity[0] = _maxVelocity[1] = -1e8;
-#pragma omp for
+#pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     Eigen::Array2i ij = idToij(id);
     int i, j;

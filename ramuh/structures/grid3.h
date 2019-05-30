@@ -34,6 +34,11 @@ public:
   /// \return Vector3d spacing
   Vector3d h();
 
+/**
+ * @brief Return the tolerance used for this class errors
+ * 
+ * @return double tolerance value
+**/
   double tolerance();
 
   void setTolerance(double tol);
@@ -67,9 +72,13 @@ public:
   /// \param newResolution
   virtual void setResolution(Vector3i newResolution);
 
-  ///
-  /// Computes velocities divergent in cell center and then solves pressure
-  /// Poisson equation. After, updates the velocity values.
+  /**
+   * @brief Perform Poisson equation solver for pressure and divergent values.
+   *If the second order attribute for free surface is set, then it compute the
+   *weights using distance to the surface in proper cells.
+   * This method also computes the gradient update for velociies components
+   *
+   **/
   virtual void solvePressure();
 
   ///
@@ -86,20 +95,49 @@ public:
   /// Make grid velocity advection using a semi lagrangian mehtod
   void advectGridVelocity();
 
+  /**
+   * @brief Perform MacCormack advection step
+   *
+   *  For every velocity position, perform a backward step, interpolate the
+   *velocity and then perform a forward step. The error obtained when evaluating
+   *the values is used to correct velocities.
+   * A clamping value is also performed
+   *to avoid overshooting the data.
+   **/
   void macComarckVelocityAdvection();
 
-  ///
-  /// Initialize velocities
+  /**
+   * @brief Set the Velocity object
+   *
+   **/
   void setVelocity();
 
+  /**
+   * @brief Perform value extrapolation for velocity. Starting from surface
+   *cells, propagates the velocity components through air copying velocity value
+   *from the nearest neighbor cell from the surface.
+   *
+   **/
   void extrapolateVelocity();
 
   void writeFaceVelocity(const char *filename);
 
   void readFaceVelocity(const char *filename);
 
+  /**
+   * @brief Compute cfl condition based on maximum velocity value. This method
+   *adjust _dt attribute accordingly
+   *
+   **/
   void cfl();
 
+  /**
+   * @brief This method should be used with cfl() method. Evaluates the frame
+   *timestep and return true if a full frame was processed.
+   *
+   * @return true
+   * @return false
+   **/
   bool advanceTime();
 
   void swapBuffers();

@@ -147,6 +147,14 @@ double Interpolator::cubic(const double position,
   double dk = values[1];
 
   double result = ak * t3 + bk * t2 + ck * t + dk;
+
+  double clamp[2] = {1e8, -1e8};
+  for (auto value : values) {
+    clamp[0] = std::min(clamp[0], value);
+    clamp[1] = std::max(clamp[1], value);
+  }
+  result = std::min(clamp[1], std::max(clamp[0], result));
+
   return result;
 }
 

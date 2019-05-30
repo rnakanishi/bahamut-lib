@@ -130,6 +130,8 @@ void LevelSet3::addCubeSurface(Vector3d lower, Vector3d upper) {
 
 void LevelSet3::checkCellMaterial() {
   _fluidCells.clear();
+  _surfaceCells.clear();
+
 // Mark all cells and faces as air
 #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
@@ -163,9 +165,13 @@ void LevelSet3::checkCellMaterial() {
       _uFaceMaterial[i + 1][j][k] = Material::FluidMaterial::FLUID;
       _vFaceMaterial[i][j + 1][k] = Material::FluidMaterial::FLUID;
       _wFaceMaterial[i][j][k + 1] = Material::FluidMaterial::FLUID;
-
 #pragma omp critical
-      { _fluidCells.emplace_back(_id); }
+      {
+        if (!_hasOppositeNeighborsWithMaterial(_id,
+                                               Material::FluidMaterial::FLUID))
+          _surfaceCells.emplace_back(_id);
+        _fluidCells.emplace_back(_id);
+      }
     }
   }
 } // namespace Ramuh
@@ -250,6 +256,7 @@ void LevelSet3::macCormackAdvection() {
     clamp[1] = -1e8;
 
     // Find the point as if it was in previous timestep and work with it
+    // Semi lagrangian advection
     position = Eigen::Array3d(i, j, k).cwiseProduct(h) + (h / 2.0);
     velocity[0] = _interpolateVelocityU(position);
     velocity[1] = _interpolateVelocityV(position);
@@ -257,15 +264,22 @@ void LevelSet3::macCormackAdvection() {
     position -= velocity.array() * _dt;
 
     index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+    // Check if the index of the position is not a surface
+    bool isSurface = false;
+    if (std::find(_surfaceCells.begin(), _surfaceCells.end(), _id) !=
+        _surfaceCells.end()) {
+      isSurface = true;
+    }
+
     // TODO: look for a better solution
-    if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
-        index[2] >= 0 && index[0] < _resolution[0] &&
+    if (!isSurface && (velocity.norm() > _tolerance) && index[0] >= 0 &&
+        index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1] && index[2] < _resolution[2]) {
 
       double phi_n;
       int phiSignal = (_phi[_currBuffer][i][j][k] >= 0) ? 1 : -1;
       phi_n = _interpolatePhi(position, clamp[0], clamp[1]);
-      // Advect forward in time the value there
+      // Advect forward in time the value at the position
       velocity[0] = _interpolateVelocityU(position);
       velocity[1] = _interpolateVelocityV(position);
       velocity[2] = _interpolateVelocityW(position);
@@ -285,7 +299,9 @@ void LevelSet3::macCormackAdvection() {
         std::cerr << "Interpolated phi_n: " << phi_n << std::endl;
         throw("levelSet3::macComarckAdvection\n");
       }
-    } else
+    } else if (isSurface)
+      newPhi[i][j][k] = _interpolatePhi(position);
+    else
       newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
   }
 #pragma omp parallel for
@@ -887,9 +903,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -914,9 +929,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -941,9 +955,8 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 && std::signbit(cellSign) !=
+                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <simulation>
-    <resolution xyz="40"/>
+    <resolution xyz="32"/>
     <maxFrames value="250" />
     <timestep dt="0.01" />
     <pressure order="2"/>

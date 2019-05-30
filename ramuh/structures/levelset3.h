@@ -56,8 +56,19 @@ public:
    **/
   TriangleMesh marchingTetrahedra();
 
+  /**
+   * @brief Set the Pressure Second Order value. If true, then second order for
+   *free surface will be used
+   *
+   * @param value
+   **/
   void setPressureSecondOrder(bool value);
 
+  /**
+   * @brief For each cell, evaluates levelset values. If a levelset is zero or
+   *negative, then it is set as fluid cell.
+   *
+   **/
   void checkCellMaterial();
 
   void printVertexVelocity();
@@ -89,6 +100,13 @@ protected:
    **/
   void _triangulate(std::vector<glm::ivec3> vertices, TriangleMesh &mesh);
 
+  /**
+   * @brief Interpolate phi values using proper cubic interpolator. This method
+   *builds the stencil for interpolation based on @position value.
+   *
+   * @param position Location where the value for phi is wanted
+   * @return double interpolated value
+   **/
   double _interpolatePhi(Eigen::Array3d position);
   double _interpolatePhi(Eigen::Array3d position, double &min, double &max);
   double _interpolatePhi(Eigen::Array3d position, int signal);
