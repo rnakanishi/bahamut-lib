@@ -12,7 +12,7 @@ figure
 i = 5;
 rotate3d on;
 % figure('Renderer', 'painters', 'Position', [10 10 900 600])
-for i = 0:80
+for i = 0:132
     [az, el] = view();
     v = dlmread(['../results/datatest/' int2str(i)]);
     v = reshape(v, N, N, N);

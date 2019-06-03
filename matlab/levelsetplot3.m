@@ -7,9 +7,10 @@ x = linspace(0, 1, N);
 figure
 i = 5;
 rotate3d on;
+az = -37.5;
+el = 10;
 % figure('Renderer', 'painters', 'Position', [10 10 900 600])
-for i = 0:123
-    [az, el] = view();
+for i =0:300
     v = dlmread(['../results/datatest/' int2str(i)]);
     v = reshape(v, N, N, N);
     v = permute(v, [2 3 1]);
@@ -30,8 +31,9 @@ for i = 0:123
     set(get(gca, 'ZLabel'), 'String', 'Y axis');
 
     % axis equal tight
-    pause(0.05);
+    pause(0.01);
     % saveas(gcf, ['animation3d/' int2str(i) '.png'])
+    [az, el] = view();
 end
 
 % im = imread ('animation.pdf', 'Index', 'all');

@@ -235,18 +235,19 @@ void LevelSet3::macCormackAdvection() {
   newPhi.changeSize(_resolution);
   phiChanged.changeSize(_resolution, false);
   Eigen::Array3i resolution(_resolution[0], _resolution[1], _resolution[2]);
-#pragma omp parallel for
-  for (int _id = 0; _id < cellCount(); _id++) {
+#pragma omp for
+  for (int it = 0; it < cellCount(); it++) {
+    int _id = it;
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
 
-    // if (std::fabs(_phi[_currBuffer][i][j][k]) > 5 * _h[0]) {
-    //   newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
-    //   continue;
-    // }
+    if (std::fabs(_phi[_currBuffer][i][j][k]) > 5 * _h[0]) {
+      newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
+      continue;
+    }
     Eigen::Array3d position, h(_h[0], _h[1], _h[2]);
     Eigen::Vector3d velocity;
     Eigen::Array3i index;
@@ -264,33 +265,43 @@ void LevelSet3::macCormackAdvection() {
     position -= velocity.array() * _dt;
 
     index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+    index[0] = std::max(0, std::min(resolution[0] - 1, index[0]));
+    index[1] = std::max(0, std::min(resolution[0] - 1, index[1]));
+    index[2] = std::max(0, std::min(resolution[0] - 1, index[2]));
     // Check if the index of the position is not a surface
-    bool isSurface = false;
-    if (std::find(_surfaceCells.begin(), _surfaceCells.end(), _id) !=
-        _surfaceCells.end()) {
-      isSurface = true;
-    }
+    // bool isSurface = false;
+    // int id = ijkToId(index[0], index[1], index[2]);
+    // if (std::find(_surfaceCells.begin(), _surfaceCells.end(), _id) !=
+    //         _surfaceCells.end() ||
+    //     std::find(_surfaceCells.begin(), _surfaceCells.end(), id) !=
+    //         _surfaceCells.end() ||
+    //     _material[index[0]][index[1]][index[2]] ==
+    //         Material::FluidMaterial::AIR) {
+    //   isSurface = true;
+    // }
 
     // TODO: look for a better solution
-    if (!isSurface && (velocity.norm() > _tolerance) && index[0] >= 0 &&
-        index[1] >= 0 && index[2] >= 0 && index[0] < _resolution[0] &&
+    if ((velocity.norm() > _tolerance) && index[0] >= 0 && index[1] >= 0 &&
+        index[2] >= 0 && index[0] < _resolution[0] &&
         index[1] < _resolution[1] && index[2] < _resolution[2]) {
 
       double phi_n;
-      int phiSignal = (_phi[_currBuffer][i][j][k] >= 0) ? 1 : -1;
       phi_n = _interpolatePhi(position, clamp[0], clamp[1]);
+
+      // if (isSurface) {
+      //   newPhi[i][j][k] = std::max(clamp[0], std::min(clamp[1], phi_n));
+      // } else {
       // Advect forward in time the value at the position
       velocity[0] = _interpolateVelocityU(position);
       velocity[1] = _interpolateVelocityV(position);
       velocity[2] = _interpolateVelocityW(position);
       position += velocity.array() * _dt;
+
       try {
         double phi_n1_hat = _interpolatePhi(position);
-        // double phi_n1_hat = _interpolatePhi(position, phiSignal);
         // Analyse the error from original to the forward advected
         double error = 0.5 * (_phi[_currBuffer][i][j][k] - phi_n1_hat);
         newPhi[i][j][k] = std::max(clamp[0], std::min(clamp[1], phi_n + error));
-        // newPhi[i][j][k] = phi_n + error;
       } catch (const char *error) {
         std::cerr << error;
         std::cerr << "Velocity " << velocity.transpose() << std::endl;
@@ -299,8 +310,12 @@ void LevelSet3::macCormackAdvection() {
         std::cerr << "Interpolated phi_n: " << phi_n << std::endl;
         throw("levelSet3::macComarckAdvection\n");
       }
-    } else if (isSurface)
-      newPhi[i][j][k] = _interpolatePhi(position);
+      if (!(newPhi[i][j][k] > clamp[0] && newPhi[i][j][k] < clamp[1]))
+        newPhi[i][j][k] = phi_n;
+    }
+    // }
+    // else if (isSurface)
+    //   newPhi[i][j][k] = _interpolatePhi(position);
     else
       newPhi[i][j][k] = _phi[_currBuffer][i][j][k];
   }
@@ -467,7 +482,8 @@ void LevelSet3::solvePressure() {
   divergent = Eigen::VectorXd::Zero(cellCount());
   int ghostId = _getMapId(-1);
 #pragma omp parallel for
-  for (int _id = 0; _id < cellCount(); _id++) {
+  for (int it = 0; it < _fluidCells.size(); it++) {
+    int _id = _fluidCells[it];
     Eigen::Array3i ijk = idToijk(_id);
     int i, j, k;
     i = ijk[0];
@@ -663,6 +679,7 @@ void LevelSet3::solvePressure() {
   // Correct velocity through pressure gradient
   _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
 #pragma omp parallel for
+  // TODO: Change to fluid FACES instead of CELLS
   for (int id = 0; id < cellCount(); id++) {
     Eigen::Array3i ijk = idToijk(id);
     int i, j, k;

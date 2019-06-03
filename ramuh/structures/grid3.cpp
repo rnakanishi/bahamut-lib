@@ -173,6 +173,9 @@ void RegularGrid3::macComarckVelocityAdvection() {
             double u_n1_hat = _interpolateVelocityU(position);
             double error = 0.5 * (_u[_currBuffer][i][j][k] - u_n1_hat);
             newU = u_n + error;
+            if (!(newU > clamp[0] && newU < clamp[1]))
+              newU = u_n;
+
           } else {
             newU = _u[_currBuffer][i][j][k];
           }
@@ -207,6 +210,9 @@ void RegularGrid3::macComarckVelocityAdvection() {
             double v_n1_hat = _interpolateVelocityV(position);
             double error = 0.5 * (_v[_currBuffer][i][j][k] - v_n1_hat);
             newV = v_n + error;
+            if (!(newV > clamp[0] && newV < clamp[1]))
+              newV = v_n;
+
           } else {
             newV = _v[_currBuffer][i][j][k];
           }
@@ -241,6 +247,9 @@ void RegularGrid3::macComarckVelocityAdvection() {
             double w_n1_hat = _interpolateVelocityW(position);
             double error = 0.5 * (_w[_currBuffer][i][j][k] - w_n1_hat);
             newW = w_n + error;
+            if (!(newW > clamp[0] && newW < clamp[1]))
+              newW = w_n;
+
           } else {
             newW = _w[_currBuffer][i][j][k];
           }
