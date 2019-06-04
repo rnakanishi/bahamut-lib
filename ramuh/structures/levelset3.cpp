@@ -310,7 +310,7 @@ void LevelSet3::macCormackAdvection() {
         std::cerr << "Interpolated phi_n: " << phi_n << std::endl;
         throw("levelSet3::macComarckAdvection\n");
       }
-      if (!(newPhi[i][j][k] > clamp[0] && newPhi[i][j][k] < clamp[1]))
+      if (!(newPhi[i][j][k] >= clamp[0] && newPhi[i][j][k] <= clamp[1]))
         newPhi[i][j][k] = phi_n;
     }
     // }
@@ -729,7 +729,11 @@ void LevelSet3::solvePressure() {
           (_dt * (pressure1 - pressure2) / (_h.x() * weight));
       if (std::isnan(_u[_currBuffer][i][j][k]) ||
           std::isinf(_u[_currBuffer][i][j][k])) {
-        std::cerr << "Infinite velocity component";
+        std::cerr << "computePressure: Infinite u velocity component\n";
+        std::cerr << "Pressures: " << pressure1 << " - " << pressure2
+                  << std::endl;
+        std::cerr << "Weight: " << weight << ": " << _phi[_currBuffer][i][j][k]
+                  << std::endl;
       }
       _maxVelocity[0] =
           std::max(_maxVelocity[0], std::fabs(_u[_currBuffer][i][j][k]));
@@ -760,7 +764,11 @@ void LevelSet3::solvePressure() {
           (_dt * (pressure1 - pressure2) / (_h.y() * weight));
       if (std::isnan(_v[_currBuffer][i][j][k]) ||
           std::isinf(_v[_currBuffer][i][j][k])) {
-        std::cerr << "Infinite velocity component";
+        std::cerr << "computePressure: Infinite v velocity component";
+        std::cerr << "Pressures: " << pressure1 << " - " << pressure2
+                  << std::endl;
+        std::cerr << "Weight: " << weight << ": " << _phi[_currBuffer][i][j][k]
+                  << std::endl;
       }
       _maxVelocity[1] =
           std::max(_maxVelocity[1], std::fabs(_v[_currBuffer][i][j][k]));
@@ -790,14 +798,19 @@ void LevelSet3::solvePressure() {
           (_dt * (pressure1 - pressure2) / (_h.z() * weight));
       if (std::isnan(_w[_currBuffer][i][j][k]) ||
           std::isinf(_w[_currBuffer][i][j][k])) {
-        std::cerr << "Infinite velocity component";
+        std::cerr << "computePressure: Infinite w velocity component";
+        std::cerr << "Pressures: " << pressure1 << " - " << pressure2
+                  << std::endl;
+        std::cerr << "Weight: " << weight << ": " << _phi[_currBuffer][i][j][k]
+                  << std::endl;
       }
       _maxVelocity[2] =
           std::max(_maxVelocity[2], std::fabs(_w[_currBuffer][i][j][k]));
     }
   }
   if (_maxVelocity[0] > 1e4 || _maxVelocity[1] > 1e4 || _maxVelocity[2] > 1e4) {
-    std::cerr << "Vellocity too high\n";
+    std::cerr << "Vellocity too high: " << _maxVelocity[0] << _maxVelocity[1]
+              << _maxVelocity[2] << std::endl;
     exit(-41);
   }
 
@@ -903,6 +916,7 @@ void LevelSet3::redistance() {
     int nintersecs = 0;
     double cellPhi = _phi[_currBuffer][i][j][k];
     int cellSign = (cellPhi >= 0) ? 1 : -1;
+    auto isPositive = std::signbit(cellSign);
     if (cellPhi == 0)
       cellSign = 1;
 
@@ -910,8 +924,7 @@ void LevelSet3::redistance() {
     double theta = 1e8;
     // Find whether edge has an intersection with fluid surface
     if (i < _resolution.x() - 1 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i + 1][j][k])) {
+        isPositive != std::signbit(_phi[_currBuffer][i + 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -920,8 +933,7 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 && isPositive != std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -936,8 +948,7 @@ void LevelSet3::redistance() {
       nintersecs++;
     }
     if (j < _resolution.y() - 1 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j + 1][k])) {
+        isPositive != std::signbit(_phi[_currBuffer][i][j + 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -946,8 +957,7 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 && isPositive != std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -962,8 +972,7 @@ void LevelSet3::redistance() {
       nintersecs++;
     }
     if (k < _resolution.z() - 1 &&
-        std::signbit(cellSign) !=
-            std::signbit(_phi[_currBuffer][i][j][k + 1])) {
+        isPositive != std::signbit(_phi[_currBuffer][i][j][k + 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -972,8 +981,7 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 && std::signbit(cellSign) !=
-                     std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 && isPositive != std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -1129,9 +1137,9 @@ TriangleMesh LevelSet3::marchingTetrahedra() {
   TriangleMesh mesh;
 
   // Look for octants that have different levelset signal
-  for (int i = 0; i < _resolution.x() - 1; i++)
-    for (int j = 0; j < _resolution.y() - 1; j++)
-      for (int k = 0; k < _resolution.z() - 1; k++) {
+  for (int i = -1; i < _resolution.x(); i++)
+    for (int j = -1; j < _resolution.y(); j++)
+      for (int k = -1; k < _resolution.z(); k++) {
         std::vector<glm::ivec3> tetraIndex;
         // Tetrahedron 0127
         tetraIndex.clear();
@@ -1181,7 +1189,6 @@ TriangleMesh LevelSet3::marchingTetrahedra() {
         tetraIndex.emplace_back(i + 1, j + 1, k + 1);
         _triangulate(tetraIndex, mesh);
       }
-  // Prepare tetrahedra decomposition and triangulate them
 
   return mesh;
 }
@@ -1190,142 +1197,279 @@ void LevelSet3::_triangulate(std::vector<glm::ivec3> vertices,
                              TriangleMesh &mesh) {
   // Check if vertices are in proper order and invert them if necessary
   glm::vec3 coords[4];
+  double values[4];
   glm::vec3 h(_h[0], _h[1], _h[2]);
-  coords[0] = glm::vec3(vertices[0]) * h + h / 2.0f;
-  coords[1] = glm::vec3(vertices[1]) * h + h / 2.0f;
-  coords[2] = glm::vec3(vertices[2]) * h + h / 2.0f;
-  coords[3] = glm::vec3(vertices[3]) * h + h / 2.0f;
-  if (glm::dot(glm::cross(coords[1] - coords[0], coords[2] - coords[0]),
-               coords[3] - coords[0]) > 0) {
-    glm::ivec3 aux = vertices[1];
-    vertices[1] = vertices[2];
-    vertices[2] = aux;
+  for (int vert = 0; vert < 4; vert++) {
+    coords[vert] = glm::vec3(vertices[vert]) * h + h / 2.0f;
+    if ((vertices[vert][0] >= 0 && vertices[vert][0] < _resolution.x()) &&
+        (vertices[vert][1] >= 0 && vertices[vert][1] < _resolution.y()) &&
+        (vertices[vert][2] >= 0 && vertices[vert][2] < _resolution.z()))
+      values[vert] = _phi[_currBuffer][vertices[vert][0]][vertices[vert][1]]
+                         [vertices[vert][2]];
+    else {
+      int i, j, k;
+      i = std::max(0, std::min(_resolution.x() - 1, vertices[vert][0]));
+      j = std::max(0, std::min(_resolution.y() - 1, vertices[vert][1]));
+      k = std::max(0, std::min(_resolution.z() - 1, vertices[vert][2]));
+
+      if (vertices[vert][0] < 0) {
+        coords[vert][0] += h[0] / 2.f;
+        values[vert] = (_phi[_currBuffer][i][j][k] <= 0)
+                           ? -_phi[_currBuffer][i][j][k]
+                           : _phi[_currBuffer][i][j][k];
+      }
+      if (vertices[vert][1] < 0) {
+        coords[vert][1] += h[1] / 2.f;
+        values[vert] = (_phi[_currBuffer][i][j][k] <= 0)
+                           ? -_phi[_currBuffer][i][j][k]
+                           : _phi[_currBuffer][i][j][k];
+      }
+      if (vertices[vert][2] < 0) {
+        coords[vert][2] += h[2] / 2.f;
+        values[vert] = (_phi[_currBuffer][i][j][k] <= 0)
+                           ? -_phi[_currBuffer][i][j][k]
+                           : _phi[_currBuffer][i][j][k];
+      }
+      if (vertices[vert][0] > _resolution.x() - 1) {
+        coords[vert][0] -= h[0] / 2.f;
+        values[vert] = (_phi[_currBuffer][i][j][k] <= 0)
+                           ? -_phi[_currBuffer][i][j][k]
+                           : _phi[_currBuffer][i][j][k];
+      }
+      if (vertices[vert][1] > _resolution.y() - 1) {
+        coords[vert][1] -= h[1] / 2.f;
+        values[vert] = (_phi[_currBuffer][i][j][k] <= 0)
+                           ? -_phi[_currBuffer][i][j][k]
+                           : _phi[_currBuffer][i][j][k];
+      }
+      if (vertices[vert][2] > _resolution.z() - 1) {
+        coords[vert][2] -= h[2] / 2.f;
+        values[vert] = (_phi[_currBuffer][i][j][k] <= 0)
+                           ? -_phi[_currBuffer][i][j][k]
+                           : _phi[_currBuffer][i][j][k];
+      }
+    }
   }
 
+  if (glm::dot(glm::cross(coords[1] - coords[0], coords[2] - coords[0]),
+               coords[3] - coords[0]) > 0) {
+    auto aux = coords[1];
+    coords[1] = coords[2];
+    coords[2] = aux;
+
+    auto aux2 = values[1];
+    values[1] = values[2];
+    values[2] = aux2;
+  }
+
+  _triangulate(coords, values, mesh);
+}
+
+void LevelSet3::_triangulate(glm::vec3 coords[4], double values[4],
+                             TriangleMesh &mesh) {
+
   int triIndex = 0;
-  if (_phi[_currBuffer][vertices[0][0]][vertices[0][1]][vertices[0][2]] < 0)
+  if (values[0] < 0)
     triIndex |= 1;
-  if (_phi[_currBuffer][vertices[1][0]][vertices[1][1]][vertices[1][2]] < 0)
+  if (values[1] < 0)
     triIndex |= 2;
-  if (_phi[_currBuffer][vertices[2][0]][vertices[2][1]][vertices[2][2]] < 0)
+  if (values[2] < 0)
     triIndex |= 4;
-  if (_phi[_currBuffer][vertices[3][0]][vertices[3][1]][vertices[3][2]] < 0)
+  if (values[3] < 0)
     triIndex |= 8;
 
   glm::vec3 vertex;
   glm::ivec3 face;
   // 15 total cases to check
-  // TODO: Check normal direction and change vertices order accordingly
   switch (triIndex) {
   case 0:
   case 15:
     break;
   case 1:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[1], values[0], values[1]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[3], values[0], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[2], values[0], values[2]));
     mesh.addFace(face);
     break;
   case 14:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[1], values[0], values[1]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[2], values[0], values[2]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[3], values[0], values[3]));
     mesh.addFace(face);
     break;
   case 2:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[0]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[0], values[1], values[0]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[2], values[1], values[2]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[3], values[1], values[3]));
     mesh.addFace(face);
     break;
   case 13:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[0]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[0], values[1], values[0]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[3], values[1], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[2], values[1], values[2]));
     mesh.addFace(face);
     break;
   case 4:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[0]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[1]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[0], values[2], values[0]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[1], values[2], values[1]));
     mesh.addFace(face);
     break;
   case 11:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[0]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[1]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[0], values[2], values[0]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[1], values[2], values[1]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
     mesh.addFace(face);
     break;
   case 8:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[0]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[1]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[2]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[3], coords[0], values[3], values[0]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[3], coords[1], values[3], values[1]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[3], coords[2], values[3], values[2]));
     mesh.addFace(face);
     break;
   case 7:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[0]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[2]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[3], vertices[1]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[3], coords[0], values[3], values[0]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[3], coords[2], values[3], values[2]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[3], coords[1], values[3], values[1]));
     mesh.addFace(face);
     break;
   case 3:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[2], values[0], values[2]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[3], values[1], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[3], values[0], values[3]));
     mesh.addFace(face);
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[2], values[1], values[2]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[3], values[1], values[3]));
     mesh.addFace(face);
     break;
   case 12:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[2], values[0], values[2]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[3], values[0], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[3], values[1], values[3]));
     mesh.addFace(face);
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[3], values[1], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[2], values[1], values[2]));
     mesh.addFace(face);
     break;
   case 5:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[1], values[0], values[1]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[3], values[0], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
     mesh.addFace(face);
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[2], values[1], values[2]));
     mesh.addFace(face);
     break;
   case 10:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[3]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[1], values[0], values[1]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[3], values[0], values[3]));
     mesh.addFace(face);
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[2]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[2], values[1], values[2]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
     mesh.addFace(face);
     break;
   case 9:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[1], values[0], values[1]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[2], values[0], values[2]));
     mesh.addFace(face);
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[3], values[1], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
     mesh.addFace(face);
     break;
   case 6:
-    face[0] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[1]));
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[0], vertices[2]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
+    face[0] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[1], values[0], values[1]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[0], coords[2], values[0], values[2]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
     mesh.addFace(face);
-    face[1] = mesh.addVertex(_findSurfaceCoordinate(vertices[2], vertices[3]));
-    face[2] = mesh.addVertex(_findSurfaceCoordinate(vertices[1], vertices[3]));
+    face[1] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[2], coords[3], values[2], values[3]));
+    face[2] = mesh.addVertex(
+        _findSurfaceCoordinate(coords[1], coords[3], values[1], values[3]));
     mesh.addFace(face);
     break;
   }
 }
 
 // TODO: remove this function
+glm::vec3 LevelSet3::_findSurfaceCoordinate(glm::vec3 coord1, glm::vec3 coord2,
+                                            float phi1, float phi2) {
+  glm::vec3 direction;
+  direction = coord2 - coord1;
+
+  if (phi1 == 0.0)
+    return coord1;
+  if (phi2 == 0.0)
+    return coord2;
+
+  if (std::signbit(phi1) == std::signbit(phi2)) {
+    std::stringstream message;
+    message << "LevelSet3::_findSurfaceCoordinate: There is no surface between "
+               "points\n";
+    throw(message.str().c_str());
+  }
+  if (std::isnan(phi1) || std::isnan(phi2) || std::isinf(phi1) ||
+      std::isinf(phi2)) {
+    std::stringstream message;
+    message << "NOT VALID VALUE " << phi1 << " " << phi2 << "\n";
+    throw(message.str().c_str());
+  }
+  return coord1 - (phi1 * direction) / (phi2 - phi1);
+}
+
 glm::vec3 LevelSet3::_findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2) {
   glm::vec3 coord1, coord2, direction;
   coord1 = glm::vec3(v1[0] * _h.x(), v1[1] * _h.y(), v1[2] * _h.z());
