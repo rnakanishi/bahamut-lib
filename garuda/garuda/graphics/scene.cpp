@@ -10,15 +10,16 @@ Scene::Scene() {
   _cameras.emplace_back(Camera());
   _objects.emplace_back(MeshObject());
   activeCamera = 0;
+  _ambientLight = glm::vec3(0.6, 0.8, 1.0);
 }
 
 void Scene::load() {
-  _shader.loadVertexShader("./assets/shaders/camera.vert");
-  _shader.loadFragmentShader("./assets/shaders/texture.frag");
+  _shader.loadVertexShader("./assets/shaders/light.vert");
+  _shader.loadFragmentShader("./assets/shaders/light.frag");
 
   for (auto &object : _objects) {
     object.initialize();
-    object.loadObjMesh("./assets/3d_models/newdog.obj");
+    object.loadObjMesh("./assets/3d_models/cow2.obj");
     object.loadTexture();
     object.centerizeObject();
   }
@@ -27,9 +28,15 @@ void Scene::load() {
 }
 
 void Scene::draw() {
-
   _shader.useShader();
   Camera activeCamera = _cameras[0];
+
+  // glClearColor(_ambientLight[0], _ambientLight[1], _ambientLight[2], 1.0f);
+  glClearColor(0.2f, 0.2f, 0.2f, 1.f);
+  int ambientLigheLocation =
+      glGetUniformLocation(_shader.getId(), "ambientLight");
+  glUniform3f(ambientLigheLocation, _ambientLight[0], _ambientLight[1],
+              _ambientLight[2]);
 
   int projectionUniform = glGetUniformLocation(_shader.getId(), "projection");
   glUniformMatrix4fv(projectionUniform, 1, GL_FALSE,

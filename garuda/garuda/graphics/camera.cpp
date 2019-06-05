@@ -47,7 +47,7 @@ void Camera::moveCamera(glm::vec3 direction) {
   float currTime = glfwGetTime();
   float dt = currTime - _lastFrameTime;
   _lastFrameTime = currTime;
-  float speed = 2. * dt;
+  float speed = 20. * dt;
 
   glm::mat4 translate = glm::translate(glm::mat4(1.f), -_position);
   glm::mat4 rotate = viewMatrix();

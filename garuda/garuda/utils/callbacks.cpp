@@ -14,7 +14,7 @@ void __mouseCursor(GLFWwindow *window, double xPos, double yPos) {
   static double lastX = xPos, lastY = yPos;
 
   if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     double x, y;
     glfwGetCursorPos(window, &x, &y);
     if (firstMouse) {

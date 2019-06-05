@@ -41,6 +41,8 @@ public:
 
   void assignVertices(std::vector<glm::vec3> &vertices);
 
+  void assignNormals(std::vector<glm::vec3> &normals);
+
   void removeAllVertices();
 
   uint removeDoubles() override;
@@ -72,7 +74,7 @@ protected:
   std::vector<glm::vec2> _vertexTexture;
 
   Texture _textureImage;
-  std::vector<glm::mat4> _modelMatrix;
+  std::vector<glm::mat4> _modelMatrix, _normalMatrix;
   int _instanceCount;
   bool _hasTexture, _hasNormal, _hasMaterial;
 };

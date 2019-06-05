@@ -47,6 +47,7 @@ void MeshReader::readObjWithTexture(MeshObject &structure, const char *path) {
   std::vector<tinyobj::material_t> materials;
   tinyobj::attrib_t attributes;
   std::vector<glm::vec3> vertCoords;
+  std::vector<glm::vec3> vertNormals;
 
   std::string baseDir(path);
   int lastSlash = baseDir.find_last_of("/\\");
@@ -64,14 +65,16 @@ void MeshReader::readObjWithTexture(MeshObject &structure, const char *path) {
   } else {
     structure.hasTexture() = false;
   }
-  if (structure.hasTexture())
+  if (structure.hasTexture()) {
     vertCoords.resize(attributes.texcoords.size() / 2);
-  else
+    vertNormals.resize(attributes.texcoords.size() / 2);
+  } else {
     vertCoords.resize(attributes.vertices.size() / 3);
-
+    vertNormals.resize(attributes.vertices.size() / 3);
+  }
   std::cerr << "Vertices size: " << attributes.vertices.size() / 3
             << "\nTexcoords size " << attributes.texcoords.size() / 2
-            << std::endl;
+            << "\nNormals size: " << attributes.normals.size() / 3 << std::endl;
   for (int i = 0; i < attributes.texcoords.size(); i++) {
     structure.addTextureCoordinate(glm::vec2(attributes.texcoords[2 * i + 0],
                                              attributes.texcoords[2 * i + 1]));
@@ -91,18 +94,20 @@ void MeshReader::readObjWithTexture(MeshObject &structure, const char *path) {
         vertCoords[texId] = glm::vec3(attributes.vertices[3 * vid + 0],
                                       attributes.vertices[3 * vid + 1],
                                       attributes.vertices[3 * vid + 2]);
+        if (structure.hasNormal())
+          vertNormals[texId] = glm::vec3(attributes.normals[3 * vid + 0],
+                                         attributes.normals[3 * vid + 1],
+                                         attributes.normals[3 * vid + 2]);
       }
 
       structure.addFace(face);
     }
 
   structure.assignVertices(vertCoords);
+  structure.assignNormals(vertNormals);
 
   std::cout << "Read " << structure.getVerticesSize() << " vertices and "
             << structure.getFacesSize() << " faces\n";
-  //   for (auto vertex : attributes.vertices) {
-  // structure.addVertex(glm::vec3(vertex[0], vertex[1], vertex[2]));
-  //   }
 }
 
 void MeshReader::readObj(MeshObject &structure, const char *path) {

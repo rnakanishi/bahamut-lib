@@ -27,6 +27,7 @@ public:
 protected:
   std::vector<MeshObject> _objects;
   std::vector<Camera> _cameras;
+  glm::vec3 _ambientLight;
   int activeCamera;
   Shader _shader;
 };
