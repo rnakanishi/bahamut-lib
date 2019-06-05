@@ -8,7 +8,7 @@ if mat is None:
     
 for f in range(scn.frame_start, scn.frame_end):
     # fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/results/test/{:04d}.obj'.format(f))
-    fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/results/128-p1-va2-la2/{:04d}.obj'.format(f))
+    fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/results/64-p2-va2-la2/{:04d}.obj'.format(f))
     bpy.ops.import_scene.obj(filepath=fpath)
     obj = bpy.context.selected_objects[0]
     

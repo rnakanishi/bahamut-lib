@@ -99,6 +99,7 @@ protected:
    * TODO: Check parameters and return value accordingly
    **/
   void _triangulate(std::vector<glm::ivec3> vertices, TriangleMesh &mesh);
+  void _triangulate(glm::vec3 coords[4], double values[4], TriangleMesh &mesh);
 
   /**
    * @brief Interpolate phi values using proper cubic interpolator. This method
@@ -113,6 +114,9 @@ protected:
 
   glm::vec3 _findSurfaceCoordinate(glm::ivec3 v1, glm::ivec3 v2);
   Eigen::Array3d _findSurfaceCoordinate(Eigen::Array3i v1, Eigen::Array3i v2);
+  glm::vec3 _findSurfaceCoordinate(glm::vec3 coord1, glm::vec3 coord2,
+                                   float phi1, float phi2);
+
   // TODO: Change to Matrix3 type
   std::vector<std::vector<std::vector<Vector3d>>>
       _velocity; // level set gradient and velocity on the corners

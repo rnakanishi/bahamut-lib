@@ -34,11 +34,12 @@ int main(void) {
   surface.setResolution(Ramuh::Vector3i(resolution));
   surface.setSize(Ramuh::Vector3d(1.0, 1.0, 1.0));
 
-  for (int frame = 0; frame <= 21; frame++) {
+  for (int frame = 0; frame < 1; frame++) {
     std::stringstream objname;
     std::stringstream dataname;
-    objname << "obj/" << std::setw(4) << std::setfill('0') << frame << ".obj";
-    dataname << "data/" << frame;
+    objname << "results/marching/" << std::setw(4) << std::setfill('0') << frame
+            << ".obj";
+    dataname << "results/datatest/" << frame;
 
     surface.readData(dataname.str().c_str());
     auto triangles = surface.marchingTetrahedra();
