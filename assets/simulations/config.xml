@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <simulation>
-    <resolution xyz="20"/>
-    <maxFrames value="300" />
+    <resolution xyz="32"/>
+    <maxFrames value="200" />
     <timestep dt="0.01" />
     <pressure order="2"/>
     <levelsetAdvection order="2" />
@@ -19,7 +19,7 @@
 
         <cube>
             <lower>-15 -15 -15</lower>
-            <upper>15 0.4 15</upper>
+            <upper>15 0.390625 15</upper>
         </cube>
     </domain>   
 </simulation>

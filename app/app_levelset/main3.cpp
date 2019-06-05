@@ -47,7 +47,7 @@ int main(int argc, char const *argv[]) {
 
   writer.writeMeshModel(sim.marchingTetrahedra(), objname.str().c_str());
   writer.writeLevelSet(sim, dataname.str().c_str());
-
+  // return 0;
   int nFrames = sim.getFramesNumber();
   int velocityAdvectionOrder = sim.getVelocityOrder();
   int levelsetAdvectionOrder = sim.getLevelsetOrder();

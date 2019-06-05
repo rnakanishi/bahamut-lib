@@ -157,6 +157,8 @@ void LevelSet3::checkCellMaterial() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
+    if (std::fabs(_phi[_currBuffer][i][j][k]) < 1e-8)
+      _phi[_currBuffer][i][j][k] = -1e-8;
     if (_phi[_currBuffer][i][j][k] <= 0) {
       _material[i][j][k] = Material::FluidMaterial::FLUID;
       _uFaceMaterial[i][j][k] = Material::FluidMaterial::FLUID;
@@ -678,7 +680,7 @@ void LevelSet3::solvePressure() {
 
   // Correct velocity through pressure gradient
   _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
-#pragma omp parallel for
+#pragma omp for
   // TODO: Change to fluid FACES instead of CELLS
   for (int id = 0; id < cellCount(); id++) {
     Eigen::Array3i ijk = idToijk(id);
@@ -722,7 +724,10 @@ void LevelSet3::solvePressure() {
           weight = -_phi[_currBuffer][i - 1][j][k] /
                    std::fabs(_phi[_currBuffer][i - 1][j][k] -
                              _phi[_currBuffer][i][j][k]);
-
+        if (std::fabs(weight) < 1e-8) {
+          weight = 1;
+          pressure1 = 0;
+        }
       } else
         weight = 1.0;
       _u[_currBuffer][i][j][k] -=
@@ -757,7 +762,10 @@ void LevelSet3::solvePressure() {
           weight = -_phi[_currBuffer][i][j - 1][k] /
                    std::fabs(_phi[_currBuffer][i][j - 1][k] -
                              _phi[_currBuffer][i][j][k]);
-
+        if (std::fabs(weight) < 1e-8) {
+          weight = 1;
+          pressure1 = 0;
+        }
       } else
         weight = 1.0;
       _v[_currBuffer][i][j][k] -=
@@ -791,7 +799,10 @@ void LevelSet3::solvePressure() {
           weight = -_phi[_currBuffer][i][j][k - 1] /
                    std::fabs(_phi[_currBuffer][i][j][k - 1] -
                              _phi[_currBuffer][i][j][k]);
-
+        if (std::fabs(weight) < 1e-8) {
+          weight = 1;
+          pressure1 = 0;
+        }
       } else
         weight = 1.0;
       _w[_currBuffer][i][j][k] -=
@@ -916,7 +927,7 @@ void LevelSet3::redistance() {
     int nintersecs = 0;
     double cellPhi = _phi[_currBuffer][i][j][k];
     int cellSign = (cellPhi >= 0) ? 1 : -1;
-    auto isPositive = std::signbit(cellSign);
+    auto signBit = std::signbit(cellSign);
     if (cellPhi == 0)
       cellSign = 1;
 
@@ -924,7 +935,7 @@ void LevelSet3::redistance() {
     double theta = 1e8;
     // Find whether edge has an intersection with fluid surface
     if (i < _resolution.x() - 1 &&
-        isPositive != std::signbit(_phi[_currBuffer][i + 1][j][k])) {
+        signBit != std::signbit(_phi[_currBuffer][i + 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -933,7 +944,7 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0] + theta * _h.x(), position[1], position[2]);
     }
-    if (i > 0 && isPositive != std::signbit(_phi[_currBuffer][i - 1][j][k])) {
+    if (i > 0 && signBit != std::signbit(_phi[_currBuffer][i - 1][j][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -948,7 +959,7 @@ void LevelSet3::redistance() {
       nintersecs++;
     }
     if (j < _resolution.y() - 1 &&
-        isPositive != std::signbit(_phi[_currBuffer][i][j + 1][k])) {
+        signBit != std::signbit(_phi[_currBuffer][i][j + 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -957,7 +968,7 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1] + theta * _h.y(), position[2]);
     }
-    if (j > 0 && isPositive != std::signbit(_phi[_currBuffer][i][j - 1][k])) {
+    if (j > 0 && signBit != std::signbit(_phi[_currBuffer][i][j - 1][k])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -972,7 +983,7 @@ void LevelSet3::redistance() {
       nintersecs++;
     }
     if (k < _resolution.z() - 1 &&
-        isPositive != std::signbit(_phi[_currBuffer][i][j][k + 1])) {
+        signBit != std::signbit(_phi[_currBuffer][i][j][k + 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
@@ -981,7 +992,7 @@ void LevelSet3::redistance() {
       intersections[nintersecs] =
           glm::vec3(position[0], position[1], position[2] + theta * _h.z());
     }
-    if (k > 0 && isPositive != std::signbit(_phi[_currBuffer][i][j][k - 1])) {
+    if (k > 0 && signBit != std::signbit(_phi[_currBuffer][i][j][k - 1])) {
       isSurface = true;
       intersected = true;
       theta = std::min(
