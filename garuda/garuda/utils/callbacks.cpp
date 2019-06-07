@@ -1,5 +1,5 @@
-#include <utils/callbacks.hpp>
 #include <graphics/camera.hpp>
+#include <utils/callbacks.hpp>
 #include <iostream>
 #include <glm/gtx/string_cast.hpp>
 

@@ -7,7 +7,9 @@ layout(location = 2) in vec2 aTex;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-uniform mat4 normalMatrix;
+uniform mat4 lightTransform;
+
+uniform vec3 light;
 
 out vec2 texCoord;
 out vec4 fragPosition;
@@ -19,7 +21,7 @@ void main() {
   fragPosition = view * model * vec4(aPos, 1.f);
   vNormal = normalize(vec4(aNormal, 1.f));
 
-  lightPosition = inverse(normalMatrix) * vec4(0.0, 5.0, 5.0, 1.0);
+  lightPosition = projection * view * lightTransform * vec4(light, 1.f);
 
   texCoord = aTex;
 }

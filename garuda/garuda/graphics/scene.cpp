@@ -4,44 +4,53 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
+#include <gui/event_handler.hpp>
 
 namespace Garuda {
 Scene::Scene() {
   _cameras.emplace_back(Camera());
   _objects.emplace_back(MeshObject());
-  activeCamera = 0;
+  _lights.emplace_back(Light());
+  _activeCameraId = 0;
   _ambientLight = glm::vec3(0.6, 0.8, 1.0);
 }
 
 void Scene::load() {
   _shader.loadVertexShader("./assets/shaders/light.vert");
   _shader.loadFragmentShader("./assets/shaders/light.frag");
+  _lampShader.loadVertexShader("./assets/shaders/lamp.vert");
+  _lampShader.loadFragmentShader("./assets/shaders/lamp.frag");
 
   for (auto &object : _objects) {
     object.initialize();
-    object.loadObjMesh("./assets/3d_models/cow2.obj");
+    object.loadObjMesh("./assets/3d_models/cow3.obj");
     object.loadTexture();
     object.centerizeObject();
+  }
+
+  for (auto light : _lights) {
+    light.initialize();
   }
 
   _cameras[0].perspectiveProjection();
 }
 
 void Scene::draw() {
-  _shader.useShader();
-  Camera activeCamera = _cameras[0];
+  Camera activeCamera = _cameras[_activeCameraId];
 
-  // glClearColor(_ambientLight[0], _ambientLight[1], _ambientLight[2], 1.0f);
-  glClearColor(0.2f, 0.2f, 0.2f, 1.f);
-  int ambientLigheLocation =
+  _shader.useShader();
+  // Setting ambient light
+  glClearColor(_ambientLight[0], _ambientLight[1], _ambientLight[2], 1.0f);
+  int ambientLightLocation =
       glGetUniformLocation(_shader.getId(), "ambientLight");
-  glUniform3f(ambientLigheLocation, _ambientLight[0], _ambientLight[1],
+  glUniform3f(ambientLightLocation, _ambientLight[0], _ambientLight[1],
               _ambientLight[2]);
 
+  // Setting camera properties
+  activeCamera.draw(_shader);
   int projectionUniform = glGetUniformLocation(_shader.getId(), "projection");
   glUniformMatrix4fv(projectionUniform, 1, GL_FALSE,
                      glm::value_ptr(activeCamera.projectionMatrix()));
-
   int viewUniform = glGetUniformLocation(_shader.getId(), "view");
   glUniformMatrix4fv(viewUniform, 1, GL_FALSE,
                      glm::value_ptr(activeCamera.viewMatrix()));
@@ -49,11 +58,25 @@ void Scene::draw() {
   for (auto &object : _objects)
     object.draw(_shader);
 
+  _lights[0].move();
+  _lights[0].illuminate(_shader);
+
   for (auto &camera : _cameras)
-    camera.draw();
+    camera.draw(_shader);
+
+  for (auto &light : _lights)
+    light.draw(_lampShader);
+  _lampShader.useShader();
+  projectionUniform = glGetUniformLocation(_lampShader.getId(), "projection");
+  glUniformMatrix4fv(projectionUniform, 1, GL_FALSE,
+                     glm::value_ptr(activeCamera.projectionMatrix()));
+
+  viewUniform = glGetUniformLocation(_lampShader.getId(), "view");
+  glUniformMatrix4fv(viewUniform, 1, GL_FALSE,
+                     glm::value_ptr(activeCamera.viewMatrix()));
 }
 
-Camera &Scene::getActiveCamera() { return _cameras[activeCamera]; }
+Camera &Scene::getActiveCamera() { return _cameras[_activeCameraId]; }
 
 MeshObject &Scene::getObject(int index) { return _objects[index]; }
 

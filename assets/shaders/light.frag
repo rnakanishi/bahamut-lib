@@ -11,7 +11,7 @@ uniform sampler2D ourTexture;
 uniform vec3 ambientLight;
 
 void main() {
-  vec4 lightDirection = normalize(lightPosition - fragPosition);
+  vec4 lightDirection = -normalize(lightPosition - fragPosition);
   float diff = max(dot(vNormal, lightDirection), 0.0);
 
   vec4 ambient = vec4(ambientLight, 1.0);
