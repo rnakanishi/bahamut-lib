@@ -10,7 +10,7 @@
 namespace Garuda {
 
 Camera::Camera() {
-  _position = glm::vec3(5.0f, 0.0f, 10.0f);
+  _position = glm::vec3(0.0f, 0.0f, 10.0f);
   _lookUp = glm::vec3(0.0f, 1.0f, 0.0f);
   _lookAt = glm::vec3(0.f);
   _front = glm::normalize(_lookAt - _position);
@@ -47,7 +47,7 @@ void Camera::moveCamera(glm::vec3 direction) {
   float currTime = glfwGetTime();
   float dt = currTime - _lastFrameTime;
   _lastFrameTime = currTime;
-  float speed = 50. * dt;
+  float speed = 5. * dt;
 
   glm::mat4 translate = glm::translate(glm::mat4(1.f), -_position);
   glm::mat4 rotate = viewMatrix();

@@ -100,6 +100,11 @@ void MeshObject::draw(Shader shader) {
       glGetUniformLocation(shader.getId(), "normalMatrix");
 
   for (int i = 0; i < _instanceCount; i++) {
+    auto transform = glm::mat4(1.f);
+    // transform =
+        // glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.f, 1.f, 0.f));
+    _modelMatrix[i] = transform;
+
     glUniformMatrix4fv(modelUniform, 1, GL_FALSE,
                        glm::value_ptr(_modelMatrix[i]));
 
