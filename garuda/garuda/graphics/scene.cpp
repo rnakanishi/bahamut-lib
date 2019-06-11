@@ -16,8 +16,8 @@ Scene::Scene() {
 }
 
 void Scene::load() {
-  _shader.loadVertexShader("./assets/shaders/light.vert");
-  _shader.loadFragmentShader("./assets/shaders/light.frag");
+  _shader.loadVertexShader("./assets/shaders/phong.vert");
+  _shader.loadFragmentShader("./assets/shaders/phong.frag");
   _lampShader.loadVertexShader("./assets/shaders/lamp.vert");
   _lampShader.loadFragmentShader("./assets/shaders/lamp.frag");
 
@@ -54,6 +54,10 @@ void Scene::draw() {
   int viewUniform = glGetUniformLocation(_shader.getId(), "view");
   glUniformMatrix4fv(viewUniform, 1, GL_FALSE,
                      glm::value_ptr(activeCamera.viewMatrix()));
+  int camPositionUniform = glGetUniformLocation(_shader.getId(), "camPosition");
+  auto camPosition = activeCamera.getPosition();
+  glUniform3f(camPositionUniform, camPosition[0], camPosition[1],
+              camPosition[2]);
 
   for (auto &object : _objects)
     object.draw(_shader);

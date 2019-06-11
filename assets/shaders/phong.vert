@@ -12,16 +12,23 @@ uniform mat4 lightTransform;
 uniform vec3 light;
 
 out vec2 texCoord;
-out vec4 fragPosition;
-out vec4 vNormal;
+out vec4 diffuse;
+out vec4 specular;
+
 out vec4 lightPosition;
+out vec4 vNormal;
+out vec4 fragPosition;
 
 void main() {
-  gl_Position = projection * view * model * vec4(aPos, 1.f);
-  fragPosition = view * model * vec4(aPos, 1.f);
-  vNormal = normalize(vec4(aNormal, 1.f));
+  float ka = 0.5;
+  float kd = 0.5;
+  float ks = 1.0;
+  vec4 lightColor = vec4(1.f);
 
+  gl_Position = fragPosition = projection * view * model * vec4(aPos, 1.f);
   lightPosition = projection * view * lightTransform * vec4(light, 1.f);
+  vec3 normal = mat3(transpose(inverse(model))) * aNormal;
+  vNormal = normalize(vec4(normal, 1.f));
 
   texCoord = aTex;
 }
