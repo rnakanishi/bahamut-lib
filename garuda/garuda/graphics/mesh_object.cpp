@@ -7,7 +7,13 @@
 #include <GLFW/glfw3.h>
 
 namespace Garuda {
-MeshObject::MeshObject() { _hasTexture = _hasMaterial = _hasNormal = false; }
+MeshObject::MeshObject() {
+  _hasTexture = _hasMaterial = _hasNormal = false;
+
+  _material = Material(glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f),
+                       glm::vec4(0.75164f, 0.60648f, 0.22648f, 1.0f),
+                       glm::vec4(0.628281f, 0.555802f, 0.366065f, 1.0f), 51.2f);
+}
 
 void MeshObject::initialize() {
   glGenVertexArrays(1, &_vao);
@@ -102,7 +108,7 @@ void MeshObject::draw(Shader shader) {
   for (int i = 0; i < _instanceCount; i++) {
     auto transform = glm::mat4(1.f);
     // transform =
-        // glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.f, 1.f, 0.f));
+    // glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.f, 1.f, 0.f));
     _modelMatrix[i] = transform;
 
     glUniformMatrix4fv(modelUniform, 1, GL_FALSE,
@@ -118,6 +124,23 @@ void MeshObject::draw(Shader shader) {
     glUniform1i(hasTexture, (_hasTexture) ? 1 : 0);
 
     glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);
+
+    unsigned int materialUniform =
+        glGetUniformLocation(shader.getId(), "material.ka");
+    glm::vec4 material = _material.getAmbient();
+    glUniform4f(materialUniform, material[0], material[1], material[2],
+                material[3]);
+    materialUniform = glGetUniformLocation(shader.getId(), "material.kd");
+    material = _material.getDiffuse();
+    glUniform4f(materialUniform, material[0], material[1], material[2],
+                material[3]);
+    materialUniform = glGetUniformLocation(shader.getId(), "material.ks");
+    material = _material.getSpecular();
+    glUniform4f(materialUniform, material[0], material[1], material[2],
+                material[3]);
+    materialUniform = glGetUniformLocation(shader.getId(), "material.ns");
+    float shine = _material.getShininess();
+    glUniform1f(materialUniform, shine);
   }
 }
 

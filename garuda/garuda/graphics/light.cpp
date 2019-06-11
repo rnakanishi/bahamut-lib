@@ -7,7 +7,7 @@
 
 namespace Garuda {
 Light::Light() {
-  _position = glm::vec3(2.f, 0.f, 0.f);
+  _position = glm::vec3(1.f, 0.f, 0.f);
   _color = glm::vec4(1.f, 1.f, 1.f, 1.f);
   _transform = glm::mat4(1.f);
   // _transform = glm::translate(_transform, glm::vec3(-3.f));
@@ -15,14 +15,13 @@ Light::Light() {
 
 void Light::initialize() {
   unsigned int vbo;
-  glm::vec3 position = _position; // glm::vec3(0.f);
 
   // Create a point to represent the light
   glGenVertexArrays(1, &_vao);
   glGenBuffers(1, &vbo);
   glBindVertexArray(_vao);
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3), &position, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3), &_position, GL_STATIC_DRAW);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
   glEnableVertexAttribArray(0);
 

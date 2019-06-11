@@ -12,7 +12,7 @@ Scene::Scene() {
   _objects.emplace_back(MeshObject());
   _lights.emplace_back(Light());
   _activeCameraId = 0;
-  _ambientLight = glm::vec3(0.6, 0.8, 1.0);
+  _ambientLight = glm::vec3(0.75, 0.75, 0.75);
 }
 
 void Scene::load() {
@@ -74,7 +74,6 @@ void Scene::draw() {
   projectionUniform = glGetUniformLocation(_lampShader.getId(), "projection");
   glUniformMatrix4fv(projectionUniform, 1, GL_FALSE,
                      glm::value_ptr(activeCamera.projectionMatrix()));
-
   viewUniform = glGetUniformLocation(_lampShader.getId(), "view");
   glUniformMatrix4fv(viewUniform, 1, GL_FALSE,
                      glm::value_ptr(activeCamera.viewMatrix()));

@@ -20,13 +20,12 @@ out vec4 vNormal;
 out vec4 fragPosition;
 
 void main() {
-  float ka = 0.5;
-  float kd = 0.5;
-  float ks = 1.0;
   vec4 lightColor = vec4(1.f);
 
-  gl_Position = fragPosition = projection * view * model * vec4(aPos, 1.f);
-  lightPosition = projection * view * lightTransform * vec4(light, 1.f);
+  gl_Position = projection * view * model * vec4(aPos, 1.f);
+
+  fragPosition = model * vec4(aPos, 1.f);
+  lightPosition = lightTransform * vec4(light, 1.f);
   vec3 normal = mat3(transpose(inverse(model))) * aNormal;
   vNormal = normalize(vec4(normal, 1.f));
 
