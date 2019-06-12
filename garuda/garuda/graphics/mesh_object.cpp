@@ -95,7 +95,8 @@ void MeshObject::centerizeObject() {
     _modelMatrix[i] =
         glm::scale(_modelMatrix[i], glm::vec3(1.5 / largerDimension));
     _modelMatrix[i] = glm::translate(_modelMatrix[i], -boxCenter);
-    ;
+    std::cout << "Box center: " << boxCenter[0] << " " << boxCenter[1] << " "
+              << boxCenter[2] << std::endl;
   }
 }
 

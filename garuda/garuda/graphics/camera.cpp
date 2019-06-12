@@ -11,8 +11,8 @@ namespace Garuda {
 
 Camera::Camera() {
   _position = glm::vec3(0.0f, 0.0f, 10.0f);
-  _lookUp = glm::vec3(0.0f, 1.0f, 0.0f);
-  _lookAt = glm::vec3(0.f);
+  _lookUp = glm::vec3(0.0f, 1.0f, 0.0);
+  _lookAt = glm::vec3(0.f, 0.f, 1.f);
   _front = glm::normalize(_lookAt - _position);
 
   _isPerspective = true;

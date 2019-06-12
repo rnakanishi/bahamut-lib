@@ -3,24 +3,32 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
+#include <sstream>
 #include <GLFW/glfw3.h>
 
 namespace Garuda {
 Light::Light() {
-  _position = glm::vec3(1.f, 0.f, 0.f);
+  _position = glm::vec3(2.f, 0.f, 0.f);
   _color = glm::vec4(1.f, 1.f, 1.f, 1.f);
   _transform = glm::mat4(1.f);
   // _transform = glm::translate(_transform, glm::vec3(-3.f));
 }
 
+Light::Light(glm::vec3 position, glm::vec4 color) {
+  _position = position;
+  _color = color;
+  _transform = glm::mat4(1.f);
+}
+
 void Light::initialize() {
-  unsigned int vbo;
+  unsigned int vbo[2];
 
   // Create a point to represent the light
   glGenVertexArrays(1, &_vao);
-  glGenBuffers(1, &vbo);
   glBindVertexArray(_vao);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glGenBuffers(2, vbo);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
   glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3), &_position, GL_STATIC_DRAW);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
   glEnableVertexAttribArray(0);
@@ -44,16 +52,32 @@ void Light::draw(Shader shader) {
   unsigned int modelUniform = glGetUniformLocation(shader.getId(), "model");
   glUniformMatrix4fv(modelUniform, 1, GL_FALSE, glm::value_ptr(_transform));
 
+  unsigned int lightUniform = glGetUniformLocation(shader.getId(), "vColor");
+  glUniform4f(lightUniform, _color[0], _color[1], _color[2], _color[3]);
   glBindVertexArray(_vao);
   glDrawArrays(GL_POINTS, 0, 1);
 }
 
-void Light::illuminate(Shader shader) {
-  int lightUniform = glGetUniformLocation(shader.getId(), "light");
-  int modelUniform = glGetUniformLocation(shader.getId(), "lightTransform");
+void Light::illuminate(Shader shader) { illuminate(shader, 0); }
 
+void Light::illuminate(Shader shader, int lightId) {
+  std::stringstream str_lightPosition;
+  std::stringstream str_lightColor;
+  std::stringstream str_transform;
+
+  str_lightPosition << "lights[" << lightId << "].position";
+  str_lightColor << "lights[" << lightId << "].color";
+  str_transform << "lightTransform[" << lightId << "]";
+
+  int lightUniform =
+      glGetUniformLocation(shader.getId(), str_lightPosition.str().c_str());
+  int modelUniform =
+      glGetUniformLocation(shader.getId(), str_transform.str().c_str());
   glUniform3f(lightUniform, _position[0], _position[1], _position[2]);
   glUniformMatrix4fv(modelUniform, 1, GL_FALSE, glm::value_ptr(_transform));
+  lightUniform =
+      glGetUniformLocation(shader.getId(), str_lightColor.str().c_str());
+  glUniform4f(lightUniform, _color[0], _color[1], _color[2], _color[3]);
 }
 
 void Light::move() {

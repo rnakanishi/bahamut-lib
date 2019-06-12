@@ -11,6 +11,10 @@ Scene::Scene() {
   _cameras.emplace_back(Camera());
   _objects.emplace_back(MeshObject());
   _lights.emplace_back(Light());
+  _lights.emplace_back(
+      Light(glm::vec3(-1.f, .8f, 1.75f), glm::vec4(0.4f, 0.95f, 0.5f, 1.f)));
+  _lights.emplace_back(
+      Light(glm::vec3(-.2f, -.7f, -0.4f), glm::vec4(.7f, 0.2f, 0.25f, 1.f)));
   _activeCameraId = 0;
   _ambientLight = glm::vec3(0.75, 0.75, 0.75);
 }
@@ -24,8 +28,9 @@ void Scene::load() {
   for (auto &object : _objects) {
     object.initialize();
     object.loadObjMesh("./assets/3d_models/cow3.obj");
+    // object.loadObjMesh("./assets/3d_models/bridge/untitled.obj");
     object.loadTexture();
-    object.centerizeObject();
+    // object.centerizeObject();
   }
 
   for (auto light : _lights) {
@@ -62,14 +67,17 @@ void Scene::draw() {
   for (auto &object : _objects)
     object.draw(_shader);
 
-  _lights[0].move();
-  _lights[0].illuminate(_shader);
+  for (int i = 0; i < _lights.size(); i++) {
+    _lights[i].move();
+    _lights[i].illuminate(_shader, i);
+  }
+  unsigned int nLightUniform =
+      glGetUniformLocation(_shader.getId(), "n_activeLights");
+  glUniform1i(nLightUniform, _lights.size());
 
   for (auto &camera : _cameras)
     camera.draw(_shader);
 
-  for (auto &light : _lights)
-    light.draw(_lampShader);
   _lampShader.useShader();
   projectionUniform = glGetUniformLocation(_lampShader.getId(), "projection");
   glUniformMatrix4fv(projectionUniform, 1, GL_FALSE,
@@ -77,6 +85,9 @@ void Scene::draw() {
   viewUniform = glGetUniformLocation(_lampShader.getId(), "view");
   glUniformMatrix4fv(viewUniform, 1, GL_FALSE,
                      glm::value_ptr(activeCamera.viewMatrix()));
+  _lampShader.useShader();
+  for (auto &light : _lights)
+    light.draw(_lampShader);
 }
 
 Camera &Scene::getActiveCamera() { return _cameras[_activeCameraId]; }

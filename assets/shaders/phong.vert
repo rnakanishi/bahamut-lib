@@ -7,7 +7,6 @@ layout(location = 2) in vec2 aTex;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-uniform mat4 lightTransform;
 
 uniform vec3 light;
 
@@ -15,7 +14,6 @@ out vec2 texCoord;
 out vec4 diffuse;
 out vec4 specular;
 
-out vec4 lightPosition;
 out vec4 vNormal;
 out vec4 fragPosition;
 
@@ -25,7 +23,6 @@ void main() {
   gl_Position = projection * view * model * vec4(aPos, 1.f);
 
   fragPosition = model * vec4(aPos, 1.f);
-  lightPosition = lightTransform * vec4(light, 1.f);
   vec3 normal = mat3(transpose(inverse(model))) * aNormal;
   vNormal = normalize(vec4(normal, 1.f));
 

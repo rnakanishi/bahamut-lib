@@ -157,7 +157,7 @@ void LevelSet3::checkCellMaterial() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    if (std::fabs(_phi[_currBuffer][i][j][k]) < 1e-8)
+    if (_phi[_currBuffer][i][j][k] > -1e-8 && _phi[_currBuffer][i][j][k] < 0)
       _phi[_currBuffer][i][j][k] = -1e-8;
     if (_phi[_currBuffer][i][j][k] <= 0) {
       _material[i][j][k] = Material::FluidMaterial::FLUID;

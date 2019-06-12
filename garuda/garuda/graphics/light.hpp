@@ -17,6 +17,8 @@ class Light {
 public:
   Light();
 
+  Light(glm::vec3 position, glm::vec4 color);
+
   glm::vec3 getPosition();
 
   glm::vec4 getColor();
@@ -38,6 +40,8 @@ public:
   void draw(Shader shader);
 
   void illuminate(Shader shader);
+
+  void illuminate(Shader shader, int illuminate);
 
   void move();
 
