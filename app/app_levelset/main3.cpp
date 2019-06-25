@@ -61,9 +61,13 @@ int main(int argc, char const *argv[]) {
     objname << objFolderName << "/" << std::setw(4) << std::setfill('0')
             << frame << ".obj";
     dataname << dataFolderName << "/" << frame;
-
     try {
       surface = sim.marchingTetrahedra();
+    } catch (const char *error) {
+      std::cerr << error;
+      exit(317);
+    }
+    try {
       writer.writeMeshModel(surface, objname.str());
     } catch (const char *error) {
       std::cerr << "Failed to write obj: ";

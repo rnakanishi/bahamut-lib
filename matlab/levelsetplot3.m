@@ -10,7 +10,7 @@ rotate3d on;
 az = -37.5;
 el = 10;
 % figure('Renderer', 'painters', 'Position', [10 10 900 600])
-for i =0:300
+for i = 0:300
     v = dlmread(['../results/datatest/' int2str(i)]);
     v = reshape(v, N, N, N);
     v = permute(v, [2 3 1]);

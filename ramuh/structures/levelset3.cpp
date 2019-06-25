@@ -157,8 +157,8 @@ void LevelSet3::checkCellMaterial() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    if (std::fabs(_phi[_currBuffer][i][j][k]) < 1e-8)
-      _phi[_currBuffer][i][j][k] = -1e-8;
+    if (_phi[_currBuffer][i][j][k] > -1e-10 && _phi[_currBuffer][i][j][k] <= 0)
+      _phi[_currBuffer][i][j][k] = -1e-10;
     if (_phi[_currBuffer][i][j][k] <= 0) {
       _material[i][j][k] = Material::FluidMaterial::FLUID;
       _uFaceMaterial[i][j][k] = Material::FluidMaterial::FLUID;
@@ -482,7 +482,7 @@ void LevelSet3::solvePressure() {
 
   // Solve pressure Poisson equation
   divergent = Eigen::VectorXd::Zero(cellCount());
-  int ghostId = _getMapId(-1);
+  // int ghostId = _getMapId(-1);
 #pragma omp parallel for
   for (int it = 0; it < _fluidCells.size(); it++) {
     int _id = _fluidCells[it];
@@ -518,10 +518,10 @@ void LevelSet3::solvePressure() {
           theta = -_phi[_currBuffer][i][j][k] /
                   (_phi[_currBuffer][i - 1][j][k] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -540,10 +540,10 @@ void LevelSet3::solvePressure() {
           theta = -_phi[_currBuffer][i][j][k] /
                   (_phi[_currBuffer][i + 1][j][k] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -562,10 +562,10 @@ void LevelSet3::solvePressure() {
           theta = -_phi[_currBuffer][i][j][k] /
                   (_phi[_currBuffer][i][j - 1][k] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -584,10 +584,10 @@ void LevelSet3::solvePressure() {
           theta = -_phi[_currBuffer][i][j][k] /
                   (_phi[_currBuffer][i][j + 1][k] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -606,10 +606,10 @@ void LevelSet3::solvePressure() {
           theta = -_phi[_currBuffer][i][j][k] /
                   (_phi[_currBuffer][i][j][k - 1] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -628,10 +628,10 @@ void LevelSet3::solvePressure() {
           theta = -_phi[_currBuffer][i][j][k] /
                   (_phi[_currBuffer][i][j][k + 1] - _phi[_currBuffer][i][j][k]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -651,8 +651,8 @@ void LevelSet3::solvePressure() {
         (_w[_currBuffer][i][j][k + 1] - _w[_currBuffer][i][j][k]) / _h[2];
     divergent[id] /= _dt;
   }
-  divergent[ghostId] = 0;
-  triplets.emplace_back(ghostId, ghostId, 1);
+  // divergent[ghostId] = 0;
+  // triplets.emplace_back(ghostId, ghostId, 1);
 
   int nCells = idMap.size();
   pressure = Eigen::VectorXd::Zero(nCells);
@@ -724,7 +724,7 @@ void LevelSet3::solvePressure() {
           weight = -_phi[_currBuffer][i - 1][j][k] /
                    std::fabs(_phi[_currBuffer][i - 1][j][k] -
                              _phi[_currBuffer][i][j][k]);
-        if (std::fabs(weight) < 1e-8) {
+        if (std::fabs(weight) < 1e-10) {
           weight = 1;
           pressure1 = 0;
         }
@@ -762,7 +762,7 @@ void LevelSet3::solvePressure() {
           weight = -_phi[_currBuffer][i][j - 1][k] /
                    std::fabs(_phi[_currBuffer][i][j - 1][k] -
                              _phi[_currBuffer][i][j][k]);
-        if (std::fabs(weight) < 1e-8) {
+        if (std::fabs(weight) < 1e-10) {
           weight = 1;
           pressure1 = 0;
         }
@@ -799,7 +799,7 @@ void LevelSet3::solvePressure() {
           weight = -_phi[_currBuffer][i][j][k - 1] /
                    std::fabs(_phi[_currBuffer][i][j][k - 1] -
                              _phi[_currBuffer][i][j][k]);
-        if (std::fabs(weight) < 1e-8) {
+        if (std::fabs(weight) < 1e-10) {
           weight = 1;
           pressure1 = 0;
         }
@@ -1201,6 +1201,10 @@ TriangleMesh LevelSet3::marchingTetrahedra() {
         _triangulate(tetraIndex, mesh);
       }
 
+  if (mesh.getVerticesSize() == 0) {
+    std::cerr << "All fluid is gone!\n";
+    throw("Marching tetrahedra: No fluid");
+  }
   return mesh;
 }
 

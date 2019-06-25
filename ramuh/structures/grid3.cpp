@@ -988,6 +988,16 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
   if (position[2] < cellCenter[2])
     index[2]--;
 
+  // Check tangential values
+  if (index[1] < 0)
+    index[1]++;
+  if (index[1] >= _resolution[1])
+    index[1]--;
+  if (index[2] < 0)
+    index[2]++;
+  if (index[2] >= _resolution[2])
+    index[2]--;
+
   std::vector<int> iCandidates, jCandidates, kCandidates;
   for (int i = -1; i < 3; i++) {
     iCandidates.push_back(index[0] + i);
@@ -1001,7 +1011,18 @@ double RegularGrid3::_interpolateVelocityU(Eigen::Array3d position,
     for (auto v : jCandidates)
       for (auto u : iCandidates) {
         int x, y, z;
-        points.emplace_back(u * h[0], (v + 0.5) * h[1], (w + 0.5) * h[2]);
+        if (v >= 0 && v < _resolution[1] && w >= 0 && w < _resolution[2])
+          points.emplace_back(u * h[0], (v + 0.5) * h[1], (w + 0.5) * h[2]);
+        else {
+          int vv = std::max(0, std::min(resolution[1] - 1, v));
+          int ww = std::max(0, std::min(resolution[2] - 1, w));
+          if ((v < 0 || v >= _resolution[1]) && (w < 0 || w >= _resolution[2]))
+            points.emplace_back(u * h[0], vv * h[1], ww * h[2]);
+          else if ((v < 0 || v >= _resolution[1]))
+            points.emplace_back(u * h[0], vv * h[1], (w + 0.5) * h[2]);
+          else if ((w < 0 || w >= _resolution[2]))
+            points.emplace_back(u * h[0], (v + 0.5) * h[1], ww * h[2]);
+        }
         x = std::max(0, std::min(resolution[0], u));
         y = std::max(0, std::min(resolution[1] - 1, v));
         z = std::max(0, std::min(resolution[2] - 1, w));
@@ -1030,6 +1051,16 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
   if (position[2] < cellCenter[2])
     index[2]--;
 
+  // Check tangential values
+  if (index[0] < 0)
+    index[0]++;
+  if (index[0] >= _resolution[0])
+    index[0]--;
+  if (index[2] < 0)
+    index[2]++;
+  if (index[2] >= _resolution[2])
+    index[2]--;
+
   std::vector<int> iCandidates, jCandidates, kCandidates;
   for (int i = -1; i < 3; i++) {
     iCandidates.push_back(index[0] + i);
@@ -1043,7 +1074,18 @@ double RegularGrid3::_interpolateVelocityV(Eigen::Array3d position,
     for (auto v : jCandidates)
       for (auto u : iCandidates) {
         int x, y, z;
-        points.emplace_back((u + 0.5) * h[0], v * h[1], (w + 0.5) * h[2]);
+        if (u >= 0 && u < _resolution[0] && w >= 0 && w < _resolution[2])
+          points.emplace_back((u + 0.5) * h[0], v * h[1], (w + 0.5) * h[2]);
+        else {
+          int uu = std::max(0, std::min(resolution[0] - 1, u));
+          int ww = std::max(0, std::min(resolution[2] - 1, w));
+          if ((u < 0 || u >= _resolution[0]) && (w < 0 || w >= _resolution[2]))
+            points.emplace_back(uu * h[0], v * h[1], ww * h[2]);
+          else if ((u < 0 || u >= _resolution[0]))
+            points.emplace_back(uu * h[0], v * h[1], (w + 0.5) * h[2]);
+          else if ((w < 0 || w >= _resolution[2]))
+            points.emplace_back((u + 0.5) * h[0], v * h[1], ww * h[2]);
+        }
         x = std::max(0, std::min(resolution[0] - 1, u));
         y = std::max(0, std::min(resolution[1], v));
         z = std::max(0, std::min(resolution[2] - 1, w));
@@ -1072,6 +1114,16 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
   if (position[1] < cellCenter[1])
     index[1]--;
 
+  // Check tangential values
+  if (index[1] < 0)
+    index[1]++;
+  if (index[1] >= _resolution[1])
+    index[1]--;
+  if (index[0] < 0)
+    index[0]++;
+  if (index[0] >= _resolution[0])
+    index[0]--;
+
   std::vector<int> iCandidates, jCandidates, kCandidates;
   for (int i = -1; i < 3; i++) {
     iCandidates.push_back(index[0] + i);
@@ -1085,7 +1137,18 @@ double RegularGrid3::_interpolateVelocityW(Eigen::Array3d position,
     for (auto v : jCandidates)
       for (auto u : iCandidates) {
         int x, y, z;
-        points.emplace_back((u + 0.5) * h[0], (v + 0.5) * h[1], w * h[2]);
+        if (v >= 0 && v < _resolution[1] && u >= 0 && u < _resolution[0])
+          points.emplace_back((u + 0.5) * h[0], (v + 0.5) * h[1], w * h[2]);
+        else {
+          int uu = std::max(0, std::min(resolution[0] - 1, u));
+          int vv = std::max(0, std::min(resolution[1] - 1, v));
+          if ((v < 0 || v >= _resolution[1]) && (u < 0 || u >= _resolution[0]))
+            points.emplace_back(uu * h[0], vv * h[1], w * h[2]);
+          else if ((v < 0 || v >= _resolution[1]))
+            points.emplace_back((u + 0.5) * h[0], vv * h[1], w * h[2]);
+          else if ((u < 0 || u >= _resolution[0]))
+            points.emplace_back(uu * h[0], (v + 0.5) * h[1], (w + 0.5) * h[2]);
+        }
         x = std::max(0, std::min(resolution[0] - 1, u));
         y = std::max(0, std::min(resolution[1] - 1, v));
         z = std::max(0, std::min(resolution[2], w));
@@ -1122,13 +1185,13 @@ bool RegularGrid3::_hasOppositeNeighborsWithMaterial(
   k = ijk[2];
   if (i > 0 && _material[i - 1][j][k] == material && i < _resolution[0] - 2 &&
       _material[i + 1][j][k] == material)
-    return true;
-  if (j > 0 && _material[i][j - 1][k] == material && j < _resolution[1] - 2 &&
-      _material[i][j + 1][k] == material)
-    return true;
-  if (k > 0 && _material[i][j][k - 1] == material && k < _resolution[2] - 2 &&
-      _material[i][j][k + 1] == material)
-    return true;
+    // return true;
+    if (j > 0 && _material[i][j - 1][k] == material && j < _resolution[1] - 2 &&
+        _material[i][j + 1][k] == material)
+      // return true;
+      if (k > 0 && _material[i][j][k - 1] == material &&
+          k < _resolution[2] - 2 && _material[i][j][k + 1] == material)
+        return true;
 
   return false;
 }

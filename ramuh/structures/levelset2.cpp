@@ -484,7 +484,7 @@ void LevelSet2::solvePressure() {
 
   // Solve pressure Poisson equation
   divergent = Eigen::VectorXd::Zero(cellCount());
-  int ghostId = _getMapId(-1);
+  // int ghostId = _getMapId(-1);
 #pragma omp parallel for
   for (int _id = 0; _id < cellCount(); _id++) {
     Eigen::Array2i ij = idToij(_id);
@@ -517,10 +517,10 @@ void LevelSet2::solvePressure() {
           // theta = (surface - center).matrix().norm() / _h.x();
           theta = -_phi[i][j] / (_phi[i - 1][j] - _phi[i][j]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -538,10 +538,10 @@ void LevelSet2::solvePressure() {
           // theta = (surface - center).matrix().norm() / _h.x();
           theta = -_phi[i][j] / (_phi[i + 1][j] - _phi[i][j]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -559,10 +559,10 @@ void LevelSet2::solvePressure() {
           // theta = (surface - center).matrix().norm() / _h.y();
           theta = -_phi[i][j] / (_phi[i][j - 1] - _phi[i][j]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -580,10 +580,10 @@ void LevelSet2::solvePressure() {
           // theta = (surface - center).matrix().norm() / _h.y();
           theta = -_phi[i][j] / (_phi[i][j + 1] - _phi[i][j]);
           centerWeight += (1 / (h2 * theta));
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2 * theta));
         } else {
           centerWeight += (1 / h2);
-          threadTriplet.emplace_back(id, ghostId, -1 / (h2));
+          // threadTriplet.emplace_back(id, ghostId, -1 / (h2));
         }
       }
     }
@@ -599,8 +599,8 @@ void LevelSet2::solvePressure() {
     divergent[id] -= (_v[i][j + 1] - _v[i][j]) / _h[1];
     divergent[id] /= _dt;
   }
-  divergent[ghostId] = 0;
-  triplets.emplace_back(ghostId, ghostId, 1);
+  // divergent[ghostId] = 0;
+  // // triplets.emplace_back(ghostId, ghostId, 1);
 
   int nCells = idMap.size();
   pressure = Eigen::VectorXd::Zero(nCells);

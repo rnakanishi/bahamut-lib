@@ -7,7 +7,7 @@ x = linspace(0, 1, N);
 figure
 i = 5;
 
-for i = 0:160
+for i = 0:500
     z = dlmread(['../results/datatest/' int2str(i)]);
     clf;
     contourf(X, Y, z, [-0 0]);

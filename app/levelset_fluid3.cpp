@@ -16,9 +16,13 @@ void LevelSetFluid3::run() {
     stopwatch.reset();
     stopwatch.clearAll();
     try {
+      // if (frame % 5 == 0) {
+      redistance();
+      stopwatch.registerTime("Redistance");
+      // }
+
       checkCellMaterial();
       addGravity();
-      // addExternalForce(Eigen::Vector3d(0, -2.5, 0));
       stopwatch.registerTime("Gravity");
 
       extrapolateVelocity();
@@ -30,8 +34,8 @@ void LevelSetFluid3::run() {
         macComarckVelocityAdvection();
       stopwatch.registerTime("Velocity advection");
 
-      writeVelocityField();
-      std::cout << "Velocity advection\n";
+      // writeVelocityField();
+      // std::cout << "Velocity advection\n";
 
       extrapolateVelocity();
       stopwatch.registerTime("Extrapolate velocity");
@@ -39,7 +43,7 @@ void LevelSetFluid3::run() {
 
       solvePressure();
       stopwatch.registerTime("Pressure");
-      boundaryVelocities();
+      // boundaryVelocities();
 
       extrapolateVelocity();
       boundaryVelocities();
@@ -51,14 +55,9 @@ void LevelSetFluid3::run() {
         macCormackAdvection();
       stopwatch.registerTime("Levelset advection");
 
-      // if (frame % 5 == 0) {
-      redistance();
-      stopwatch.registerTime("Redistance");
-      // }
-
       stopwatch.evaluateComponentsTime();
-      writeFaceVelocity("results/lastVelocity");
-      writeLevelSetValue("results/lastLevelset");
+      // writeFaceVelocity("results/lastVelocity");
+      // writeLevelSetValue("results/lastLevelset");
     } catch (const char *error) {
       std::cerr << error << std::endl;
       throw("Simulation error\n");
