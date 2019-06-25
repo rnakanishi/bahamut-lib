@@ -85,6 +85,7 @@ void MeshReader::readObjWithTexture(MeshObject &structure, const char *path) {
       glm::ivec3 face;
       for (int v = 0; v < 3; v++) {
         int vid = shape.mesh.indices[3 * i + v].vertex_index;
+        int nid = shape.mesh.indices[3 * i + v].normal_index;
         face[v] = vid;
         int texId = vid;
         if (structure.hasTexture()) {
@@ -95,9 +96,9 @@ void MeshReader::readObjWithTexture(MeshObject &structure, const char *path) {
                                       attributes.vertices[3 * vid + 1],
                                       attributes.vertices[3 * vid + 2]);
         if (structure.hasNormal())
-          vertNormals[texId] = glm::vec3(attributes.normals[3 * vid + 0],
-                                         attributes.normals[3 * vid + 1],
-                                         attributes.normals[3 * vid + 2]);
+          vertNormals[texId] = glm::vec3(attributes.normals[3 * nid + 0],
+                                         attributes.normals[3 * nid + 1],
+                                         attributes.normals[3 * nid + 2]);
       }
 
       structure.addFace(face);

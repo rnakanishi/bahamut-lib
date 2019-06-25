@@ -49,7 +49,7 @@ vec4 computeLight(vec4 lightPos, vec4 lightColor) {
   float lightDistance = length(lightPos - fragPosition);
   float attenuation = 1.f / (Kconstant + lightDistance * Klinear +
                              (lightDistance * lightDistance) * Kquad);
-
+  attenuation = 1.f;
   return attenuation * (ambient + diffuse + specular);
 }
 
