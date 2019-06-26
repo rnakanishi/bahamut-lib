@@ -7,7 +7,13 @@
 #include <GLFW/glfw3.h>
 
 namespace Garuda {
-MeshObject::MeshObject() { _hasTexture = _hasMaterial = _hasNormal = false; }
+MeshObject::MeshObject() {
+  _hasTexture = _hasMaterial = _hasNormal = false;
+
+  _material = Material(glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f),
+                       glm::vec4(0.75164f, 0.60648f, 0.22648f, 1.0f),
+                       glm::vec4(0.628281f, 0.555802f, 0.366065f, 1.0f), 51.2f);
+}
 
 void MeshObject::initialize() {
   glGenVertexArrays(1, &_vao);
@@ -16,6 +22,7 @@ void MeshObject::initialize() {
 
   _instanceCount = 1;
   _modelMatrix.emplace_back(glm::mat4(1.0));
+  _normalMatrix.emplace_back(glm::mat4(1.0));
 }
 
 Texture &MeshObject::getTexture() { return _textureImage; }
@@ -29,9 +36,9 @@ void MeshObject::loadTexture() {
     glBindBuffer(GL_ARRAY_BUFFER, _vbo[2]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * _vertexTexture.size(),
                  _vertexTexture.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
                           (void *)0);
-    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
 
     // bind Texture image
     glGenTextures(1, &_tex);
@@ -88,21 +95,53 @@ void MeshObject::centerizeObject() {
     _modelMatrix[i] =
         glm::scale(_modelMatrix[i], glm::vec3(1.5 / largerDimension));
     _modelMatrix[i] = glm::translate(_modelMatrix[i], -boxCenter);
+    std::cout << "Box center: " << boxCenter[0] << " " << boxCenter[1] << " "
+              << boxCenter[2] << std::endl;
   }
 }
 
 void MeshObject::draw(Shader shader) {
   shader.useShader();
   unsigned int modelUniform = glGetUniformLocation(shader.getId(), "model");
+  unsigned int normalUniform =
+      glGetUniformLocation(shader.getId(), "normalMatrix");
 
   for (int i = 0; i < _instanceCount; i++) {
+    auto transform = glm::mat4(1.f);
+    // transform =
+    // glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.f, 1.f, 0.f));
+    _modelMatrix[i] = transform;
 
     glUniformMatrix4fv(modelUniform, 1, GL_FALSE,
                        glm::value_ptr(_modelMatrix[i]));
 
+    glUniformMatrix4fv(normalUniform, 1, GL_FALSE,
+                       glm::value_ptr(_normalMatrix[i]));
+
     glBindTexture(GL_TEXTURE_2D, _tex);
     glBindVertexArray(_vao);
+
+    int hasTexture = glGetUniformLocation(shader.getId(), "hasTexture");
+    glUniform1i(hasTexture, (_hasTexture) ? 1 : 0);
+
     glDrawElements(GL_TRIANGLES, 3 * getFacesSize(), GL_UNSIGNED_INT, 0);
+
+    unsigned int materialUniform =
+        glGetUniformLocation(shader.getId(), "material.ka");
+    glm::vec4 material = _material.getAmbient();
+    glUniform4f(materialUniform, material[0], material[1], material[2],
+                material[3]);
+    materialUniform = glGetUniformLocation(shader.getId(), "material.kd");
+    material = _material.getDiffuse();
+    glUniform4f(materialUniform, material[0], material[1], material[2],
+                material[3]);
+    materialUniform = glGetUniformLocation(shader.getId(), "material.ks");
+    material = _material.getSpecular();
+    glUniform4f(materialUniform, material[0], material[1], material[2],
+                material[3]);
+    materialUniform = glGetUniformLocation(shader.getId(), "material.ns");
+    float shine = _material.getShininess();
+    glUniform1f(materialUniform, shine);
   }
 }
 
@@ -117,6 +156,10 @@ uint MeshObject::addVertex(glm::vec3 vertex) {
 
 void MeshObject::assignVertices(std::vector<glm::vec3> &vertices) {
   _vertices.assign(vertices.begin(), vertices.end());
+}
+
+void MeshObject::assignNormals(std::vector<glm::vec3> &vertices) {
+  _vertexNormal.assign(vertices.begin(), vertices.end());
 }
 
 void MeshObject::removeAllVertices() {

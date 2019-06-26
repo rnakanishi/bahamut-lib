@@ -3,8 +3,10 @@
 
 #include <glad/glad.h>
 #include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
 #include <map>
 #include <shader/shader.hpp>
+#include <shader/material.hpp>
 #include <shader/texture.hpp>
 #include <structures/triangle_mesh.h>
 
@@ -41,6 +43,8 @@ public:
 
   void assignVertices(std::vector<glm::vec3> &vertices);
 
+  void assignNormals(std::vector<glm::vec3> &normals);
+
   void removeAllVertices();
 
   uint removeDoubles() override;
@@ -72,7 +76,8 @@ protected:
   std::vector<glm::vec2> _vertexTexture;
 
   Texture _textureImage;
-  std::vector<glm::mat4> _modelMatrix;
+  Material _material;
+  std::vector<glm::mat4> _modelMatrix, _normalMatrix;
   int _instanceCount;
   bool _hasTexture, _hasNormal, _hasMaterial;
 };

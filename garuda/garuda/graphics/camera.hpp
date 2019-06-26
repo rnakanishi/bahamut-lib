@@ -1,6 +1,8 @@
-#ifndef __GARUDA_CAMERA_HPP
-#define __GARUDA_CAMERA_HPP
+#ifndef __GARUDA_CAMERA_HPP__
+#define __GARUDA_CAMERA_HPP__
 
+#include <glad/glad.h>
+#include <shader/shader.hpp>
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 
@@ -34,7 +36,7 @@ public:
    */
   void rotateCamera(double pitch, double yaw);
 
-  void draw();
+  void draw(Shader shader);
 
   void setAspect(int width, int height);
 

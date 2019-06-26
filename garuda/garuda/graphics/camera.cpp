@@ -1,8 +1,8 @@
-#include <glad/glad.h>
 #include <graphics/camera.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/vec4.hpp>
 #include <GLFW/glfw3.h>
 
@@ -10,13 +10,13 @@
 namespace Garuda {
 
 Camera::Camera() {
-  _position = glm::vec3(0.0f, 0.0f, 3.0f);
-  _lookUp = glm::vec3(0.0f, 1.0f, 0.0f);
-  _lookAt = glm::vec3(0.f);
+  _position = glm::vec3(0.0f, 0.0f, 10.0f);
+  _lookUp = glm::vec3(0.0f, 1.0f, 0.0);
+  _lookAt = glm::vec3(0.f, 0.f, 1.f);
   _front = glm::normalize(_lookAt - _position);
 
   _isPerspective = true;
-  _projection = glm::mat4();
+  _projection = glm::mat4(1.f);
   _near = 0.1f;
   _far = 100.0f;
 
@@ -39,7 +39,7 @@ glm::vec3 Camera::getPosition() { return _position; }
 
 void Camera::setPosition(glm::vec3 position) { _position = position; }
 
-void Camera::draw() { _lastFrameTime = glfwGetTime(); }
+void Camera::draw(Shader shader) { _lastFrameTime = glfwGetTime(); }
 
 void Camera::moveCamera(glm::vec3 direction) {
   // Transform back to original position
@@ -47,7 +47,7 @@ void Camera::moveCamera(glm::vec3 direction) {
   float currTime = glfwGetTime();
   float dt = currTime - _lastFrameTime;
   _lastFrameTime = currTime;
-  float speed = 2. * dt;
+  float speed = 5. * dt;
 
   glm::mat4 translate = glm::translate(glm::mat4(1.f), -_position);
   glm::mat4 rotate = viewMatrix();

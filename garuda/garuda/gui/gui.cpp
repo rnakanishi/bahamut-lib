@@ -26,9 +26,9 @@ void GUI::createWindow() {
     exit(-2);
   }
   glViewport(0, 0, _width, _height);
-  // glEnable(GL_CULL_FACE);
-  // glCullFace(GL_FRONT);
+  glEnable(GL_CULL_FACE);
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_PROGRAM_POINT_SIZE);
 }
 
 void GUI::changeViewport(int width, int height) {

@@ -1,3 +1,6 @@
+#ifndef __GARUDA_GUI_HPP__
+#define __GARUDA_GUI_HPP__
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -35,3 +38,4 @@ protected:
   GLFWwindow *_window;
 };
 } // namespace Garuda
+#endif // !__GARUDA_GUI_HPP__

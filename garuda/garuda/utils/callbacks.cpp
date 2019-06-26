@@ -1,5 +1,5 @@
-#include <utils/callbacks.hpp>
 #include <graphics/camera.hpp>
+#include <utils/callbacks.hpp>
 #include <iostream>
 #include <glm/gtx/string_cast.hpp>
 
@@ -14,7 +14,7 @@ void __mouseCursor(GLFWwindow *window, double xPos, double yPos) {
   static double lastX = xPos, lastY = yPos;
 
   if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     double x, y;
     glfwGetCursorPos(window, &x, &y);
     if (firstMouse) {

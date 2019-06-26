@@ -17,4 +17,10 @@ add_executable(camera camera_test.cpp)
 target_link_libraries(camera PUBLIC Garuda ${GLFW_LIBRARIES} glad)
 target_include_directories( camera PUBLIC ${GLFW_INCLUDE_DIR} ${GLAD_INCLUDES})
 
+add_executable(light light.cpp)
+target_link_libraries(light PUBLIC Garuda ${GLFW_LIBRARIES} glad)
+target_include_directories( light PUBLIC ${GLFW_INCLUDE_DIR} ${GLAD_INCLUDES})
+
+
+
 
