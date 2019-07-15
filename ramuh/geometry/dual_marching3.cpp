@@ -4,9 +4,11 @@
 
 namespace Ramuh {
 
-DualMarching3::DualMarching3() { _resolution = 16; }
+DualMarching3::DualMarching3() : DualMarching3(Eigen::Array3i(16, 16, 16)) {}
 
-DualMarching3::DualMarching3(int resolution) { _resolution = resolution; }
+DualMarching3::DualMarching3(Eigen::Array3i resolution) {
+  _resolution = resolution;
+}
 
 Eigen::Array3d
 DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
@@ -38,7 +40,7 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
 
 void DualMarching3::reconstruct() {
   std::ofstream file;
-  file.open("quad_dualcubes.obj", std::ofstream::out);
+  file.open("results/quad_dualcubes.obj", std::ofstream::out);
 
   int id = 1;
   for (std::map<int, Eigen::Array3d>::iterator it = _points.begin();
@@ -52,9 +54,9 @@ void DualMarching3::reconstruct() {
          << it->second[2] << std::endl;
   }
 
-  for (int i = 0; i < _resolution; i++)
-    for (int j = 0; j < _resolution; j++)
-      for (int k = 0; k < _resolution; k++) {
+  for (int i = 0; i < _resolution[0]; i++)
+    for (int j = 0; j < _resolution[1]; j++)
+      for (int k = 0; k < _resolution[2]; k++) {
         if (_idMap.find(std::make_tuple(i, j, k)) != _idMap.end()) {
           // Verify all directions
           // Right top

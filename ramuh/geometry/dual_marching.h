@@ -38,7 +38,7 @@ class DualMarching3 {
 public:
   DualMarching3();
 
-  DualMarching3(int resolution);
+  DualMarching3(Eigen::Array3i resolution);
 
   Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
                               std::vector<Eigen::Array3d> normalLocation,
@@ -50,7 +50,7 @@ private:
   std::map<std::tuple<int, int, int>, int> _idMap;
   std::map<int, Eigen::Array3d> _points;
   std::map<int, Eigen::Vector3d> _normals;
-  int _resolution;
+  Eigen::Array3i _resolution;
 };
 
 } // namespace Ramuh

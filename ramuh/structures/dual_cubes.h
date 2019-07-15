@@ -2,6 +2,8 @@
 #define __RAMUH_DUAL_CUBES_H__
 #include <Eigen/Dense>
 #include <vector>
+#include <utility>
+#include <geometry/bounding_box.h>
 
 namespace Ramuh {
 
@@ -30,9 +32,16 @@ protected:
 
 class DualCubes3 {
 public:
+  /**
+   * @brief Construct a new Dual Cubes 3 object. This object has size and
+   *resolution predefined as [0,1] and 32^3 respectively.
+   *
+   **/
   DualCubes3();
 
-  DualCubes3(int size);
+  DualCubes3(Eigen::Array3i resolution);
+
+  DualCubes3(Eigen::Array3i resolution, BoundingBox3 domain);
 
   void initialize(Eigen::Array3d center, double radius);
 
@@ -49,8 +58,9 @@ protected:
       _vfaceNormals, _wfaceNormals;
   std::vector<std::vector<std::vector<Eigen::Array3d>>> _ufaceLocation,
       _vfaceLocation, _wfaceLocation;
-  double _h;
-  double _resolution;
+  Eigen::Array3d _h;
+  BoundingBox3 _domain;
+  Eigen::Array3i _resolution;
 };
 } // namespace Ramuh
 
