@@ -3,6 +3,7 @@
 #include <map>
 #include <utility>
 #include <Eigen/Dense>
+#include <geometry/bounding_box.h>
 
 namespace Ramuh {
 class DualMarching2 {
@@ -43,6 +44,12 @@ public:
   Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
                               std::vector<Eigen::Array3d> normalLocation,
                               std::vector<Eigen::Vector3d> normals);
+
+
+  Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
+                              std::vector<Eigen::Array3d> normalLocation,
+                              std::vector<Eigen::Vector3d> normals, 
+                              BoundingBox3 cubeLimits);
 
   void reconstruct();
 

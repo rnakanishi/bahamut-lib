@@ -79,17 +79,26 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
         y2 = y * y;
         z2 = z * z;
 
+        // TODO: Fix this initialization method. Extends this class into an
+        // application and create another method to initialize properly
+
         // SPHERE
-        distance = x2 + y2 + z2 - radius * radius;
+        // distance = x2 + y2 + z2 - radius * radius;
 
         // TORUS
         // distance = ((x2 + y2) * (x2 + y2) - x2 + y2);
         // distance = distance * distance + z2 - (1. / 100);
 
+        // CUBE
+        distance =
+            std::max(std::max(std::fabs(x), std::fabs(y)), std::fabs(z)) -
+            radius;
+
         _cells[i][j][k] = std::min(_cells[i][j][k], distance);
       }
 
   // ====== Initialize edges and normals
+  // TODO: Dont initialize normals. Create a evaluateGradient method instead
   // Look for surface
   for (int k = 0; k < _resolution[2]; k++)
     for (int j = 0; j < _resolution[1]; j++)
@@ -107,8 +116,9 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             _ufaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
 
             // SPHERE
-            _ufaceNormals[i][j][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+            // _ufaceNormals[i][j][k] = Eigen::Vector3d(
+            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
+            //     center[2]));
 
             // TORUS
             // _ufaceNormals[i][j][k] = Eigen::Vector3d(
@@ -117,6 +127,14 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * (4 * y * (x * x + y * y) + 2 * y) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
             //     2 * z);
+
+            // CUBE
+            if (x > y && x > z)
+              _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
+            else if (y > x && y > z)
+              _ufaceNormals[i][j][k] = Eigen::Vector3d((y > 0) ? 1 : -1, 0, 0);
+            else
+              _ufaceNormals[i][j][k] = Eigen::Vector3d((z > 0) ? 1 : -1, 0, 0);
           }
         }
         if (i < _resolution[0] - 1) {
@@ -131,8 +149,9 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             _ufaceLocation[i + 1][j][k] = Eigen::Array3d(x, y, z);
 
             // SPHERE
-            _ufaceNormals[i + 1][j][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+            // _ufaceNormals[i + 1][j][k] = Eigen::Vector3d(
+            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
+            //     center[2]));
             // TORUS
             // _ufaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
@@ -140,6 +159,14 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * (4 * y * (x * x + y * y) + 2 * y) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
             //     2 * z);
+
+            // CUBE
+            if (x > y && x > z)
+              _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
+            else if (y > x && y > z)
+              _ufaceNormals[i][j][k] = Eigen::Vector3d((y > 0) ? 1 : -1, 0, 0);
+            else
+              _ufaceNormals[i][j][k] = Eigen::Vector3d((z > 0) ? 1 : -1, 0, 0);
           }
         }
         if (j > 0) {
@@ -153,8 +180,9 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _vfaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
             // SPHERE
-            _vfaceNormals[i][j][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+            // _vfaceNormals[i][j][k] = Eigen::Vector3d(
+            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
+            //     center[2]));
             // TORUS
             // _vfaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
@@ -162,6 +190,14 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * (4 * y * (x * x + y * y) + 2 * y) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
             //     2 * z);
+
+            // CUBE
+            if (x > y && x > z)
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (x > 0) ? 1 : -1, 0);
+            else if (y > x && y > z)
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
+            else
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (z > 0) ? 1 : -1, 0);
           }
         }
         if (j < _resolution[1] - 1) {
@@ -175,8 +211,9 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _vfaceLocation[i][j + 1][k] = Eigen::Array3d(x, y, z);
             // SPHERE
-            _vfaceNormals[i][j + 1][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+            // _vfaceNormals[i][j + 1][k] = Eigen::Vector3d(
+            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
+            //     center[2]));
             // TORUS
             // _vfaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
@@ -184,6 +221,15 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * (4 * y * (x * x + y * y) + 2 * y) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
             //     2 * z);
+
+            // CUBE
+
+            if (x > y && x > z)
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (x > 0) ? 1 : -1, 0);
+            else if (y > x && y > z)
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
+            else
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (z > 0) ? 1 : -1, 0);
           }
         }
         if (k > 0) {
@@ -197,8 +243,9 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
                        (k - 0.5) * _h[2];
             _wfaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
             // SPHERE
-            _wfaceNormals[i][j][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+            // _wfaceNormals[i][j][k] = Eigen::Vector3d(
+            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
+            //     center[2]));
             // TORUS
             // _wfaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
@@ -206,6 +253,14 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * (4 * y * (x * x + y * y) + 2 * y) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
             //     2 * z);
+
+            // CUBE
+            if (x > y && x > z)
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (x > 0) ? 1 : -1);
+            else if (y > x && y > z)
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (y > 0) ? 1 : -1);
+            else
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
           }
         }
         if (k < _resolution[2] - 1) {
@@ -219,8 +274,9 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
                        (k + 0.5) * _h[2];
             _wfaceLocation[i][j][k + 1] = Eigen::Array3d(x, y, z);
             // SPHERE
-            _wfaceNormals[i][j][k + 1] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+            // _wfaceNormals[i][j][k + 1] = Eigen::Vector3d(
+            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
+            //     center[2]));
             // TORUS
             // _wfaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
@@ -228,6 +284,14 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * (4 * y * (x * x + y * y) + 2 * y) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
             //     2 * z);
+
+            // CUBE
+            if (x > y && x > z)
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (x > 0) ? 1 : -1);
+            else if (y > x && y > z)
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (y > 0) ? 1 : -1);
+            else
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
           }
         }
       }
@@ -339,8 +403,14 @@ void DualCubes3::extractSurface() {
 
         // Solve quadratic function
         if (isSurface) {
-          auto x = surface.evaluateCube(std::make_tuple(i, j, k),
-                                        normalPosition, normal);
+          Eigen::Array3d cubeMin =
+              _domain.min() + _h.cwiseProduct(Eigen::Array3d(i, j, k));
+          Eigen::Array3d cubeMax =
+              _domain.min() +
+              _h.cwiseProduct(Eigen::Array3d(i + 1, j + 1, k + 1));
+          auto x =
+              surface.evaluateCube(std::make_tuple(i, j, k), normalPosition,
+                                   normal, BoundingBox3(cubeMin, cubeMax));
           std::cout << x[0] << " " << x[1] << " " << x[2] << std::endl;
         }
       }

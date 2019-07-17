@@ -36,6 +36,9 @@ public:
 
   Eigen::Array3d max();
 
+  Eigen::Array3d clamp(Eigen::Array3d);
+  
+
 private:
   Eigen::Array3d _min, _max;
 };

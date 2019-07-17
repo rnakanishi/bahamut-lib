@@ -14,6 +14,15 @@ Eigen::Array3d
 DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
                             std::vector<Eigen::Array3d> normalLocation,
                             std::vector<Eigen::Vector3d> normals) {
+  return evaluateCube(pointIndices, normalLocation, normals,
+                      BoundingBox3(Eigen::Array3d(-1e8, -1e8, -1e8),
+                                   Eigen::Array3d(1e8, 1e8, 1e8)));
+}
+Eigen::Array3d
+DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
+                            std::vector<Eigen::Array3d> normalLocation,
+                            std::vector<Eigen::Vector3d> normals,
+                            BoundingBox3 cubeLimits) {
 
   Eigen::MatrixXd A(normals.size(), 3);
   Eigen::VectorXd b(normals.size());
@@ -29,12 +38,13 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
   Eigen::Vector3d x =
       (A.transpose() * A).colPivHouseholderQr().solve(A.transpose() * b);
   normalAvg /= normals.size();
+  x = cubeLimits.clamp(x);
 
   int nPoints = _idMap.size() + 1;
   _idMap[pointIndices] = nPoints;
   _points[nPoints] = x;
   _normals[nPoints] = normalAvg.normalized();
-
+  
   return x;
 }
 
