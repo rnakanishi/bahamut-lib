@@ -44,7 +44,7 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
   _idMap[pointIndices] = nPoints;
   _points[nPoints] = x;
   _normals[nPoints] = normalAvg.normalized();
-  
+
   return x;
 }
 

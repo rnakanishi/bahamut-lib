@@ -45,6 +45,8 @@ public:
 
   void initialize(Eigen::Array3d center, double radius);
 
+  void computeNormals();
+
   void extractSurface();
 
   void printCells();

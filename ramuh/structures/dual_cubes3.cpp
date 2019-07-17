@@ -129,12 +129,7 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            if (x > y && x > z)
-              _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
-            else if (y > x && y > z)
-              _ufaceNormals[i][j][k] = Eigen::Vector3d((y > 0) ? 1 : -1, 0, 0);
-            else
-              _ufaceNormals[i][j][k] = Eigen::Vector3d((z > 0) ? 1 : -1, 0, 0);
+            _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
           }
         }
         if (i < _resolution[0] - 1) {
@@ -161,12 +156,7 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            if (x > y && x > z)
-              _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
-            else if (y > x && y > z)
-              _ufaceNormals[i][j][k] = Eigen::Vector3d((y > 0) ? 1 : -1, 0, 0);
-            else
-              _ufaceNormals[i][j][k] = Eigen::Vector3d((z > 0) ? 1 : -1, 0, 0);
+            _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
           }
         }
         if (j > 0) {
@@ -192,12 +182,7 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            if (x > y && x > z)
-              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (x > 0) ? 1 : -1, 0);
-            else if (y > x && y > z)
-              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
-            else
-              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (z > 0) ? 1 : -1, 0);
+            _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
           }
         }
         if (j < _resolution[1] - 1) {
@@ -224,12 +209,7 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
 
             // CUBE
 
-            if (x > y && x > z)
-              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (x > 0) ? 1 : -1, 0);
-            else if (y > x && y > z)
-              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
-            else
-              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (z > 0) ? 1 : -1, 0);
+            _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
           }
         }
         if (k > 0) {
@@ -255,12 +235,7 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            if (x > y && x > z)
-              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (x > 0) ? 1 : -1);
-            else if (y > x && y > z)
-              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (y > 0) ? 1 : -1);
-            else
-              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
+            _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
           }
         }
         if (k < _resolution[2] - 1) {
@@ -286,12 +261,154 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            if (x > y && x > z)
-              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (x > 0) ? 1 : -1);
-            else if (y > x && y > z)
-              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (y > 0) ? 1 : -1);
-            else
-              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
+            _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
+          }
+        }
+      }
+}
+
+void DualCubes3::computeNormals() {
+  for (int k = 0; k < _resolution[2]; k++)
+    for (int j = 0; j < _resolution[1]; j++)
+      for (int i = 0; i < _resolution[0]; i++) {
+        int centerSign = (_cells[i][j][k] < 0) ? -1 : 1;
+        double left, right, up, bot, back, front;
+        if (i > 0) {
+          int neighSign = (_cells[i - 1][j][k] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            Eigen::Vector3d normal;
+            normal[0] = (_cells[i][j][k] - _cells[i - 1][j][k]) / _h[0];
+            // Average first and then compute derivative for y and z directions
+            // Y-direction
+            up = (j < _resolution[1] - 1)
+                     ? (_cells[i - 1][j + 1][k] + _cells[i][j + 1][k]) / 2
+                     : (_cells[i - 1][j][k] + _cells[i][j][k]) / 2;
+            bot = (j > 0) ? (_cells[i - 1][j - 1][k] + _cells[i][j - 1][k]) / 2
+                          : (_cells[i - 1][j][k] + _cells[i][j][k]) / 2;
+            // Z-direction
+            front = (k < _resolution[1] - 1)
+                        ? (_cells[i - 1][j][k + 1] + _cells[i][j][k + 1]) / 2
+                        : (_cells[i - 1][j][k] + _cells[i][j][k]) / 2;
+            back = (k > 0) ? (_cells[i - 1][j][k - 1] + _cells[i][j][k - 1]) / 2
+                           : (_cells[i - 1][j][k] + _cells[i][j][k]) / 2;
+            normal[1] = (up - bot) / (2 * _h[1]);
+            normal[2] = (front - back) / (2 * _h[2]);
+            _ufaceNormals[i][j][k] = normal;
+          }
+        }
+        if (i < _resolution[0] - 1) {
+          int neighSign = (_cells[i + 1][j][k] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            Eigen::Vector3d normal;
+            normal[0] = (_cells[i + 1][j][k] - _cells[i][j][k]) / _h[0];
+            // Average first and then compute derivative for y and z directions
+            // Y-direction
+            up = (j < _resolution[1] - 1)
+                     ? (_cells[i][j + 1][k] + _cells[i + 1][j + 1][k]) / 2
+                     : (_cells[i][j][k] + _cells[i + 1][j][k]) / 2;
+            bot = (j > 0) ? (_cells[i][j - 1][k] + _cells[i + 1][j - 1][k]) / 2
+                          : (_cells[i][j][k] + _cells[i + 1][j][k]) / 2;
+            // Z-direction
+            front = (k < _resolution[1] - 1)
+                        ? (_cells[i][j][k + 1] + _cells[i + 1][j][k + 1]) / 2
+                        : (_cells[i][j][k] + _cells[i + 1][j][k]) / 2;
+            back = (k > 0) ? (_cells[i][j][k - 1] + _cells[i + 1][j][k - 1]) / 2
+                           : (_cells[i][j][k] + _cells[i + 1][j][k]) / 2;
+            normal[1] = (up - bot) / (2 * _h[1]);
+            normal[2] = (front - back) / (2 * _h[2]);
+            _ufaceNormals[i][j][k] = normal;
+          }
+        }
+        if (j > 0) {
+          int neighSign = (_cells[i][j - 1][k] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            Eigen::Vector3d normal;
+            normal[1] = (_cells[i][j][k] - _cells[i][j - 1][k]) / _h[1];
+            // Average first and then compute derivative for y and z directions
+            // X-direction
+            right = (i < _resolution[0] - 1)
+                        ? (_cells[i + 1][j - 1][k] + _cells[i + 1][j][k]) / 2
+                        : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+            left = (i > 0) ? (_cells[i - 1][j - 1][k] + _cells[i - 1][j][k]) / 2
+                           : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+            // Z-direction
+            front = (k < _resolution[1] - 1)
+                        ? (_cells[i][j - 1][k + 1] + _cells[i][j][k + 1]) / 2
+                        : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+            back = (k > 0) ? (_cells[i][j - 1][k - 1] + _cells[i][j][k - 1]) / 2
+                           : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+            normal[0] = (right - left) / (2 * _h[0]);
+            normal[2] = (front - back) / (2 * _h[2]);
+            _vfaceNormals[i][j][k] = normal;
+          }
+        }
+        if (j < _resolution[1] - 1) {
+          int neighSign = (_cells[i][j + 1][k] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            Eigen::Vector3d normal;
+            normal[1] = (_cells[i][j + 1][k] - _cells[i][j][k]) / _h[1];
+            // Average first and then compute derivative for y and z directions
+            // Y-direction
+            right = (i < _resolution[0] - 1)
+                        ? (_cells[i + 1][j][k] + _cells[i + 1][j + 1][k]) / 2
+                        : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+            left = (i > 0) ? (_cells[i - 1][j][k] + _cells[i - 1][j + 1][k]) / 2
+                           : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+            // Z-direction
+            front = (k < _resolution[2] - 1)
+                        ? (_cells[i][j][k + 1] + _cells[i][j + 1][k + 1]) / 2
+                        : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+            back = (k > 0) ? (_cells[i][j][k - 1] + _cells[i][j + 1][k - 1]) / 2
+                           : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+            normal[0] = (right - left) / (2 * _h[0]);
+            normal[2] = (front - back) / (2 * _h[2]);
+            _vfaceNormals[i][j][k] = normal;
+          }
+        }
+        if (k > 0) {
+          int neighSign = (_cells[i][j][k - 1] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            Eigen::Vector3d normal;
+            normal[2] = (_cells[i][j][k] - _cells[i][j][k - 1]) / _h[2];
+            // Average first and then compute derivative for y and z directions
+            // X-direction
+            right = (i < _resolution[0] - 1)
+                        ? (_cells[i + 1][j - 1][k] + _cells[i + 1][j][k]) / 2
+                        : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+            left = (i > 0) ? (_cells[i - 1][j - 1][k] + _cells[i - 1][j][k]) / 2
+                           : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+            // Y-direction
+            up = (j < _resolution[1] - 1)
+                     ? (_cells[i][j + 1][k - 1] + _cells[i][j + 1][k]) / 2
+                     : (_cells[i][j][k - 1] + _cells[i][j][k]) / 2;
+            bot = (j > 0) ? (_cells[i][j - 1][k - 1] + _cells[i][j - 1][k]) / 2
+                          : (_cells[i][j][k - 1] + _cells[i][j][k]) / 2;
+            normal[0] = (right - left) / (2 * _h[0]);
+            normal[1] = (up - bot) / (2 * _h[1]);
+            _wfaceNormals[i][j][k] = normal;
+          }
+        }
+        if (k < _resolution[2] - 1) {
+          int neighSign = (_cells[i][j][k + 1] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            Eigen::Vector3d normal;
+            normal[1] = (_cells[i][j][k + 1] - _cells[i][j][k]) / _h[1];
+            // Average first and then compute derivative for y and z directions
+            // Y-direction
+            right = (i < _resolution[0] - 1)
+                        ? (_cells[i + 1][j][k] + _cells[i + 1][j + 1][k]) / 2
+                        : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+            left = (i > 0) ? (_cells[i - 1][j][k] + _cells[i - 1][j + 1][k]) / 2
+                           : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+            // Y-direction
+            up = (j < _resolution[1] - 1)
+                     ? (_cells[i][j + 1][k + 1] + _cells[i][j + 1][k]) / 2
+                     : (_cells[i][j][k + 1] + _cells[i][j][k]) / 2;
+            bot = (j > 0) ? (_cells[i][j - 1][k + 1] + _cells[i][j - 1][k]) / 2
+                          : (_cells[i][j][k + 1] + _cells[i][j][k]) / 2;
+            normal[0] = (right - left) / (2 * _h[0]);
+            normal[1] = (up - bot) / (2 * _h[1]);
+            _wfaceNormals[i][j][k] = normal;
           }
         }
       }
