@@ -95,9 +95,9 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
         // distance = distance * distance + z2 - (1. / 50);
 
         // CUBE
-        // distance =
-        //     std::max(std::max(std::fabs(x), std::fabs(y)), std::fabs(z)) -
-        //     radius;
+        distance =
+            std::max(std::max(std::fabs(x), std::fabs(y)), std::fabs(z)) -
+            radius;
 
         _phi[i][j][k] = std::min(_phi[i][j][k], distance);
       }

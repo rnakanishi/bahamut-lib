@@ -10,14 +10,17 @@ int main(int argc, char const *argv[]) {
       Eigen::Array3i(64, 64, 64),
       Ramuh::BoundingBox3(Eigen::Array3d(-2, -2, -2), Eigen::Array3d(2, 2, 2)));
   cubes.initialize(Eigen::Array3d(0, 0, 0), 0.3);
-  // cubes.defineVelocity();
+  cubes.defineVelocity();
   // cubes.printCells();
-  // for (int i = 0; i < 50; i++) {
-  // cubes.integrateLevelSet();
-  cubes.computeIntersection();
-  cubes.computeNormals();
+
   cubes.extractSurface();
-  // }
+  for (int i = 1; i <= 100; i++) {
+    cubes.integrateLevelSet();
+    cubes.computeIntersection();
+    cubes.computeNormals();
+    cubes.extractSurface();
+  }
+
   auto surface = cubes.marchingTetrahedra();
   Ramuh::FileWriter writer;
   std::ostringstream objname;
