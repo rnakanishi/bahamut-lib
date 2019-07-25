@@ -14,6 +14,8 @@ class RegularGrid3 {
 public:
   RegularGrid3();
 
+  RegularGrid3(Eigen::Array3i resolution  );
+
   ///
   /// Grid size
   /// \return Vector3d
@@ -34,11 +36,11 @@ public:
   /// \return Vector3d spacing
   Vector3d h();
 
-/**
- * @brief Return the tolerance used for this class errors
- * 
- * @return double tolerance value
-**/
+  /**
+   * @brief Return the tolerance used for this class errors
+   *
+   * @return double tolerance value
+   **/
   double tolerance();
 
   void setTolerance(double tol);
@@ -188,8 +190,8 @@ protected:
   // TODO: Change to Matrix2 type
   // TODO: use two matrices to improve performance
   int _currBuffer;
-  std::vector<std::vector<std::vector<double>>> _u[2], _v[2],
-      _w[2]; // Velocity components stored on faces
+  std::vector<std::vector<std::vector<double>>> _u, _v,
+      _w; // Velocity components stored on faces
   std::vector<int> _fluidCells, _surfaceCells;
   std::vector<std::vector<std::vector<Material::FluidMaterial>>> _material,
       _uFaceMaterial, _vFaceMaterial,

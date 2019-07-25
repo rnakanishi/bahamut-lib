@@ -10,12 +10,13 @@ DualCubes3::DualCubes3()
 DualCubes3::DualCubes3(Eigen::Array3i resolution)
     : DualCubes3(resolution, BoundingBox3::unitBox()) {}
 
-DualCubes3::DualCubes3(Eigen::Array3i resolution, BoundingBox3 domain) {
+DualCubes3::DualCubes3(Eigen::Array3i resolution, BoundingBox3 domain)
+    : LevelSet3(resolution) {
   _domain = domain;
   _h = _domain.size().cwiseQuotient(resolution.cast<double>());
   _resolution = resolution;
 
-  _cells.resize(resolution[0]);
+  // _phi.resize(resolution[0]);
   _vertices.resize(resolution[0] + 1);
   _ufaceNormals.resize(resolution[0] + 1);
   _ufaceLocation.resize(resolution[0] + 1);
@@ -25,7 +26,7 @@ DualCubes3::DualCubes3(Eigen::Array3i resolution, BoundingBox3 domain) {
   _wfaceLocation.resize(resolution[0]);
 
   for (int i = 0; i < resolution[0]; i++) {
-    _cells[i].resize(resolution[1]);
+    // _phi[i].resize(resolution[1]);
     _vertices[i].resize(resolution[1] + 1);
     _ufaceNormals[i].resize(resolution[1]);
     _ufaceLocation[i].resize(resolution[1]);
@@ -38,7 +39,7 @@ DualCubes3::DualCubes3(Eigen::Array3i resolution, BoundingBox3 domain) {
     _ufaceNormals[resolution[0] - 1].resize(resolution[1]);
     _ufaceLocation[resolution[0] - 1].resize(resolution[1]);
     for (int j = 0; j < resolution[1]; j++) {
-      _cells[i][j].resize(resolution[2], 1e8);
+      // _phi[i][j].resize(resolution[2], 1e8);
       _vertices[i][j].resize(resolution[2] + 1);
       _ufaceNormals[i][j].resize(resolution[2]);
       _ufaceLocation[i][j].resize(resolution[2]);
@@ -69,7 +70,6 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             domainMin + Eigen::Array3d(i, j, k).cwiseProduct(h) + h / 2.0;
         // double distance = (position - center).matrix().norm() - radius;
 
-        // TORUS
         double x, y, z, x2, y2, z2;
         double distance;
         x = position[0] - center[0];
@@ -83,18 +83,23 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
         // application and create another method to initialize properly
 
         // SPHERE
-        // distance = x2 + y2 + z2 - radius * radius;
+        distance = x2 + y2 + z2 - radius * radius;
 
         // TORUS
+        distance = (1.5 * radius - std::sqrt(x2 + z2)) *
+                       (1.5 * radius - std::sqrt(x2 + z2)) +
+                   y2 - 0.75 * radius * radius;
+
+        // DOUBLE TORUS
         // distance = ((x2 + y2) * (x2 + y2) - x2 + y2);
-        // distance = distance * distance + z2 - (1. / 100);
+        // distance = distance * distance + z2 - (1. / 50);
 
         // CUBE
-        distance =
-            std::max(std::max(std::fabs(x), std::fabs(y)), std::fabs(z)) -
-            radius;
+        // distance =
+        //     std::max(std::max(std::fabs(x), std::fabs(y)), std::fabs(z)) -
+        //     radius;
 
-        _cells[i][j][k] = std::min(_cells[i][j][k], distance);
+        _phi[i][j][k] = std::min(_phi[i][j][k], distance);
       }
 
   // ====== Initialize edges and normals
@@ -103,24 +108,29 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
   for (int k = 0; k < _resolution[2]; k++)
     for (int j = 0; j < _resolution[1]; j++)
       for (int i = 0; i < _resolution[0]; i++) {
-        int centerSign = (_cells[i][j][k] < 0) ? -1 : 1;
+        int centerSign = (_phi[i][j][k] < 0) ? -1 : 1;
         if (i > 0) {
-          int neighSign = (_cells[i - 1][j][k] < 0) ? -1 : 1;
+          int neighSign = (_phi[i - 1][j][k] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
-            double theta = _cells[i][j][k] - _cells[i - 1][j][k];
-            double x = domainMin[0] + -_h[0] * _cells[i - 1][j][k] / (theta) +
+            double theta = _phi[i][j][k] - _phi[i - 1][j][k];
+            double x = domainMin[0] + -_h[0] * _phi[i - 1][j][k] / (theta) +
                        (i - 0.5) * _h[0];
             double y = domainMin[1] + (j + 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _ufaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
 
             // SPHERE
-            // _ufaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
-            //     center[2]));
+            _ufaceNormals[i][j][k] = Eigen::Vector3d(
+                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
 
             // TORUS
+            _ufaceNormals[i][j][k] = Eigen::Vector3d(
+                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                2 * y,
+                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+
+            // DOUBLE TORUS
             // _ufaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
@@ -129,25 +139,31 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
+            // _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
           }
         }
         if (i < _resolution[0] - 1) {
-          int neighSign = (_cells[i + 1][j][k] < 0) ? -1 : 1;
+          int neighSign = (_phi[i + 1][j][k] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
-            double theta = _cells[i + 1][j][k] - _cells[i][j][k];
-            double x = domainMin[0] - _h[0] * _cells[i + 1][j][k] / (theta) +
+            double theta = _phi[i + 1][j][k] - _phi[i][j][k];
+            double x = domainMin[0] - _h[0] * _phi[i + 1][j][k] / (theta) +
                        (i + 0.5) * _h[0];
             double y = domainMin[1] + (j + 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _ufaceLocation[i + 1][j][k] = Eigen::Array3d(x, y, z);
 
             // SPHERE
-            // _ufaceNormals[i + 1][j][k] = Eigen::Vector3d(
-            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
-            //     center[2]));
-            // TORUS
+            _ufaceNormals[i + 1][j][k] = Eigen::Vector3d(
+                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+
+            // TORUS;
+            _ufaceNormals[i][j][k] = Eigen::Vector3d(
+                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                2 * y,
+                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+
+            // DOUBLE TORUS
             // _ufaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
@@ -156,24 +172,30 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
+            // _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
           }
         }
         if (j > 0) {
-          int neighSign = (_cells[i][j - 1][k] < 0) ? -1 : 1;
+          int neighSign = (_phi[i][j - 1][k] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
-            double theta = _cells[i][j][k] - _cells[i][j - 1][k];
+            double theta = _phi[i][j][k] - _phi[i][j - 1][k];
             double x = domainMin[0] + (i + 0.5) * _h[0];
-            double y = domainMin[1] - _h[1] * _cells[i][j - 1][k] / (theta) +
+            double y = domainMin[1] - _h[1] * _phi[i][j - 1][k] / (theta) +
                        (j - 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _vfaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
             // SPHERE
-            // _vfaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
-            //     center[2]));
+            _vfaceNormals[i][j][k] = Eigen::Vector3d(
+                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+
             // TORUS
+            _vfaceNormals[i][j][k] = Eigen::Vector3d(
+                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                2 * y,
+                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+
+            // DOUBLE TORUS
             // _vfaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
@@ -182,24 +204,30 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
+            // _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
           }
         }
         if (j < _resolution[1] - 1) {
-          int neighSign = (_cells[i][j + 1][k] < 0) ? -1 : 1;
+          int neighSign = (_phi[i][j + 1][k] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
-            double theta = _cells[i][j + 1][k] - _cells[i][j][k];
+            double theta = _phi[i][j + 1][k] - _phi[i][j][k];
             double x = domainMin[0] + (i + 0.5) * _h[0];
-            double y = domainMin[1] - _h[1] * _cells[i][j + 1][k] / (theta) +
+            double y = domainMin[1] - _h[1] * _phi[i][j + 1][k] / (theta) +
                        (j + 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _vfaceLocation[i][j + 1][k] = Eigen::Array3d(x, y, z);
             // SPHERE
-            // _vfaceNormals[i][j + 1][k] = Eigen::Vector3d(
-            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
-            //     center[2]));
+            _vfaceNormals[i][j + 1][k] = Eigen::Vector3d(
+                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+
             // TORUS
+            _vfaceNormals[i][j + 1][k] = Eigen::Vector3d(
+                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                2 * y,
+                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+
+            // DOUBLE TORUS
             // _vfaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
@@ -208,25 +236,30 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-
-            _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
+            // _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
           }
         }
         if (k > 0) {
-          int neighSign = (_cells[i][j][k - 1] < 0) ? -1 : 1;
+          int neighSign = (_phi[i][j][k - 1] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
-            double theta = _cells[i][j][k] - _cells[i][j][k - 1];
+            double theta = _phi[i][j][k] - _phi[i][j][k - 1];
             double x = domainMin[0] + (i + 0.5) * _h[0];
             double y = domainMin[1] + (j + 0.5) * _h[1];
-            double z = domainMin[2] - _h[2] * _cells[i][j][k - 1] / (theta) +
+            double z = domainMin[2] - _h[2] * _phi[i][j][k - 1] / (theta) +
                        (k - 0.5) * _h[2];
             _wfaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
             // SPHERE
-            // _wfaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
-            //     center[2]));
+            _wfaceNormals[i][j][k] = Eigen::Vector3d(
+                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+
             // TORUS
+            _wfaceNormals[i][j][k] = Eigen::Vector3d(
+                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                2 * y,
+                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+
+            // DOUBLE TORUS
             // _wfaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
@@ -235,24 +268,30 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
+            // _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
           }
         }
         if (k < _resolution[2] - 1) {
-          int neighSign = (_cells[i][j][k + 1] < 0) ? -1 : 1;
+          int neighSign = (_phi[i][j][k + 1] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
-            double theta = _cells[i][j][k + 1] - _cells[i][j][k];
+            double theta = _phi[i][j][k + 1] - _phi[i][j][k];
             double x = domainMin[0] + (i + 0.5) * _h[0];
             double y = domainMin[1] + (j + 0.5) * _h[1];
-            double z = domainMin[2] + -_h[2] * _cells[i][j][k + 1] / (theta) +
+            double z = domainMin[2] + -_h[2] * _phi[i][j][k + 1] / (theta) +
                        (k + 0.5) * _h[2];
             _wfaceLocation[i][j][k + 1] = Eigen::Array3d(x, y, z);
             // SPHERE
-            // _wfaceNormals[i][j][k + 1] = Eigen::Vector3d(
-            //     2 * (x - center[0]), 2 * (y - center[1]), 2 * (z -
-            //     center[2]));
+            _wfaceNormals[i][j][k + 1] = Eigen::Vector3d(
+                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
+
             // TORUS
+            _wfaceNormals[i][j][k + 1] = Eigen::Vector3d(
+                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                2 * y,
+                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+
+            // DOUBLE TORUS
             // _wfaceNormals[i][j][k] = Eigen::Vector3d(
             //     2 * (4 * x * (x * x + y * y) - 2 * x) *
             //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
@@ -261,7 +300,7 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             //     2 * z);
 
             // CUBE
-            _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
+            // _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
           }
         }
       }
@@ -271,148 +310,229 @@ void DualCubes3::computeNormals() {
   for (int k = 0; k < _resolution[2]; k++)
     for (int j = 0; j < _resolution[1]; j++)
       for (int i = 0; i < _resolution[0]; i++) {
-        int centerSign = (_cells[i][j][k] < 0) ? -1 : 1;
+        int centerSign = (_phi[i][j][k] < 0) ? -1 : 1;
         double left, right, up, bot, back, front;
         if (i > 0) {
-          int neighSign = (_cells[i - 1][j][k] < 0) ? -1 : 1;
+          int neighSign = (_phi[i - 1][j][k] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
-            normal[0] = (_cells[i][j][k] - _cells[i - 1][j][k]) / _h[0];
+            normal[0] = (_phi[i][j][k] - _phi[i - 1][j][k]) / _h[0];
             // Average first and then compute derivative for y and z directions
             // Y-direction
             up = (j < _resolution[1] - 1)
-                     ? (_cells[i - 1][j + 1][k] + _cells[i][j + 1][k]) / 2
-                     : (_cells[i - 1][j][k] + _cells[i][j][k]) / 2;
-            bot = (j > 0) ? (_cells[i - 1][j - 1][k] + _cells[i][j - 1][k]) / 2
-                          : (_cells[i - 1][j][k] + _cells[i][j][k]) / 2;
+                     ? (_phi[i - 1][j + 1][k] + _phi[i][j + 1][k]) / 2
+                     : (_phi[i - 1][j][k] + _phi[i][j][k]) / 2;
+            bot = (j > 0) ? (_phi[i - 1][j - 1][k] + _phi[i][j - 1][k]) / 2
+                          : (_phi[i - 1][j][k] + _phi[i][j][k]) / 2;
             // Z-direction
             front = (k < _resolution[1] - 1)
-                        ? (_cells[i - 1][j][k + 1] + _cells[i][j][k + 1]) / 2
-                        : (_cells[i - 1][j][k] + _cells[i][j][k]) / 2;
-            back = (k > 0) ? (_cells[i - 1][j][k - 1] + _cells[i][j][k - 1]) / 2
-                           : (_cells[i - 1][j][k] + _cells[i][j][k]) / 2;
+                        ? (_phi[i - 1][j][k + 1] + _phi[i][j][k + 1]) / 2
+                        : (_phi[i - 1][j][k] + _phi[i][j][k]) / 2;
+            back = (k > 0) ? (_phi[i - 1][j][k - 1] + _phi[i][j][k - 1]) / 2
+                           : (_phi[i - 1][j][k] + _phi[i][j][k]) / 2;
             normal[1] = (up - bot) / (2 * _h[1]);
             normal[2] = (front - back) / (2 * _h[2]);
-            _ufaceNormals[i][j][k] = normal;
+            _ufaceNormals[i][j][k] = normal.normalized();
           }
         }
         if (i < _resolution[0] - 1) {
-          int neighSign = (_cells[i + 1][j][k] < 0) ? -1 : 1;
+          int neighSign = (_phi[i + 1][j][k] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
-            normal[0] = (_cells[i + 1][j][k] - _cells[i][j][k]) / _h[0];
+            normal[0] = (_phi[i + 1][j][k] - _phi[i][j][k]) / _h[0];
             // Average first and then compute derivative for y and z directions
             // Y-direction
             up = (j < _resolution[1] - 1)
-                     ? (_cells[i][j + 1][k] + _cells[i + 1][j + 1][k]) / 2
-                     : (_cells[i][j][k] + _cells[i + 1][j][k]) / 2;
-            bot = (j > 0) ? (_cells[i][j - 1][k] + _cells[i + 1][j - 1][k]) / 2
-                          : (_cells[i][j][k] + _cells[i + 1][j][k]) / 2;
+                     ? (_phi[i][j + 1][k] + _phi[i + 1][j + 1][k]) / 2
+                     : (_phi[i][j][k] + _phi[i + 1][j][k]) / 2;
+            bot = (j > 0) ? (_phi[i][j - 1][k] + _phi[i + 1][j - 1][k]) / 2
+                          : (_phi[i][j][k] + _phi[i + 1][j][k]) / 2;
             // Z-direction
             front = (k < _resolution[1] - 1)
-                        ? (_cells[i][j][k + 1] + _cells[i + 1][j][k + 1]) / 2
-                        : (_cells[i][j][k] + _cells[i + 1][j][k]) / 2;
-            back = (k > 0) ? (_cells[i][j][k - 1] + _cells[i + 1][j][k - 1]) / 2
-                           : (_cells[i][j][k] + _cells[i + 1][j][k]) / 2;
+                        ? (_phi[i][j][k + 1] + _phi[i + 1][j][k + 1]) / 2
+                        : (_phi[i][j][k] + _phi[i + 1][j][k]) / 2;
+            back = (k > 0) ? (_phi[i][j][k - 1] + _phi[i + 1][j][k - 1]) / 2
+                           : (_phi[i][j][k] + _phi[i + 1][j][k]) / 2;
             normal[1] = (up - bot) / (2 * _h[1]);
             normal[2] = (front - back) / (2 * _h[2]);
-            _ufaceNormals[i][j][k] = normal;
+            _ufaceNormals[i][j][k] = normal.normalized();
           }
         }
         if (j > 0) {
-          int neighSign = (_cells[i][j - 1][k] < 0) ? -1 : 1;
+          int neighSign = (_phi[i][j - 1][k] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
-            normal[1] = (_cells[i][j][k] - _cells[i][j - 1][k]) / _h[1];
+            normal[1] = (_phi[i][j][k] - _phi[i][j - 1][k]) / _h[1];
             // Average first and then compute derivative for y and z directions
             // X-direction
             right = (i < _resolution[0] - 1)
-                        ? (_cells[i + 1][j - 1][k] + _cells[i + 1][j][k]) / 2
-                        : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
-            left = (i > 0) ? (_cells[i - 1][j - 1][k] + _cells[i - 1][j][k]) / 2
-                           : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+                        ? (_phi[i + 1][j - 1][k] + _phi[i + 1][j][k]) / 2
+                        : (_phi[i][j - 1][k] + _phi[i][j][k]) / 2;
+            left = (i > 0) ? (_phi[i - 1][j - 1][k] + _phi[i - 1][j][k]) / 2
+                           : (_phi[i][j - 1][k] + _phi[i][j][k]) / 2;
             // Z-direction
             front = (k < _resolution[1] - 1)
-                        ? (_cells[i][j - 1][k + 1] + _cells[i][j][k + 1]) / 2
-                        : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
-            back = (k > 0) ? (_cells[i][j - 1][k - 1] + _cells[i][j][k - 1]) / 2
-                           : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+                        ? (_phi[i][j - 1][k + 1] + _phi[i][j][k + 1]) / 2
+                        : (_phi[i][j - 1][k] + _phi[i][j][k]) / 2;
+            back = (k > 0) ? (_phi[i][j - 1][k - 1] + _phi[i][j][k - 1]) / 2
+                           : (_phi[i][j - 1][k] + _phi[i][j][k]) / 2;
             normal[0] = (right - left) / (2 * _h[0]);
             normal[2] = (front - back) / (2 * _h[2]);
-            _vfaceNormals[i][j][k] = normal;
+            _vfaceNormals[i][j][k] = normal.normalized();
           }
         }
         if (j < _resolution[1] - 1) {
-          int neighSign = (_cells[i][j + 1][k] < 0) ? -1 : 1;
+          int neighSign = (_phi[i][j + 1][k] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
-            normal[1] = (_cells[i][j + 1][k] - _cells[i][j][k]) / _h[1];
+            normal[1] = (_phi[i][j + 1][k] - _phi[i][j][k]) / _h[1];
             // Average first and then compute derivative for y and z directions
             // Y-direction
             right = (i < _resolution[0] - 1)
-                        ? (_cells[i + 1][j][k] + _cells[i + 1][j + 1][k]) / 2
-                        : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
-            left = (i > 0) ? (_cells[i - 1][j][k] + _cells[i - 1][j + 1][k]) / 2
-                           : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+                        ? (_phi[i + 1][j][k] + _phi[i + 1][j + 1][k]) / 2
+                        : (_phi[i][j][k] + _phi[i][j + 1][k]) / 2;
+            left = (i > 0) ? (_phi[i - 1][j][k] + _phi[i - 1][j + 1][k]) / 2
+                           : (_phi[i][j][k] + _phi[i][j + 1][k]) / 2;
             // Z-direction
             front = (k < _resolution[2] - 1)
-                        ? (_cells[i][j][k + 1] + _cells[i][j + 1][k + 1]) / 2
-                        : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
-            back = (k > 0) ? (_cells[i][j][k - 1] + _cells[i][j + 1][k - 1]) / 2
-                           : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+                        ? (_phi[i][j][k + 1] + _phi[i][j + 1][k + 1]) / 2
+                        : (_phi[i][j][k] + _phi[i][j + 1][k]) / 2;
+            back = (k > 0) ? (_phi[i][j][k - 1] + _phi[i][j + 1][k - 1]) / 2
+                           : (_phi[i][j][k] + _phi[i][j + 1][k]) / 2;
             normal[0] = (right - left) / (2 * _h[0]);
             normal[2] = (front - back) / (2 * _h[2]);
-            _vfaceNormals[i][j][k] = normal;
+            _vfaceNormals[i][j][k] = normal.normalized();
           }
         }
         if (k > 0) {
-          int neighSign = (_cells[i][j][k - 1] < 0) ? -1 : 1;
+          int neighSign = (_phi[i][j][k - 1] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
-            normal[2] = (_cells[i][j][k] - _cells[i][j][k - 1]) / _h[2];
+            normal[2] = (_phi[i][j][k] - _phi[i][j][k - 1]) / _h[2];
             // Average first and then compute derivative for y and z directions
             // X-direction
             right = (i < _resolution[0] - 1)
-                        ? (_cells[i + 1][j - 1][k] + _cells[i + 1][j][k]) / 2
-                        : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
-            left = (i > 0) ? (_cells[i - 1][j - 1][k] + _cells[i - 1][j][k]) / 2
-                           : (_cells[i][j - 1][k] + _cells[i][j][k]) / 2;
+                        ? (_phi[i + 1][j - 1][k] + _phi[i + 1][j][k]) / 2
+                        : (_phi[i][j - 1][k] + _phi[i][j][k]) / 2;
+            left = (i > 0) ? (_phi[i - 1][j - 1][k] + _phi[i - 1][j][k]) / 2
+                           : (_phi[i][j - 1][k] + _phi[i][j][k]) / 2;
             // Y-direction
             up = (j < _resolution[1] - 1)
-                     ? (_cells[i][j + 1][k - 1] + _cells[i][j + 1][k]) / 2
-                     : (_cells[i][j][k - 1] + _cells[i][j][k]) / 2;
-            bot = (j > 0) ? (_cells[i][j - 1][k - 1] + _cells[i][j - 1][k]) / 2
-                          : (_cells[i][j][k - 1] + _cells[i][j][k]) / 2;
+                     ? (_phi[i][j + 1][k - 1] + _phi[i][j + 1][k]) / 2
+                     : (_phi[i][j][k - 1] + _phi[i][j][k]) / 2;
+            bot = (j > 0) ? (_phi[i][j - 1][k - 1] + _phi[i][j - 1][k]) / 2
+                          : (_phi[i][j][k - 1] + _phi[i][j][k]) / 2;
             normal[0] = (right - left) / (2 * _h[0]);
             normal[1] = (up - bot) / (2 * _h[1]);
-            _wfaceNormals[i][j][k] = normal;
+            _wfaceNormals[i][j][k] = normal.normalized();
           }
         }
         if (k < _resolution[2] - 1) {
-          int neighSign = (_cells[i][j][k + 1] < 0) ? -1 : 1;
+          int neighSign = (_phi[i][j][k + 1] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
-            normal[1] = (_cells[i][j][k + 1] - _cells[i][j][k]) / _h[1];
+            normal[1] = (_phi[i][j][k + 1] - _phi[i][j][k]) / _h[1];
             // Average first and then compute derivative for y and z directions
             // Y-direction
             right = (i < _resolution[0] - 1)
-                        ? (_cells[i + 1][j][k] + _cells[i + 1][j + 1][k]) / 2
-                        : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
-            left = (i > 0) ? (_cells[i - 1][j][k] + _cells[i - 1][j + 1][k]) / 2
-                           : (_cells[i][j][k] + _cells[i][j + 1][k]) / 2;
+                        ? (_phi[i + 1][j][k] + _phi[i + 1][j + 1][k]) / 2
+                        : (_phi[i][j][k] + _phi[i][j + 1][k]) / 2;
+            left = (i > 0) ? (_phi[i - 1][j][k] + _phi[i - 1][j + 1][k]) / 2
+                           : (_phi[i][j][k] + _phi[i][j + 1][k]) / 2;
             // Y-direction
             up = (j < _resolution[1] - 1)
-                     ? (_cells[i][j + 1][k + 1] + _cells[i][j + 1][k]) / 2
-                     : (_cells[i][j][k + 1] + _cells[i][j][k]) / 2;
-            bot = (j > 0) ? (_cells[i][j - 1][k + 1] + _cells[i][j - 1][k]) / 2
-                          : (_cells[i][j][k + 1] + _cells[i][j][k]) / 2;
+                     ? (_phi[i][j + 1][k + 1] + _phi[i][j + 1][k]) / 2
+                     : (_phi[i][j][k + 1] + _phi[i][j][k]) / 2;
+            bot = (j > 0) ? (_phi[i][j - 1][k + 1] + _phi[i][j - 1][k]) / 2
+                          : (_phi[i][j][k + 1] + _phi[i][j][k]) / 2;
             normal[0] = (right - left) / (2 * _h[0]);
             normal[1] = (up - bot) / (2 * _h[1]);
-            _wfaceNormals[i][j][k] = normal;
+            _wfaceNormals[i][j][k] = normal.normalized();
           }
         }
       }
 }
+
+void DualCubes3::computeIntersection() {
+  Eigen::Array3d domainMin = _domain.min();
+  for (int k = 0; k < _resolution[2]; k++)
+    for (int j = 0; j < _resolution[1]; j++)
+      for (int i = 0; i < _resolution[0]; i++) {
+        int centerSign = (_phi[i][j][k] < 0) ? -1 : 1;
+        if (i > 0) {
+          int neighSign = (_phi[i - 1][j][k] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            // Compute intersection location
+            double theta = _phi[i][j][k] - _phi[i - 1][j][k];
+            double x = domainMin[0] + -_h[0] * _phi[i - 1][j][k] / (theta) +
+                       (i - 0.5) * _h[0];
+            double y = domainMin[1] + (j + 0.5) * _h[1];
+            double z = domainMin[2] + (k + 0.5) * _h[2];
+            _ufaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
+          }
+        }
+        if (i < _resolution[0] - 1) {
+          int neighSign = (_phi[i + 1][j][k] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            // Compute intersection location
+            double theta = _phi[i + 1][j][k] - _phi[i][j][k];
+            double x = domainMin[0] - _h[0] * _phi[i + 1][j][k] / (theta) +
+                       (i + 0.5) * _h[0];
+            double y = domainMin[1] + (j + 0.5) * _h[1];
+            double z = domainMin[2] + (k + 0.5) * _h[2];
+            _ufaceLocation[i + 1][j][k] = Eigen::Array3d(x, y, z);
+          }
+        }
+        if (j > 0) {
+          int neighSign = (_phi[i][j - 1][k] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            // Compute intersection location
+            double theta = _phi[i][j][k] - _phi[i][j - 1][k];
+            double x = domainMin[0] + (i + 0.5) * _h[0];
+            double y = domainMin[1] - _h[1] * _phi[i][j - 1][k] / (theta) +
+                       (j - 0.5) * _h[1];
+            double z = domainMin[2] + (k + 0.5) * _h[2];
+            _vfaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
+          }
+        }
+        if (j < _resolution[1] - 1) {
+          int neighSign = (_phi[i][j + 1][k] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            // Compute intersection location
+            double theta = _phi[i][j + 1][k] - _phi[i][j][k];
+            double x = domainMin[0] + (i + 0.5) * _h[0];
+            double y = domainMin[1] - _h[1] * _phi[i][j + 1][k] / (theta) +
+                       (j + 0.5) * _h[1];
+            double z = domainMin[2] + (k + 0.5) * _h[2];
+            _vfaceLocation[i][j + 1][k] = Eigen::Array3d(x, y, z);
+          }
+        }
+        if (k > 0) {
+          int neighSign = (_phi[i][j][k - 1] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            // Compute intersection location
+            double theta = _phi[i][j][k] - _phi[i][j][k - 1];
+            double x = domainMin[0] + (i + 0.5) * _h[0];
+            double y = domainMin[1] + (j + 0.5) * _h[1];
+            double z = domainMin[2] - _h[2] * _phi[i][j][k - 1] / (theta) +
+                       (k - 0.5) * _h[2];
+            _wfaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
+          }
+        }
+        if (k < _resolution[2] - 1) {
+          int neighSign = (_phi[i][j][k + 1] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            // Compute intersection location
+            double theta = _phi[i][j][k + 1] - _phi[i][j][k];
+            double x = domainMin[0] + (i + 0.5) * _h[0];
+            double y = domainMin[1] + (j + 0.5) * _h[1];
+            double z = domainMin[2] + -_h[2] * _phi[i][j][k + 1] / (theta) +
+                       (k + 0.5) * _h[2];
+            _wfaceLocation[i][j][k + 1] = Eigen::Array3d(x, y, z);
+          }
+        }
+      }
+} // namespace Ramuh
 
 void DualCubes3::printCells() {
   for (int k = 0; k < _resolution[2]; k++) {
@@ -444,9 +564,43 @@ void DualCubes3::printCells() {
   }
 }
 
+void DualCubes3::defineVelocity() {
+
+  // u velocities
+  for (int k = 0; k < _resolution[2]; k++) {
+    for (int j = 0; j < _resolution[1]; j++) {
+      for (int i = 0; i < _resolution[0] + 1; i++) {
+        Eigen::Array3d facePosition;
+        facePosition[1] = _domain.min()[1] + (j + 0.5) * _h[1];
+        _u[i][j][k] = facePosition[1];
+      }
+    }
+  }
+
+  // v velocities
+  for (int k = 0; k < _resolution[2]; k++) {
+    for (int j = 0; j < _resolution[1] + 1; j++) {
+      for (int i = 0; i < _resolution[0]; i++) {
+        Eigen::Array3d facePosition;
+        facePosition[0] = _domain.min()[0] + (i + 0.5) * _h[0];
+        _v[i][j][k] = -facePosition[0];
+      }
+    }
+  }
+
+  // w velocities
+  for (int k = 0; k < _resolution[2] + 1; k++) {
+    for (int j = 0; j < _resolution[1]; j++) {
+      for (int i = 0; i < _resolution[0]; i++) {
+        Eigen::Array3d facePosition;
+        _w[i][j][k] = 0;
+      }
+    }
+  }
+}
+
 void DualCubes3::extractSurface() {
   DualMarching3 surface(_resolution);
-  std::cout << "======\n";
 
   for (int k = 0; k < _resolution[2] - 1; k++) {
     for (int j = 0; j < _resolution[1] - 1; j++) {
@@ -455,80 +609,83 @@ void DualCubes3::extractSurface() {
         std::vector<Eigen::Vector3d> normal;
         bool isSurface = false;
 
-        if (signChange(_cells[i][j][k], _cells[i + 1][j][k])) {
+        // yz-plane
+        if (signChange(_phi[i][j][k], _phi[i + 1][j][k])) {
           isSurface = true;
           normal.emplace_back(_ufaceNormals[i + 1][j][k]);
           normalPosition.emplace_back(_ufaceLocation[i + 1][j][k]);
         }
-        if (signChange(_cells[i + 1][j + 1][k], _cells[i][j + 1][k])) {
+        if (signChange(_phi[i + 1][j + 1][k], _phi[i][j + 1][k])) {
           isSurface = true;
           normal.emplace_back(_ufaceNormals[i + 1][j + 1][k]);
           normalPosition.emplace_back(_ufaceLocation[i + 1][j + 1][k]);
         }
-        if (signChange(_cells[i][j][k + 1], _cells[i + 1][j][k + 1])) {
+        if (signChange(_phi[i][j][k + 1], _phi[i + 1][j][k + 1])) {
           isSurface = true;
           normal.emplace_back(_ufaceNormals[i + 1][j][k + 1]);
           normalPosition.emplace_back(_ufaceLocation[i + 1][j][k + 1]);
         }
-        if (signChange(_cells[i + 1][j + 1][k + 1], _cells[i][j + 1][k + 1])) {
+        if (signChange(_phi[i + 1][j + 1][k + 1], _phi[i][j + 1][k + 1])) {
           isSurface = true;
           normal.emplace_back(_ufaceNormals[i + 1][j + 1][k + 1]);
           normalPosition.emplace_back(_ufaceLocation[i + 1][j + 1][k + 1]);
         }
 
-        if (signChange(_cells[i + 1][j][k], _cells[i + 1][j + 1][k])) {
+        // xz-plane
+        if (signChange(_phi[i + 1][j][k], _phi[i + 1][j + 1][k])) {
           isSurface = true;
           normal.emplace_back(_vfaceNormals[i + 1][j + 1][k]);
           normalPosition.emplace_back(_vfaceLocation[i + 1][j + 1][k]);
         }
-        if (signChange(_cells[i][j + 1][k], _cells[i][j][k])) {
+        if (signChange(_phi[i][j + 1][k], _phi[i][j][k])) {
           isSurface = true;
           normal.emplace_back(_vfaceNormals[i][j + 1][k]);
           normalPosition.emplace_back(_vfaceLocation[i][j + 1][k]);
         }
-        if (signChange(_cells[i + 1][j][k + 1], _cells[i + 1][j + 1][k + 1])) {
+        if (signChange(_phi[i + 1][j][k + 1], _phi[i + 1][j + 1][k + 1])) {
           isSurface = true;
           normal.emplace_back(_vfaceNormals[i + 1][j + 1][k + 1]);
           normalPosition.emplace_back(_vfaceLocation[i + 1][j + 1][k + 1]);
         }
-        if (signChange(_cells[i][j + 1][k + 1], _cells[i][j][k + 1])) {
+        if (signChange(_phi[i][j + 1][k + 1], _phi[i][j][k + 1])) {
           isSurface = true;
           normal.emplace_back(_vfaceNormals[i][j + 1][k + 1]);
           normalPosition.emplace_back(_vfaceLocation[i][j + 1][k + 1]);
         }
 
-        if (signChange(_cells[i][j][k], _cells[i][j][k + 1])) {
+        // xy-plane
+        if (signChange(_phi[i][j][k], _phi[i][j][k + 1])) {
           isSurface = true;
           normal.emplace_back(_wfaceNormals[i][j][k + 1]);
           normalPosition.emplace_back(_wfaceLocation[i][j][k + 1]);
         }
-        if (signChange(_cells[i + 1][j][k], _cells[i + 1][j][k + 1])) {
+        if (signChange(_phi[i + 1][j][k], _phi[i + 1][j][k + 1])) {
           isSurface = true;
           normal.emplace_back(_wfaceNormals[i + 1][j][k + 1]);
           normalPosition.emplace_back(_wfaceLocation[i + 1][j][k + 1]);
         }
-        if (signChange(_cells[i + 1][j + 1][k], _cells[i + 1][j + 1][k + 1])) {
+        if (signChange(_phi[i + 1][j + 1][k], _phi[i + 1][j + 1][k + 1])) {
           isSurface = true;
           normal.emplace_back(_wfaceNormals[i + 1][j + 1][k + 1]);
           normalPosition.emplace_back(_wfaceLocation[i + 1][j + 1][k + 1]);
         }
-        if (signChange(_cells[i][j + 1][k], _cells[i][j + 1][k + 1])) {
+        if (signChange(_phi[i][j + 1][k], _phi[i][j + 1][k + 1])) {
           isSurface = true;
           normal.emplace_back(_wfaceNormals[i][j + 1][k + 1]);
           normalPosition.emplace_back(_wfaceLocation[i][j + 1][k + 1]);
         }
-
         // Solve quadratic function
         if (isSurface) {
           Eigen::Array3d cubeMin =
-              _domain.min() + _h.cwiseProduct(Eigen::Array3d(i, j, k));
+              _domain.min() +
+              _h.cwiseProduct(Eigen::Array3d(i + 0.5, j + 0.5, k + 0.5));
           Eigen::Array3d cubeMax =
               _domain.min() +
-              _h.cwiseProduct(Eigen::Array3d(i + 1, j + 1, k + 1));
+              _h.cwiseProduct(Eigen::Array3d(i + 1.5, j + 1.5, k + 1.5));
           auto x =
               surface.evaluateCube(std::make_tuple(i, j, k), normalPosition,
                                    normal, BoundingBox3(cubeMin, cubeMax));
-          std::cout << x[0] << " " << x[1] << " " << x[2] << std::endl;
+          // std::cout << x[0] << " " << x[1] << " " << x[2] << std::endl;
         }
       }
     }

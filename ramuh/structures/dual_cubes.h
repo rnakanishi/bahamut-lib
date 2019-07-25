@@ -4,6 +4,7 @@
 #include <vector>
 #include <utility>
 #include <geometry/bounding_box.h>
+#include <structures/levelset3.h>
 
 namespace Ramuh {
 
@@ -30,7 +31,7 @@ protected:
   double _resolution;
 };
 
-class DualCubes3 {
+class DualCubes3 : public LevelSet3 {
 public:
   /**
    * @brief Construct a new Dual Cubes 3 object. This object has size and
@@ -47,6 +48,10 @@ public:
 
   void computeNormals();
 
+  void defineVelocity();
+
+  void computeIntersection();
+
   void extractSurface();
 
   void printCells();
@@ -55,7 +60,7 @@ private:
   bool signChange(double valueA, double valueB);
 
 protected:
-  std::vector<std::vector<std::vector<double>>> _cells, _vertices;
+  std::vector<std::vector<std::vector<double>>> _vertices;
   std::vector<std::vector<std::vector<Eigen::Vector3d>>> _ufaceNormals,
       _vfaceNormals, _wfaceNormals;
   std::vector<std::vector<std::vector<Eigen::Array3d>>> _ufaceLocation,

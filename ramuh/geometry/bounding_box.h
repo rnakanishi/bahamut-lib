@@ -36,8 +36,11 @@ public:
 
   Eigen::Array3d max();
 
-  Eigen::Array3d clamp(Eigen::Array3d);
-  
+  Eigen::Array3d center();
+
+  Eigen::Array3d clamp(Eigen::Array3d point);
+
+  bool contains(Eigen::Array3d);
 
 private:
   Eigen::Array3d _min, _max;

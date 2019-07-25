@@ -4,6 +4,7 @@
 #include <structures/grid3.h>
 #include <structures/triangle_mesh.h>
 #include <utils/material.h>
+#include <Eigen/Dense>
 #include <glm/glm.hpp>
 
 namespace Ramuh {
@@ -11,6 +12,7 @@ namespace Ramuh {
 class LevelSet3 : public RegularGrid3 {
 public:
   LevelSet3();
+  LevelSet3(Eigen::Array3i resolution);
 
   ///
   /// Add an implicit region for the fluid
@@ -121,7 +123,7 @@ protected:
   std::vector<std::vector<std::vector<Vector3d>>>
       _velocity; // level set gradient and velocity on the corners
   std::vector<std::vector<std::vector<double>>>
-      _phi[2]; // Level set stored on the grid corners and its gradient values
+      _phi; // Level set stored on the grid corners and its gradient values
 
   bool _isPressureSecondOrder;
 };
