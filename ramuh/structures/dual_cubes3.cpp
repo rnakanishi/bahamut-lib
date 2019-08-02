@@ -60,6 +60,11 @@ DualCubes3::DualCubes3(Eigen::Array3i resolution, BoundingBox3 domain)
 }
 
 void DualCubes3::initialize(Eigen::Array3d center, double radius) {
+  this->initialize(center, radius, DualCubes3::ParametricSurface::SPHERE);
+}
+
+void DualCubes3::initialize(Eigen::Array3d center, double radius,
+                            DualCubes3::ParametricSurface surface) {
   Eigen::Array3d domainMin = _domain.min();
   // ====== Initialize cell surfaces
   for (int k = 0; k < _resolution[2]; k++)
@@ -81,27 +86,34 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
 
         // TODO: Fix this initialization method. Extends this class into an
         // application and create another method to initialize properly
-
+        switch (surface) {
         // SPHERE
-        distance = x2 + y2 + z2 - radius * radius;
+        case DualCubes3::ParametricSurface::SPHERE:
+          distance = x2 + y2 + z2 - radius * radius;
+          break;
+        case DualCubes3::ParametricSurface::TORUS:
+          // TORUS
+          distance = (1.5 * radius - std::sqrt(x2 + z2)) *
+                         (1.5 * radius - std::sqrt(x2 + z2)) +
+                     y2 - 0.75 * radius * radius;
+          break;
+        case DualCubes3::ParametricSurface::DOUBLE_TORUS:
+          // DOUBLE TORUS
+          distance = ((x2 + y2) * (x2 + y2) - x2 + y2);
+          distance = distance * distance + z2 - (1. / 50);
+          break;
+        case DualCubes3::ParametricSurface::CUBE:
+          // CUBE
+          distance =
+              std::max(std::max(std::fabs(x), std::fabs(y)), std::fabs(z)) -
+              radius;
 
-        // TORUS
-        distance = (1.5 * radius - std::sqrt(x2 + z2)) *
-                       (1.5 * radius - std::sqrt(x2 + z2)) +
-                   y2 - 0.75 * radius * radius;
-
-        // DOUBLE TORUS
-        // distance = ((x2 + y2) * (x2 + y2) - x2 + y2);
-        // distance = distance * distance + z2 - (1. / 50);
-
-        // CUBE
-        distance =
-            std::max(std::max(std::fabs(x), std::fabs(y)), std::fabs(z)) -
-            radius;
-
+          break;
+        default:
+          distance = 1e8;
+        }
         _phi[i][j][k] = std::min(_phi[i][j][k], distance);
       }
-
   // ====== Initialize edges and normals
   // TODO: Dont initialize normals. Create a evaluateGradient method instead
   // Look for surface
@@ -120,26 +132,34 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _ufaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
 
-            // SPHERE
-            _ufaceNormals[i][j][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
-
-            // TORUS
-            _ufaceNormals[i][j][k] = Eigen::Vector3d(
-                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
-                2 * y,
-                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
-
-            // DOUBLE TORUS
-            // _ufaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (4 * x * (x * x + y * y) - 2 * x) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * (4 * y * (x * x + y * y) + 2 * y) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * z);
-
-            // CUBE
-            // _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
+            switch (surface) {
+            case DualCubes3::ParametricSurface::SPHERE:
+              // SPHERE
+              _ufaceNormals[i][j][k] =
+                  Eigen::Vector3d(2 * (x - center[0]), 2 * (y - center[1]),
+                                  2 * (z - center[2]));
+              break;
+            case DualCubes3::ParametricSurface::TORUS:
+              // TORUS
+              _ufaceNormals[i][j][k] = Eigen::Vector3d(
+                  x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                  2 * y,
+                  z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+              break;
+            case DualCubes3::ParametricSurface::DOUBLE_TORUS:
+              // DOUBLE TORUS
+              _ufaceNormals[i][j][k] = Eigen::Vector3d(
+                  2 * (4 * x * (x * x + y * y) - 2 * x) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * (4 * y * (x * x + y * y) + 2 * y) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * z);
+              break;
+            case DualCubes3::ParametricSurface::CUBE:
+              // CUBE
+              _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
+              break;
+            }
           }
         }
         if (i < _resolution[0] - 1) {
@@ -153,26 +173,34 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _ufaceLocation[i + 1][j][k] = Eigen::Array3d(x, y, z);
 
-            // SPHERE
-            _ufaceNormals[i + 1][j][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
-
-            // TORUS;
-            _ufaceNormals[i][j][k] = Eigen::Vector3d(
-                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
-                2 * y,
-                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
-
-            // DOUBLE TORUS
-            // _ufaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (4 * x * (x * x + y * y) - 2 * x) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * (4 * y * (x * x + y * y) + 2 * y) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * z);
-
-            // CUBE
-            // _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
+            switch (surface) {
+            case DualCubes3::ParametricSurface::SPHERE:
+              // SPHERE
+              _ufaceNormals[i + 1][j][k] =
+                  Eigen::Vector3d(2 * (x - center[0]), 2 * (y - center[1]),
+                                  2 * (z - center[2]));
+              break;
+            case DualCubes3::ParametricSurface::TORUS:
+              // TORUS;
+              _ufaceNormals[i][j][k] = Eigen::Vector3d(
+                  x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                  2 * y,
+                  z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+              break;
+            case DualCubes3::ParametricSurface::DOUBLE_TORUS:
+              // DOUBLE TORUS
+              _ufaceNormals[i][j][k] = Eigen::Vector3d(
+                  2 * (4 * x * (x * x + y * y) - 2 * x) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * (4 * y * (x * x + y * y) + 2 * y) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * z);
+              break;
+            case DualCubes3::ParametricSurface::CUBE:
+              // CUBE
+              _ufaceNormals[i][j][k] = Eigen::Vector3d((x > 0) ? 1 : -1, 0, 0);
+              break;
+            }
           }
         }
         if (j > 0) {
@@ -185,26 +213,34 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
                        (j - 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _vfaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
-            // SPHERE
-            _vfaceNormals[i][j][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
-
-            // TORUS
-            _vfaceNormals[i][j][k] = Eigen::Vector3d(
-                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
-                2 * y,
-                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
-
-            // DOUBLE TORUS
-            // _vfaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (4 * x * (x * x + y * y) - 2 * x) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * (4 * y * (x * x + y * y) + 2 * y) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * z);
-
-            // CUBE
-            // _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
+            switch (surface) {
+            case DualCubes3::ParametricSurface::SPHERE:
+              // SPHERE
+              _vfaceNormals[i][j][k] =
+                  Eigen::Vector3d(2 * (x - center[0]), 2 * (y - center[1]),
+                                  2 * (z - center[2]));
+              break;
+            case DualCubes3::ParametricSurface::TORUS:
+              // TORUS
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(
+                  x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                  2 * y,
+                  z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+              break;
+            case DualCubes3::ParametricSurface::DOUBLE_TORUS:
+              // DOUBLE TORUS
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(
+                  2 * (4 * x * (x * x + y * y) - 2 * x) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * (4 * y * (x * x + y * y) + 2 * y) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * z);
+              break;
+            case DualCubes3::ParametricSurface::CUBE:
+              // CUBE
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
+              break;
+            }
           }
         }
         if (j < _resolution[1] - 1) {
@@ -217,26 +253,34 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
                        (j + 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _vfaceLocation[i][j + 1][k] = Eigen::Array3d(x, y, z);
-            // SPHERE
-            _vfaceNormals[i][j + 1][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
-
-            // TORUS
-            _vfaceNormals[i][j + 1][k] = Eigen::Vector3d(
-                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
-                2 * y,
-                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
-
-            // DOUBLE TORUS
-            // _vfaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (4 * x * (x * x + y * y) - 2 * x) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * (4 * y * (x * x + y * y) + 2 * y) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * z);
-
-            // CUBE
-            // _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
+            switch (surface) {
+            case DualCubes3::ParametricSurface::SPHERE:
+              // SPHERE
+              _vfaceNormals[i][j + 1][k] =
+                  Eigen::Vector3d(2 * (x - center[0]), 2 * (y - center[1]),
+                                  2 * (z - center[2]));
+              break;
+            case DualCubes3::ParametricSurface::TORUS:
+              // TORUS
+              _vfaceNormals[i][j + 1][k] = Eigen::Vector3d(
+                  x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                  2 * y,
+                  z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+              break;
+            case DualCubes3::ParametricSurface::DOUBLE_TORUS:
+              // DOUBLE TORUS
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(
+                  2 * (4 * x * (x * x + y * y) - 2 * x) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * (4 * y * (x * x + y * y) + 2 * y) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * z);
+              break;
+            case DualCubes3::ParametricSurface::CUBE:
+              // CUBE
+              _vfaceNormals[i][j][k] = Eigen::Vector3d(0, (y > 0) ? 1 : -1, 0);
+              break;
+            }
           }
         }
         if (k > 0) {
@@ -249,26 +293,37 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             double z = domainMin[2] - _h[2] * _phi[i][j][k - 1] / (theta) +
                        (k - 0.5) * _h[2];
             _wfaceLocation[i][j][k] = Eigen::Array3d(x, y, z);
-            // SPHERE
-            _wfaceNormals[i][j][k] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
-
-            // TORUS
-            _wfaceNormals[i][j][k] = Eigen::Vector3d(
-                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
-                2 * y,
-                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
-
-            // DOUBLE TORUS
-            // _wfaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (4 * x * (x * x + y * y) - 2 * x) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * (4 * y * (x * x + y * y) + 2 * y) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * z);
-
-            // CUBE
-            // _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
+            switch (surface) {
+            case DualCubes3::ParametricSurface::SPHERE:
+              // SPHERE
+              _wfaceNormals[i][j][k] =
+                  Eigen::Vector3d(2 * (x - center[0]), 2 * (y - center[1]),
+                                  2 * (z - center[2]));
+              break;
+            case DualCubes3::ParametricSurface::TORUS:
+              // TORUS
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(
+                  x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                  2 * y,
+                  z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+              break;
+            case DualCubes3::ParametricSurface::DOUBLE_TORUS:
+              // DOUBLE TORUS
+              // _wfaceNormals[i][j][k] = Eigen::Vector3d(
+              //     2 * (4 * x * (x * x + y * y) - 2 * x) *
+              //         ((x * x + y * y) * (x * x + y * y) - x * x + y
+              //         * y),
+              //     2 * (4 * y * (x * x + y * y) + 2 * y) *
+              //         ((x * x + y * y) * (x * x + y * y) - x * x + y
+              //         * y),
+              //     2 * z);
+              break;
+            case DualCubes3::ParametricSurface::CUBE:
+              // CUBE
+              // _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0)
+              // ? 1 : -1);
+              break;
+            }
           }
         }
         if (k < _resolution[2] - 1) {
@@ -281,26 +336,34 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
             double z = domainMin[2] + -_h[2] * _phi[i][j][k + 1] / (theta) +
                        (k + 0.5) * _h[2];
             _wfaceLocation[i][j][k + 1] = Eigen::Array3d(x, y, z);
-            // SPHERE
-            _wfaceNormals[i][j][k + 1] = Eigen::Vector3d(
-                2 * (x - center[0]), 2 * (y - center[1]), 2 * (z - center[2]));
-
-            // TORUS
-            _wfaceNormals[i][j][k + 1] = Eigen::Vector3d(
-                x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
-                2 * y,
-                z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
-
-            // DOUBLE TORUS
-            // _wfaceNormals[i][j][k] = Eigen::Vector3d(
-            //     2 * (4 * x * (x * x + y * y) - 2 * x) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * (4 * y * (x * x + y * y) + 2 * y) *
-            //         ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
-            //     2 * z);
-
-            // CUBE
-            // _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
+            switch (surface) {
+            case DualCubes3::ParametricSurface::SPHERE:
+              // SPHERE
+              _wfaceNormals[i][j][k + 1] =
+                  Eigen::Vector3d(2 * (x - center[0]), 2 * (y - center[1]),
+                                  2 * (z - center[2]));
+              break;
+            case DualCubes3::ParametricSurface::TORUS:
+              // TORUS
+              _wfaceNormals[i][j][k + 1] = Eigen::Vector3d(
+                  x * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))),
+                  2 * y,
+                  z * (2 - (2 * 1.5 * radius) / (std::sqrt(x * x + z * z))));
+              break;
+            case DualCubes3::ParametricSurface::DOUBLE_TORUS:
+              // DOUBLE TORUS
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(
+                  2 * (4 * x * (x * x + y * y) - 2 * x) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * (4 * y * (x * x + y * y) + 2 * y) *
+                      ((x * x + y * y) * (x * x + y * y) - x * x + y * y),
+                  2 * z);
+              break;
+            case DualCubes3::ParametricSurface::CUBE:
+              // CUBE
+              _wfaceNormals[i][j][k] = Eigen::Vector3d(0, 0, (z > 0) ? 1 : -1);
+              break;
+            }
           }
         }
       }
@@ -317,8 +380,8 @@ void DualCubes3::computeNormals() {
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
             normal[0] = (_phi[i][j][k] - _phi[i - 1][j][k]) / _h[0];
-            // Average first and then compute derivative for y and z directions
-            // Y-direction
+            // Average first and then compute derivative for y
+            // and z directions Y-direction
             up = (j < _resolution[1] - 1)
                      ? (_phi[i - 1][j + 1][k] + _phi[i][j + 1][k]) / 2
                      : (_phi[i - 1][j][k] + _phi[i][j][k]) / 2;
@@ -340,8 +403,8 @@ void DualCubes3::computeNormals() {
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
             normal[0] = (_phi[i + 1][j][k] - _phi[i][j][k]) / _h[0];
-            // Average first and then compute derivative for y and z directions
-            // Y-direction
+            // Average first and then compute derivative for y
+            // and z directions Y-direction
             up = (j < _resolution[1] - 1)
                      ? (_phi[i][j + 1][k] + _phi[i + 1][j + 1][k]) / 2
                      : (_phi[i][j][k] + _phi[i + 1][j][k]) / 2;
@@ -363,8 +426,8 @@ void DualCubes3::computeNormals() {
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
             normal[1] = (_phi[i][j][k] - _phi[i][j - 1][k]) / _h[1];
-            // Average first and then compute derivative for y and z directions
-            // X-direction
+            // Average first and then compute derivative for y
+            // and z directions X-direction
             right = (i < _resolution[0] - 1)
                         ? (_phi[i + 1][j - 1][k] + _phi[i + 1][j][k]) / 2
                         : (_phi[i][j - 1][k] + _phi[i][j][k]) / 2;
@@ -386,8 +449,8 @@ void DualCubes3::computeNormals() {
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
             normal[1] = (_phi[i][j + 1][k] - _phi[i][j][k]) / _h[1];
-            // Average first and then compute derivative for y and z directions
-            // Y-direction
+            // Average first and then compute derivative for y
+            // and z directions Y-direction
             right = (i < _resolution[0] - 1)
                         ? (_phi[i + 1][j][k] + _phi[i + 1][j + 1][k]) / 2
                         : (_phi[i][j][k] + _phi[i][j + 1][k]) / 2;
@@ -409,8 +472,8 @@ void DualCubes3::computeNormals() {
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
             normal[2] = (_phi[i][j][k] - _phi[i][j][k - 1]) / _h[2];
-            // Average first and then compute derivative for y and z directions
-            // X-direction
+            // Average first and then compute derivative for y
+            // and z directions X-direction
             right = (i < _resolution[0] - 1)
                         ? (_phi[i + 1][j - 1][k] + _phi[i + 1][j][k]) / 2
                         : (_phi[i][j - 1][k] + _phi[i][j][k]) / 2;
@@ -432,8 +495,8 @@ void DualCubes3::computeNormals() {
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
             normal[1] = (_phi[i][j][k + 1] - _phi[i][j][k]) / _h[1];
-            // Average first and then compute derivative for y and z directions
-            // Y-direction
+            // Average first and then compute derivative for y
+            // and z directions Y-direction
             right = (i < _resolution[0] - 1)
                         ? (_phi[i + 1][j][k] + _phi[i + 1][j + 1][k]) / 2
                         : (_phi[i][j][k] + _phi[i][j + 1][k]) / 2;
@@ -685,7 +748,8 @@ void DualCubes3::extractSurface() {
           auto x =
               surface.evaluateCube(std::make_tuple(i, j, k), normalPosition,
                                    normal, BoundingBox3(cubeMin, cubeMax));
-          // std::cout << x[0] << " " << x[1] << " " << x[2] << std::endl;
+          // std::cout << x[0] << " " << x[1] << " " << x[2] <<
+          // std::endl;
         }
       }
     }

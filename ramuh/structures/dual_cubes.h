@@ -33,6 +33,8 @@ protected:
 
 class DualCubes3 : public LevelSet3 {
 public:
+  enum class ParametricSurface : int { SPHERE, CUBE, TORUS, DOUBLE_TORUS };
+  
   /**
    * @brief Construct a new Dual Cubes 3 object. This object has size and
    *resolution predefined as [0,1] and 32^3 respectively.
@@ -46,6 +48,8 @@ public:
 
   void initialize(Eigen::Array3d center, double radius);
 
+  void initialize(Eigen::Array3d center, double radius, ParametricSurface surface);
+
   void computeNormals();
 
   void defineVelocity();
@@ -55,6 +59,7 @@ public:
   void extractSurface();
 
   void printCells();
+
 
 private:
   bool signChange(double valueA, double valueB);
