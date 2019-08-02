@@ -26,4 +26,5 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 
 add_subdirectory(ramuh)
 add_subdirectory(garuda)
+add_subdirectory(leviathan)
 add_subdirectory(app)

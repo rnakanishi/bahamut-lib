@@ -41,16 +41,49 @@ public:
 
   DualMarching3(Eigen::Array3i resolution);
 
+  /**
+   * @brief This method evaluates a 3D cube containing levelset Hermite data.
+   *Points indices are used as a key identifier so every vertex is unique.
+   *Intersection points of the cube and its normals should be given as a vector
+   *with same index for each data. After all cubes of the domain are evalueated,
+   *reconstruct() method should be called to generate proper surface polygons.
+   *
+   * @param pointIndices unique index for each surface point
+   * @param normalLocation 3D position of the intersection points
+   * @param normals normalLocation correspondent normal vector
+   * @return Eigen::Array3d surface point that minimizes QEF function
+   **/
   Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
                               std::vector<Eigen::Array3d> normalLocation,
                               std::vector<Eigen::Vector3d> normals);
 
-
+  /**
+   * @brief This method evaluates a 3D cube containing levelset Hermite data.
+   *Points indices are used as a key identifier so every vertex is unique.
+   *Intersection points of the cube and its normals should be given as a vector
+   *with same index for each data. A limiting cube could be given so if the new
+   *point falls off this bounds, then coordinates are clamped accordingly. After
+   *all cubes of the domain are evalueated, reconstruct() method should be
+   *called to generate proper surface polygons.
+   *
+   * @param pointIndices unique index for each surface point
+   * @param normalLocation 3D position of the intersection points
+   * @param normals normalLocation correspondent normal vector
+   * @param cubeLimits boundary limiting cube
+   * @return Eigen::Array3d surface point that minimizes QEF function
+   **/
   Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
                               std::vector<Eigen::Array3d> normalLocation,
-                              std::vector<Eigen::Vector3d> normals, 
+                              std::vector<Eigen::Vector3d> normals,
                               BoundingBox3 cubeLimits);
 
+  /**
+   * @brief After all cubes of the domain are processed, then this method is
+   *called to attach all neighbor cubes together. A different file is written
+   *for each call containing the surface vertices position and its normals, as
+   *well as the faces for the surface.
+   *
+   **/
   void reconstruct();
 
 private:
