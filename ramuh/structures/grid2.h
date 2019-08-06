@@ -87,6 +87,9 @@ public:
   bool advanceTime();
 
 protected:
+  ;
+  ;
+  ;
   double _interpolateVelocityU(Eigen::Array2d position, double &min,
                                double &max);
   double _interpolateVelocityV(Eigen::Array2d position, double &min,
