@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.1)
-project(LEVIATHAN
-        LANGUAGES CXX)
+project(LEVIATHAN LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 
 file(GLOB HEADERS 
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/fluids/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/fluids/*.hpp
         )
 file(GLOB SOURCES 
         ${CMAKE_CURRENT_SOURCE_DIR}/fluids/*.cpp
