@@ -4,9 +4,10 @@
 #include <structures/cell_centered_grid3.h>
 
 namespace Ramuh {
-class MacGrid3 : CellCenteredGrid3 {
+class MacGrid3 : public CellCenteredGrid3 {
 public:
   MacGrid3();
+  MacGrid3(BoundingBox3 domain, Eigen::Array3i gridSize);
 
   /**
    * @brief Creates a new label for the data to be stored. Labels should be
@@ -17,8 +18,11 @@ public:
    * @param [opt] initial value for all faces. Defalut is zero.
    * @return size_t
    **/
-  size_t newFaceLabel(std::string label);
-  size_t newFaceLabel(std::string label, double value);
+  size_t newFaceScalarLabel(std::string label);
+  size_t newFaceScalarLabel(std::string label, double value);
+
+  size_t newFaceArrayLabel(std::string label);
+  size_t newFaceArrayLabel(std::string label, Eigen::Array3d value);
 
   /**
    * @brief Get a reference for the vector containing data for a given face.
@@ -28,10 +32,13 @@ public:
    * @param which data are being retrieved
    * @return std::vector<double>& reference pointer to the data
    **/
-  std::vector<double> &getFaceLabel(size_t face, std::string label);
+  std::vector<double> &getFaceScalarLabel(size_t face, std::string label);
+  std::vector<Eigen::Array3d> &getFaceArrayLabel(size_t face,
+                                                 std::string label);
 
-private:
-  std::vector<std::vector<double>> _udata, _vdata, _wdata;
+protected:
+  std::vector<std::vector<double>> _uScalar, _vScalar, _wScalar;
+  std::vector<std::vector<Eigen::Array3d>> _uArray, _vArray, _wArray;
   std::map<std::string, size_t> _faceDataLabel;
 };
 

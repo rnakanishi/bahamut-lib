@@ -17,8 +17,11 @@ public:
    * @param [opt] initial value for all faces
    * @return size_t
    **/
-  size_t newFaceLabel(std::string label);
-  size_t newFaceLabel(std::string label, double value);
+  size_t newFaceScalarLabel(std::string label);
+  size_t newFaceScalarLabel(std::string label, double value);
+
+  size_t newFaceArrayLabel(std::string label);
+  size_t newFaceArrayLabel(std::string label, Eigen::Array2d value);
 
   /**
    * @brief Get a reference for the vector containing data for a given face.
@@ -28,10 +31,12 @@ public:
    * @param which data are being retrieved
    * @return std::vector<double>& reference pointer to the data
    **/
-  std::vector<double> &getFaceLabel(size_t face, std::string label);
+  std::vector<double> &getFaceScalarLabel(size_t face, std::string label);
+  std::vector<Eigen::Array> &getFaceArrayLabel(size_t face, std::string label);
 
 private:
-  std::vector<std::vector<double>> _udata, _vdata;
+  std::vector<std::vector<double>> _uScalar, _vScalar;
+  std::vector<std::vector<double>> _uArray, _vArray;
   std::map<std::string, size_t> _faceDataLabel;
 };
 

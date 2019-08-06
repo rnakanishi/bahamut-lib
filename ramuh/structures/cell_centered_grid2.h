@@ -53,8 +53,11 @@ public:
    *instance
    * @return size_t return internal position of the label.
    **/
-  size_t newLabel(std::string label);
-  size_t newLabel(std::string label, double initialValue);
+  size_t newScalarLabel(std::string label);
+  size_t newScalarLabel(std::string label, double initialValue);
+
+  size_t newArrayLabel(std::string label);
+  size_t newArrayLabel(std::string label, Eigen::Array2d initialValue);
 
   /**
    * @brief Get the vector object for a given label. This vector contains whole
@@ -63,28 +66,16 @@ public:
    * @param label string value. Must have been created
    * @return std::vector<double>& vector containing the data for that label
    **/
-  std::vector<double> &getLabel(std::string label);
+  std::vector<double> &getScalarLabel(std::string label);
 
-  /**
-   * @brief This operator access the data from a given label and given
-   *coordinates, or cell id. If no label is assigned, the the first created
-   *label is accessed
-   *
-   * @param label label to access
-   * @param if only one value is assigned, then call using the cell id value.
-   *Otherwise, calls using the ij coordinate
-   * @return double value of the corresponding label-coordinate
-   **/
-  double operator()(std::string label, size_t i, size_t j);
-  double operator()(std::string label, size_t id);
-  double operator()(size_t i, size_t j);
-  double operator()(size_t id);
+  std::vector<Eigen::Array2d> &getArrayLabel(std::string label);
 
 protected:
   Eigen::Array2i _gridSize;
   BoundingBox2 _domain;
 
-  std::vector<std::vector<double>> _data;
+  std::vector<std::vector<double>> _scalarData;
+  std::vector<std::vector<Eigen::Array2d>> _arrayData;
   std::map<std::string, size_t> _dataLabel;
 };
 

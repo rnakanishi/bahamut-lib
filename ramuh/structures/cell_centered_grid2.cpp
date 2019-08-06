@@ -27,34 +27,39 @@ std::pair<size_t, size_t> CellCenteredGrid2::idToij(size_t id) {
   return index;
 }
 
-size_t CellCenteredGrid2::newLabel(std::string label) {
-  return newLabel(label, 0);
+size_t CellCenteredGrid2::newScalarLabel(std::string label) {
+  return newScalarLabel(label, 0);
 }
 
-size_t CellCenteredGrid2::newLabel(std::string label, double value) {
+size_t CellCenteredGrid2::newScalarLabel(std::string label, double value) {
   if (_dataLabel.find(label) == _dataLabel.end()) {
-    _data.emplace_back(std::vector<double>(_gridSize.prod(), value));
-    _dataLabel[label] = _data.size() - 1;
+    _scalarData.emplace_back(std::vector<double>(_gridSize.prod(), value));
+    _dataLabel[label] = _scalarData.size() - 1;
   }
   return _dataLabel[label];
 }
 
-std::vector<double> &CellCenteredGrid2::getLabel(std::string label) {
-  return _data[_dataLabel[label]];
+std::vector<double> &CellCenteredGrid2::getScalarLabel(std::string label) {
+  return _scalarData[_dataLabel[label]];
 }
 
-double CellCenteredGrid2::operator()(std::string label, size_t i, size_t j) {
-  return _data[_dataLabel[label]][ijToid(i, j)];
+size_t CellCenteredGrid2::newArrayLabel(std::string label) {
+  return newArrayLabel(label, Eigen::Array2d(0., 0.));
 }
 
-double CellCenteredGrid2::operator()(std::string label, size_t id) {
-  return _data[_dataLabel[label]][id];
+size_t CellCenteredGrid2::newArrayLabel(std::string label,
+                                        Eigen::Array2d value) {
+  if (_dataLabel.find(label) == _dataLabel.end()) {
+    _arrayData.emplace_back(
+        std::vector<Eigen::Array2d>(_gridSize.prod(), value));
+    _dataLabel[label] = _arrayData.size() - 1;
+  }
+  return _dataLabel[label];
 }
 
-double CellCenteredGrid2::operator()(size_t i, size_t j) {
-  return _data[0][ijToid(i, j)];
+std::vector<Eigen::Array2d> &
+CellCenteredGrid2::getArrayLabel(std::string label) {
+  return _arrayData[_dataLabel[label]];
 }
-
-double CellCenteredGrid2::operator()(size_t id) { return _data[0][id]; }
 
 } // namespace Ramuh
