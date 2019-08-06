@@ -1,7 +1,14 @@
 #include <structures/cell_centered_grid3.h>
 
 namespace Ramuh {
-CellCenteredGrid3::CellCenteredGrid3() {}
+CellCenteredGrid3::CellCenteredGrid3()
+    : CellCenteredGrid3(
+          BoundingBox3(Eigen::Array3d(-1, -1, -1), Eigen::Array3d(1, 1, 1)),
+          Eigen::Array3i(32, 32, 32)) {}
+
+CellCenteredGrid3::CellCenteredGrid3(BoundingBox3 domain,
+                                     Eigen::Array3i gridSize)
+    : _domain(domain), _gridSize(gridSize) {}
 
 size_t CellCenteredGrid3::ijkToid(size_t i, size_t j, size_t k) {
   return k * _gridSize[0] * _gridSize[1] + j * _gridSize[0] + i;

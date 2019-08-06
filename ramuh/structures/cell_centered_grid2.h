@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <geometry/bounding_box.h>
 #include <Eigen/Dense>
 
 namespace Ramuh {
@@ -13,6 +14,7 @@ namespace Ramuh {
 class CellCenteredGrid2 {
 public:
   CellCenteredGrid2();
+  CellCenteredGrid2(BoundingBox2 domain, Eigen::Array2i gridSize);
 
   /**
    * @brief Set the Grid Size in number of cells in each coordinate (x,y)
@@ -80,6 +82,7 @@ public:
 
 protected:
   Eigen::Array2i _gridSize;
+  BoundingBox2 _domain;
 
   std::vector<std::vector<double>> _data;
   std::map<std::string, size_t> _dataLabel;

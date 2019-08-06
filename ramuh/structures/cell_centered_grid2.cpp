@@ -1,7 +1,14 @@
 #include <structures/cell_centered_grid2.h>
 
 namespace Ramuh {
-CellCenteredGrid2::CellCenteredGrid2() : _gridSize(Eigen::Array2i(32, 32)) {}
+CellCenteredGrid2::CellCenteredGrid2()
+    : CellCenteredGrid2(
+          BoundingBox2(Eigen::Array2d(-1, -1), Eigen::Array2d(1, 1)),
+          Eigen::Array2i(32, 32)) {}
+
+CellCenteredGrid2::CellCenteredGrid2(BoundingBox2 domain,
+                                     Eigen::Array2i gridSize)
+    : _domain(domain), _gridSize(gridSize) {}
 
 void CellCenteredGrid2::setGridSize(Eigen::Array2i size) { _gridSize = size; }
 
