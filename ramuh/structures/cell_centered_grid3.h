@@ -21,6 +21,14 @@ public:
   std::tuple<size_t, size_t, size_t> idToijk(size_t id);
 
   /**
+   * @brief Computes the cell size using domain information and number of grid
+   *cells per dimension
+   *
+   * @return An Eigen array containing cell spacing for each dimension
+   **/
+  Eigen::Array3d getH();
+
+  /**
    * @brief Create a new scalar label in the structure. A initial value for the
    *grid can be assigned to all cells as well. If label already exists, then the
    *internal id of that label is returned.
@@ -42,9 +50,11 @@ public:
    * @param label string value. Must have been created
    * @return std::vector<double>& vector containing the data for that label
    **/
-  std::vector<double> &getScalarLabel(std::string label);
+  std::vector<double> &getScalarVector(std::string label);
+  std::vector<double> &getScalarVector(size_t index);
 
-  std::vector<Eigen::Array3d> &getArrayLabel(std::string label);
+  std::vector<Eigen::Array3d> &getArrayVector(std::string label);
+  std::vector<Eigen::Array3d> &getArrayVector(size_t index);
 
 protected:
   Eigen::Array3i _gridSize;

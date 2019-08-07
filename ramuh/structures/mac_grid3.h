@@ -1,6 +1,5 @@
 #ifndef __RAMUH_MAC_GRID_H__
 #define __RAMUH_MAC_GRID_H__
-
 #include <structures/cell_centered_grid3.h>
 
 namespace Ramuh {
@@ -32,9 +31,18 @@ public:
    * @param which data are being retrieved
    * @return std::vector<double>& reference pointer to the data
    **/
-  std::vector<double> &getFaceScalarLabel(size_t face, std::string label);
-  std::vector<Eigen::Array3d> &getFaceArrayLabel(size_t face,
-                                                 std::string label);
+  std::vector<double> &getFaceScalarVector(size_t face, std::string label);
+  std::vector<double> &getFaceScalarVector(size_t face, size_t index);
+  std::vector<Eigen::Array3d> &getFaceArrayVector(size_t face,
+                                                  std::string label);
+  std::vector<Eigen::Array3d> &getFaceArrayVector(size_t face, size_t index);
+
+  /**
+   * @brief Return the total number of cells present in the grid
+   *
+   * @return total number of cells
+   **/
+  size_t cellCount();
 
 protected:
   std::vector<std::vector<double>> _uScalar, _vScalar, _wScalar;

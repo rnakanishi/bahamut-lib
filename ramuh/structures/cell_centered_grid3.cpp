@@ -14,6 +14,10 @@ size_t CellCenteredGrid3::ijkToid(size_t i, size_t j, size_t k) {
   return k * _gridSize[0] * _gridSize[1] + j * _gridSize[0] + i;
 }
 
+Eigen::Array3d CellCenteredGrid3::getH() {
+  return _domain.size().cwiseQuotient(_gridSize.cast<double>());
+}
+
 std::tuple<size_t, size_t, size_t> CellCenteredGrid3::idToijk(size_t id) {
   size_t first, second, third;
   third = id / (_gridSize[0] * _gridSize[1]);
@@ -48,13 +52,21 @@ size_t CellCenteredGrid3::newArrayLabel(std::string label,
   return _dataLabel[label];
 }
 
-std::vector<double> &CellCenteredGrid3::getScalarLabel(std::string label) {
+std::vector<double> &CellCenteredGrid3::getScalarVector(std::string label) {
   return _scalarData[_dataLabel[label]];
 }
 
+std::vector<double> &CellCenteredGrid3::getScalarVector(size_t index) {
+  return _scalarData[index];
+}
+
 std::vector<Eigen::Array3d> &
-CellCenteredGrid3::getArrayLabel(std::string label) {
+CellCenteredGrid3::getArrayVector(std::string label) {
   return _arrayData[_dataLabel[label]];
+}
+
+std::vector<Eigen::Array3d> &CellCenteredGrid3::getArrayVector(size_t index) {
+  return _arrayData[index];
 }
 
 } // namespace Ramuh

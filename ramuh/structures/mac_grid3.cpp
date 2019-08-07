@@ -23,13 +23,21 @@ size_t MacGrid3::newFaceScalarLabel(std::string label, double value) {
   return _faceDataLabel[label];
 }
 
-std::vector<double> &MacGrid3::getFaceScalarLabel(size_t face,
-                                                  std::string label) {
+std::vector<double> &MacGrid3::getFaceScalarVector(size_t face,
+                                                   std::string label) {
   if (face == 0)
     return _uScalar[_faceDataLabel[label]];
   if (face == 1)
     return _vScalar[_faceDataLabel[label]];
   return _wScalar[_faceDataLabel[label]];
+}
+
+std::vector<double> &MacGrid3::getFaceScalarVector(size_t face, size_t index) {
+  if (face == 0)
+    return _uScalar[index];
+  if (face == 1)
+    return _vScalar[index];
+  return _wScalar[index];
 }
 
 size_t MacGrid3::newFaceArrayLabel(std::string label) {
@@ -49,13 +57,24 @@ size_t MacGrid3::newFaceArrayLabel(std::string label, Eigen::Array3d value) {
   return _faceDataLabel[label];
 }
 
-std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayLabel(size_t face,
-                                                         std::string label) {
+std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayVector(size_t face,
+                                                          std::string label) {
   if (face == 0)
     return _uArray[_faceDataLabel[label]];
   if (face == 1)
     return _vArray[_faceDataLabel[label]];
   return _wArray[_faceDataLabel[label]];
 }
+
+std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayVector(size_t face,
+                                                          size_t index) {
+  if (face == 0)
+    return _uArray[index];
+  if (face == 1)
+    return _vArray[index];
+  return _wArray[index];
+}
+
+size_t MacGrid3::cellCount() { return _gridSize.prod(); }
 
 } // namespace Ramuh

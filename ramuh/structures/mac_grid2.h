@@ -32,11 +32,12 @@ public:
    * @return std::vector<double>& reference pointer to the data
    **/
   std::vector<double> &getFaceScalarLabel(size_t face, std::string label);
-  std::vector<Eigen::Array> &getFaceArrayLabel(size_t face, std::string label);
+  std::vector<Eigen::Array2d> &getFaceArrayLabel(size_t face,
+                                                 std::string label);
 
-private:
+protected:
   std::vector<std::vector<double>> _uScalar, _vScalar;
-  std::vector<std::vector<double>> _uArray, _vArray;
+  std::vector<std::vector<Eigen::Array2d>> _uArray, _vArray;
   std::map<std::string, size_t> _faceDataLabel;
 };
 

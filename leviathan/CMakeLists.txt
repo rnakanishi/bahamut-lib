@@ -15,6 +15,7 @@ file(GLOB SOURCES
 add_library(Leviathan STATIC ${SOURCES} ${HEADERS})
 add_dependencies(Leviathan Ramuh)
 add_dependencies(Leviathan glm)
+target_link_libraries(Leviathan PUBLIC Ramuh)
 set_target_properties(Leviathan PROPERTIES
         OUTPUT_NAME "Leviathan"
         FOLDER "LEVIATHAN")

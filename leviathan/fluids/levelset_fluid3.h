@@ -5,11 +5,33 @@
 
 namespace Leviathan {
 
-class LevelSetFluid3 : Ramuh::MacGrid3 {
+class LevelSetFluid3 : public Ramuh::MacGrid3 {
 public:
-  LevelSetFluid();
+  LevelSetFluid3();
+  LevelSetFluid3(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain);
 
-private:
+  void advect();
+  void advect(int order);
+
+  void redistance();
+
+protected:
+  double __interpolateVelocityU(Eigen::Array3d position);
+  double __interpolateVelocityV(Eigen::Array3d position);
+  double __interpolateVelocityW(Eigen::Array3d position);
+  double __interpolateVelocityU(Eigen::Array3d position, double &min,
+                                double &max);
+  double __interpolateVelocityV(Eigen::Array3d position, double &min,
+                                double &max);
+  double __interpolateVelocityW(Eigen::Array3d position, double &min,
+                                double &max);
+  double __interpolatePhi(Eigen::Array3d position, double &_min, double &_max);
+  double __interpolatePhi(Eigen::Array3d position);
+
+protected:
+  size_t _velocityId, _phiId;
+  bool _isPressure2nd;
+  double _dt, _tolerance;
 };
 
 } // namespace Leviathan
