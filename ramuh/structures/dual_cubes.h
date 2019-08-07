@@ -4,8 +4,7 @@
 #include <vector>
 #include <utility>
 #include <geometry/bounding_box.h>
-#include <structures/mac_grid3.h>
-#include <structures/mac_grid2.h>
+#include <structures/levelset3.h>
 
 namespace Ramuh {
 
@@ -32,10 +31,10 @@ protected:
   double _resolution;
 };
 
-class DualCubes3 : public MacGrid3 {
+class DualCubes3 : public LevelSet3 {
 public:
   enum class ParametricSurface : int { SPHERE, CUBE, TORUS, DOUBLE_TORUS };
-
+  
   /**
    * @brief Construct a new Dual Cubes 3 object. This object has size and
    *resolution predefined as [0,1] and 32^3 respectively.
@@ -49,8 +48,7 @@ public:
 
   void initialize(Eigen::Array3d center, double radius);
 
-  void initialize(Eigen::Array3d center, double radius,
-                  ParametricSurface surface);
+  void initialize(Eigen::Array3d center, double radius, ParametricSurface surface);
 
   void computeNormals();
 
@@ -62,6 +60,7 @@ public:
 
   void printCells();
 
+
 private:
   bool signChange(double valueA, double valueB);
 
@@ -72,6 +71,7 @@ protected:
   std::vector<std::vector<std::vector<Eigen::Array3d>>> _ufaceLocation,
       _vfaceLocation, _wfaceLocation;
   Eigen::Array3d _h;
+  BoundingBox3 _domain;
   Eigen::Array3i _resolution;
 };
 } // namespace Ramuh
