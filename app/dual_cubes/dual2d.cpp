@@ -9,11 +9,13 @@ int main(int argc, char const *argv[]) {
   Ramuh::DualCubes3 cubes(
       Eigen::Array3i(64, 64, 64),
       Ramuh::BoundingBox3(Eigen::Array3d(-2, -2, -2), Eigen::Array3d(2, 2, 2)));
-  cubes.initialize(Eigen::Array3d(0, 0, 0), 0.3,
-                   Ramuh::DualCubes3::ParametricSurface::DOUBLE_TORUS);
+  cubes.initialize(Eigen::Array3d(0, 0, 0), 1.0,
+                   Ramuh::DualCubes3::ParametricSurface::SPHERE);
   cubes.defineVelocity();
   // cubes.printCells();
 
+  cubes.computeIntersection();
+  cubes.computeNormals();
   cubes.extractSurface();
   for (int i = 1; i <= 1; i++) {
     cubes.integrateLevelSet();

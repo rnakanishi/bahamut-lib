@@ -192,7 +192,7 @@ void DualCubes3::computeNormals() {
                     : (_phi[ijkToid(i, j - 1, k)] + _phi[ijkToid(i, j, k)]) / 2;
             back =
                 (k > 0)
-                    ? (_phi[ijkToid(i, j - 1, k) - 1] +
+                    ? (_phi[ijkToid(i, j - 1, k - 1)] +
                        _phi[ijkToid(i, j, k - 1)]) /
                           2
                     : (_phi[ijkToid(i, j - 1, k)] + _phi[ijkToid(i, j, k)]) / 2;
@@ -268,7 +268,7 @@ void DualCubes3::computeNormals() {
                     : (_phi[ijkToid(i, j, k - 1)] + _phi[ijkToid(i, j, k)]) / 2;
             bot =
                 (j > 0)
-                    ? (_phi[ijkToid(i, j - 1, k) - 1] +
+                    ? (_phi[ijkToid(i, j - 1, k - 1)] +
                        _phi[ijkToid(i, j - 1, k)]) /
                           2
                     : (_phi[ijkToid(i, j, k - 1)] + _phi[ijkToid(i, j, k)]) / 2;
