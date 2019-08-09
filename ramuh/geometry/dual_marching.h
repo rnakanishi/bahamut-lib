@@ -1,6 +1,7 @@
 #ifndef __RAMUH_DUAL_MARCHING_H__
 #define __RAMUH_DUAL_MARCHING_H__
 #include <map>
+#include <vector>
 #include <utility>
 #include <Eigen/Dense>
 #include <geometry/bounding_box.h>
@@ -86,10 +87,24 @@ public:
    **/
   void reconstruct();
 
+  /**
+   * @brief merge the contents of a previously instantiated cube into this
+   * instance. This method should be used with caution.
+   *
+   * @param cube the data to be copied
+   */
+  void merge(DualMarching3 cube);
+
+  std::vector<Eigen::Array3d> &getPoints();
+
+  std::vector<Eigen::Vector3d> &getNormals();
+
+  std::map<std::tuple<int, int, int>, int> &getIdMap();
+
 private:
   std::map<std::tuple<int, int, int>, int> _idMap;
-  std::map<int, Eigen::Array3d> _points;
-  std::map<int, Eigen::Vector3d> _normals;
+  std::vector<Eigen::Array3d> _points;
+  std::vector<Eigen::Vector3d> _normals;
   Eigen::Array3i _resolution;
 };
 

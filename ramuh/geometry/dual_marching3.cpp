@@ -67,8 +67,8 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
 
   int nPoints = _idMap.size() + 1;
   _idMap[pointIndices] = nPoints;
-  _points[nPoints] = x;
-  _normals[nPoints] = normalAvg.normalized();
+  _points.emplace_back(x);
+  _normals.emplace_back(normalAvg.normalized());
 
   return x;
 }
@@ -82,15 +82,13 @@ void DualMarching3::reconstruct() {
   file.open(filename.str().c_str(), std::ofstream::out);
 
   int id = 1;
-  for (std::map<int, Eigen::Array3d>::iterator it = _points.begin();
-       it != _points.end(); it++) {
-    file << "v " << it->second[0] << " " << it->second[1] << " "
-         << it->second[2] << std::endl;
+  for (int i = 0; i < _points.size(); i++) {
+    file << "v " << _points[i][0] << " " << _points[i][1] << " "
+         << _points[i][2] << std::endl;
   }
-  for (std::map<int, Eigen::Vector3d>::iterator it = _normals.begin();
-       it != _normals.end(); it++) {
-    file << "vn " << it->second[0] << " " << it->second[1] << " "
-         << it->second[2] << std::endl;
+  for (int i = 0; i < _normals.size(); i++) {
+    file << "vn " << _normals[i][0] << " " << _normals[i][1] << " "
+         << _normals[i][2] << std::endl;
   }
 
   for (int i = 0; i < _resolution[0]; i++)
@@ -209,6 +207,32 @@ void DualMarching3::reconstruct() {
         }
       }
   std::cerr << "File written: " << filename.str() << std::endl;
+} // namespace Ramuh
+
+std::vector<Eigen::Array3d> &DualMarching3::getPoints() { return _points; }
+
+std::vector<Eigen::Vector3d> &DualMarching3::getNormals() { return _normals; }
+
+std::map<std::tuple<int, int, int>, int> &DualMarching3::getIdMap() {
+  return _idMap;
+}
+
+void DualMarching3::merge(DualMarching3 cube) {
+  auto &points = cube.getPoints();
+  auto &normals = cube.getNormals();
+  auto &map = cube.getIdMap();
+  int nverts = _points.size();
+
+  _points.insert(_points.end(), points.begin(), points.end());
+  _normals.insert(_normals.end(), normals.begin(), normals.end());
+
+  std::cerr << nverts << " + " << map.size() << " = " << _points.size()
+            << std::endl;
+
+  for (auto &&point : map) {
+    point.second += nverts;
+  }
+  _idMap.insert(map.begin(), map.end());
 }
 
 } // namespace Ramuh

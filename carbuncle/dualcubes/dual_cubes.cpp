@@ -1,4 +1,5 @@
 #include <geometry/dual_marching.h>
+#include <omp.h>
 #include <iostream>
 #include "dual_cubes.h"
 
@@ -495,6 +496,10 @@ void DualCubes3::extractSurface() {
   auto &_vfaceNormals = getFaceArrayVector(1, "faceNormal");
   auto &_wfaceNormals = getFaceArrayVector(2, "faceNormal");
 
+  std::vector<Ramuh::DualMarching3> surfaces(omp_get_max_threads(),
+                                             Ramuh::DualMarching3(_resolution));
+
+#pragma omp parallel for
   for (int k = 0; k < _resolution[2] - 1; k++) {
     for (int j = 0; j < _resolution[1] - 1; j++) {
       for (int i = 0; i < _resolution[0] - 1; i++) {
@@ -587,15 +592,20 @@ void DualCubes3::extractSurface() {
           Eigen::Array3d cubeMax =
               _domain.min() +
               _h.cwiseProduct(Eigen::Array3d(i + 1.5, j + 1.5, k + 1.5));
-          auto x = surface.evaluateCube(std::make_tuple(i, j, k),
-                                        normalPosition, normal,
-                                        Ramuh::BoundingBox3(cubeMin, cubeMax));
+          int thread = omp_get_thread_num();
+          auto x = surfaces[thread].evaluateCube(
+              std::make_tuple(i, j, k), normalPosition, normal,
+              Ramuh::BoundingBox3(cubeMin, cubeMax));
           // std::cout << x[0] << " " << x[1] << " " << x[2] <<
           // std::endl;
         }
       }
     }
   }
+  for (size_t i = 0; i < omp_get_max_threads(); i++) {
+    surface.merge(surfaces[i]);
+  }
+
   surface.reconstruct();
 }
 
