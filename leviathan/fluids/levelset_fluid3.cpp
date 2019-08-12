@@ -85,6 +85,7 @@ void LevelSetFluid3::advectWeno() {
 
     // For center points, check if velocity is positive or negative. If
     // negative, the perform right-weno, otherwise, perform legt-weno.
+    // TODO: treat boundary index
     bool isNegative = true;
     if (velocity[0] >= 0)
       isNegative = false;
@@ -102,7 +103,7 @@ void LevelSetFluid3::advectWeno() {
                              : _u[ijkToid(ijk[0] + 2, ijk[1], ijk[2])];
     dPhi[0] = Ramuh::Weno::evaluate(values, h[0], isNegative);
 
-    bool isNegative = true;
+    isNegative = true;
     if (velocity[1] >= 0)
       isNegative = false;
     values[0] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] - 2, ijk[2])]
@@ -119,7 +120,7 @@ void LevelSetFluid3::advectWeno() {
                              : _v[ijkToid(ijk[0], ijk[1] + 2, ijk[2])];
     dPhi[1] = Ramuh::Weno::evaluate(values, h[0], isNegative);
 
-    bool isNegative = true;
+    isNegative = true;
     if (velocity[2] >= 0)
       isNegative = false;
     values[0] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] - 2)]
