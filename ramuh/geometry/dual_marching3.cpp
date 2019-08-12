@@ -79,7 +79,12 @@ void DualMarching3::reconstruct() {
   std::stringstream filename;
   filename << "results/marching/dualcubes_" << std::setfill('0') << std::setw(4)
            << count++ << ".obj";
-  file.open(filename.str().c_str(), std::ofstream::out);
+  try {
+    file.open(filename.str().c_str(), std::ofstream::out);
+  } catch (std::exception e) {
+    std::cerr << "Failed opening file " << filename.str() << std::endl;
+    return;
+  }
 
   int id = 1;
   for (int i = 0; i < _points.size(); i++) {
@@ -225,9 +230,6 @@ void DualMarching3::merge(DualMarching3 cube) {
 
   _points.insert(_points.end(), points.begin(), points.end());
   _normals.insert(_normals.end(), normals.begin(), normals.end());
-
-  std::cerr << nverts << " + " << map.size() << " = " << _points.size()
-            << std::endl;
 
   for (auto &&point : map) {
     point.second += nverts;

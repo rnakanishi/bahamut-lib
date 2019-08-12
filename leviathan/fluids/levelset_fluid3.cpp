@@ -1,5 +1,6 @@
 #include <fluids/levelset_fluid3.h>
 #include <blas/interpolator.h>
+#include <blas/weno.h>
 
 namespace Leviathan {
 
@@ -27,7 +28,7 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
   newScalarLabel("newPhi");
 }
 
-void LevelSetFluid3::advect() {
+void LevelSetFluid3::advectSemiLagrangean() {
   size_t nCells = cellCount();
   auto &newPhi = getScalarVector("newPhi");
   auto &phi = getScalarVector(_phiId);
@@ -41,7 +42,7 @@ void LevelSetFluid3::advect() {
     velocity[1] = __interpolateVelocityV(position);
     velocity[2] = __interpolateVelocityW(position);
 
-    position -= velocity * _dt;
+    position = position - (velocity * _dt);
     Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
     // Check if inside domain
     double newValue = phi[id];
@@ -55,6 +56,95 @@ void LevelSetFluid3::advect() {
 #pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     phi[id] = newPhi[id];
+  }
+}
+
+void LevelSetFluid3::advectWeno() {
+  size_t nCells = cellCount();
+  std::vector<double> values(6); // function values
+  auto h = getH();
+
+  // For each coordinate, perform HJ-WENO advection separatedly
+
+  auto &_u = getFaceScalarVector(0, _velocityId);
+  auto &_v = getFaceScalarVector(1, _velocityId);
+  auto &_w = getFaceScalarVector(2, _velocityId);
+  auto &_phi = getScalarVector(_phiId);
+  auto &newPhi = getScalarVector("newPhi");
+#pragma omp parallel for
+  for (size_t id = 0; id < nCells; id++) {
+    Eigen::Vector3d velocity;
+    Eigen::Vector3d dPhi;
+    Eigen::Array3i ijk;
+    std::tie(ijk[0], ijk[1], ijk[2]) = idToijk(id);
+
+    // Average velocities from faces
+    velocity[0] = (_u[id] + _u[ijkToid(ijk[0] + 1, ijk[1], ijk[2])]) / 2;
+    velocity[1] = (_v[id] + _v[ijkToid(ijk[0], ijk[1] + 1, ijk[2])]) / 2;
+    velocity[2] = (_w[id] + _w[ijkToid(ijk[0], ijk[1], ijk[2] + 1)]) / 2;
+
+    // For center points, check if velocity is positive or negative. If
+    // negative, the perform right-weno, otherwise, perform legt-weno.
+    bool isNegative = true;
+    if (velocity[0] >= 0)
+      isNegative = false;
+    values[0] = (isNegative) ? _u[ijkToid(ijk[0] - 2, ijk[1], ijk[2])]
+                             : _u[ijkToid(ijk[0] - 3, ijk[1], ijk[2])];
+    values[1] = (isNegative) ? _u[ijkToid(ijk[0] - 1, ijk[1], ijk[2])]
+                             : _u[ijkToid(ijk[0] - 2, ijk[1], ijk[2])];
+    values[2] = (isNegative) ? _u[ijkToid(ijk[0] - 0, ijk[1], ijk[2])]
+                             : _u[ijkToid(ijk[0] - 1, ijk[1], ijk[2])];
+    values[3] = (isNegative) ? _u[ijkToid(ijk[0] + 1, ijk[1], ijk[2])]
+                             : _u[ijkToid(ijk[0] - 0, ijk[1], ijk[2])];
+    values[4] = (isNegative) ? _u[ijkToid(ijk[0] + 2, ijk[1], ijk[2])]
+                             : _u[ijkToid(ijk[0] + 1, ijk[1], ijk[2])];
+    values[5] = (isNegative) ? _u[ijkToid(ijk[0] + 3, ijk[1], ijk[2])]
+                             : _u[ijkToid(ijk[0] + 2, ijk[1], ijk[2])];
+    dPhi[0] = Ramuh::Weno::evaluate(values, h[0], isNegative);
+
+    bool isNegative = true;
+    if (velocity[1] >= 0)
+      isNegative = false;
+    values[0] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] - 2, ijk[2])]
+                             : _v[ijkToid(ijk[0], ijk[1] - 3, ijk[2])];
+    values[1] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] - 1, ijk[2])]
+                             : _v[ijkToid(ijk[0], ijk[1] - 2, ijk[2])];
+    values[2] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] - 0, ijk[2])]
+                             : _v[ijkToid(ijk[0], ijk[1] - 1, ijk[2])];
+    values[3] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] + 1, ijk[2])]
+                             : _v[ijkToid(ijk[0], ijk[1] - 0, ijk[2])];
+    values[4] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] + 2, ijk[2])]
+                             : _v[ijkToid(ijk[0], ijk[1] + 1, ijk[2])];
+    values[5] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] + 3, ijk[2])]
+                             : _v[ijkToid(ijk[0], ijk[1] + 2, ijk[2])];
+    dPhi[1] = Ramuh::Weno::evaluate(values, h[0], isNegative);
+
+    bool isNegative = true;
+    if (velocity[2] >= 0)
+      isNegative = false;
+    values[0] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] - 2)]
+                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] - 3)];
+    values[1] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] - 1)]
+                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] - 2)];
+    values[2] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] - 0)]
+                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] - 1)];
+    values[3] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] + 1)]
+                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] - 0)];
+    values[4] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] + 2)]
+                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] + 1)];
+    values[5] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] + 3)]
+                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] + 2)];
+    dPhi[2] = Ramuh::Weno::evaluate(values, h[0], isNegative);
+
+    // Proceed to time integration and material derivative
+    // Euler method
+    newPhi[id] = -velocity.dot(dPhi) * _dt;
+    newPhi[id] = (newPhi[id] + _phi[id]);
+  }
+
+#pragma omp parallel for
+  for (size_t id = 0; id < nCells; id++) {
+    _phi[id] = newPhi[id];
   }
 }
 

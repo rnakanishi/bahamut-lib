@@ -10,8 +10,16 @@ public:
   LevelSetFluid3();
   LevelSetFluid3(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain);
 
-  void advect();
+  /**
+   * @brief compute semi Lagrangean advection for levelset values.
+   *
+   */
+  void advectSemiLagrangean();
   void advect(int order);
+
+  void advectMacCormack();
+
+  void advectWeno();
 
   void redistance();
 
