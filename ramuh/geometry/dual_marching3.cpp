@@ -73,6 +73,16 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
   return x;
 }
 
+bool DualMarching3::_consistentNormals(std::vector<int> ids) {
+  Eigen::Vector3d base1, base2;
+
+  base1 = (_points[ids[1]] - _points[ids[0]]).matrix();
+  base2 = (_points[ids[2]] - _points[ids[1]]).matrix();
+  if (base1.cross(base2).dot(_normals[ids[1]]) < 0)
+    return false;
+  return true;
+}
+
 void DualMarching3::reconstruct() {
   std::ofstream file;
   static int count = 0;
@@ -105,109 +115,205 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i + 1, j, k)] << " "
-                 << _idMap[std::make_tuple(i + 1, j + 1, k)] << " "
-                 << _idMap[std::make_tuple(i, j + 1, k)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j + 1, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Bottom right
           if (_idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j - 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j - 1, k)] << " "
-                 << _idMap[std::make_tuple(i + 1, j - 1, k)] << " "
-                 << _idMap[std::make_tuple(i + 1, j, k)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j - 1, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Left bottom
           if (_idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j - 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i - 1, j, k)] << " "
-                 << _idMap[std::make_tuple(i - 1, j - 1, k)] << " "
-                 << _idMap[std::make_tuple(i, j - 1, k)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j - 1, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Top left
           if (_idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j + 1, k)] << " "
-                 << _idMap[std::make_tuple(i - 1, j + 1, k)] << " "
-                 << _idMap[std::make_tuple(i - 1, j, k)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j + 1, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Right back
           if (_idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i + 1, j, k)] << " "
-                 << _idMap[std::make_tuple(i + 1, j, k - 1)] << " "
-                 << _idMap[std::make_tuple(i, j, k - 1)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k - 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Back left
           if (_idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i + 1, j, k - 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j, k - 1)] << " "
-                 << _idMap[std::make_tuple(i + 1, j, k - 1)] << " "
-                 << _idMap[std::make_tuple(i + 1, j, k)] << " " << std::endl;
+              _idMap.find(std::make_tuple(i - 1, j, k - 1)) != _idMap.end() &&
+              _idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end()) {
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k - 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Left front
           if (_idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i - 1, j, k)] << " "
-                 << _idMap[std::make_tuple(i - 1, j, k + 1)] << " "
-                 << _idMap[std::make_tuple(i, j, k + 1)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k + 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Front right
           if (_idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j + 1, k + 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j, k + 1)] << " "
-                 << _idMap[std::make_tuple(i, j + 1, k + 1)] << " "
-                 << _idMap[std::make_tuple(i, j + 1, k)] << " " << std::endl;
+              _idMap.find(std::make_tuple(i + 1, j, k + 1)) != _idMap.end() &&
+              _idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end()) {
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k + 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // back top
           if (_idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j, k - 1)] << " "
-                 << _idMap[std::make_tuple(i, j + 1, k - 1)] << " "
-                 << _idMap[std::make_tuple(i, j + 1, k)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k - 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // top front
           if (_idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j, k)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k + 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Front bottom
           if (_idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j - 1, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j, k + 1)] << " "
-                 << _idMap[std::make_tuple(i, j - 1, k + 1)] << " "
-                 << _idMap[std::make_tuple(i, j - 1, k)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k + 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
           // Bottom back
           if (_idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j - 1, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end()) {
-            file << "f " << _idMap[std::make_tuple(i, j, k)] << " "
-                 << _idMap[std::make_tuple(i, j - 1, k)] << " "
-                 << _idMap[std::make_tuple(i, j - 1, k - 1)] << " "
-                 << _idMap[std::make_tuple(i, j, k - 1)] << " " << std::endl;
+            std::vector<int> pIds;
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k - 1)]);
+            pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
+            if (!_consistentNormals(pIds))
+              std::swap(pIds[0], pIds[2]);
+            file << "f ";
+            for (auto id : pIds) {
+              file << id << " ";
+            }
+            file << std::endl;
           }
         }
       }

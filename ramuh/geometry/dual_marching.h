@@ -101,6 +101,10 @@ public:
 
   std::map<std::tuple<int, int, int>, int> &getIdMap();
 
+protected:
+  bool _consistentNormals(std::vector<int> ids);
+
+
 private:
   std::map<std::tuple<int, int, int>, int> _idMap;
   std::vector<Eigen::Array3d> _points;
