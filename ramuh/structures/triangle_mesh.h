@@ -68,7 +68,7 @@ public:
    * @param vertices
    * @return uint
    **/
-  virtual uint removeDoubles() {}
+  virtual uint removeDoubles() { return 0; }
 
   /**
    * @brief Get the vertex object corresponding to index

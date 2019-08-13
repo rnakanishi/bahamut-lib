@@ -7,7 +7,7 @@
 
 int main(int argc, char const *argv[]) {
   Ramuh::DualCubes3 cubes(
-      Eigen::Array3i(64, 64, 64),
+      Eigen::Array3i(50, 50, 50),
       Ramuh::BoundingBox3(Eigen::Array3d(-2, -2, -2), Eigen::Array3d(2, 2, 2)));
   cubes.initialize(Eigen::Array3d(0, 0, 0), 0.5,
                    Ramuh::DualCubes3::ParametricSurface::CUBE);
@@ -17,8 +17,8 @@ int main(int argc, char const *argv[]) {
   cubes.computeIntersection();
   cubes.computeNormals();
   cubes.extractSurface();
-  for (int i = 1; i <= 30; i++) {
-    cubes.advectWeno();
+  for (int i = 1; i <= 10; i++) {
+    cubes.integrateLevelSet();
     cubes.computeIntersection();
     cubes.computeNormals();
     cubes.extractSurface();

@@ -338,47 +338,64 @@ void LevelSet3::advectWeno() {
     velocity[2] = (_w[i][j][k] + _w[i][j][k + 1]) / 2;
 
     bool isNegative = true; // Velocity direction
+    bool isShock = false;
+
+    // X dimension
     if (velocity[0] >= 0)
       isNegative = false;
-    if (i - 3 >= 0 && i + 3 < _resolution[0]) {
-      int ii = (isNegative) ? -2 : -3;
-      for (int ival = 0; ival < 6; ival++, ii++) {
-        if (!isNegative && i + ii < 0)
-          values[ival] = 0;
-        else
-          values[ival] = _phi[i + ii][j][k];
-      }
-      dPhi[0] = Weno::evaluate(values, h[0], isNegative);
+    int ii = (isNegative) ? -2 : -3;
+    for (int ival = 0; ival < 6; ival++, ii++) {
+      if ((i + ii < 0) || (i + ii > _resolution[0] - 1)) {
+        isShock = true;
+      } else
+        values[ival] = _phi[i + ii][j][k];
     }
+    if (!isShock)
+      dPhi[0] = Weno::evaluate(values, h[0], isNegative);
+    else
+      dPhi[0] = 0;
+
+    // Y dimension
     isNegative = true;
     if (velocity[1] >= 0)
       isNegative = false;
-    if (j - 3 >= 0 && j + 3 < _resolution[1]) {
-      values[0] = (isNegative) ? _phi[i][j - 2][k] : _phi[i][j - 3][k];
-      values[1] = (isNegative) ? _phi[i][j - 1][k] : _phi[i][j - 2][k];
-      values[2] = (isNegative) ? _phi[i][j - 0][k] : _phi[i][j - 1][k];
-      values[3] = (isNegative) ? _phi[i][j + 1][k] : _phi[i][j - 0][k];
-      values[4] = (isNegative) ? _phi[i][j + 2][k] : _phi[i][j + 1][k];
-      values[5] = (isNegative) ? _phi[i][j + 3][k] : _phi[i][j + 2][k];
-      dPhi[1] = Weno::evaluate(values, h[0], isNegative);
+    int jj = (isNegative) ? -2 : -3;
+    for (int ival = 0; ival < 6; ival++, jj++) {
+      if ((j + jj < 0) || (j + jj > _resolution[1] - 1)) {
+        isShock = true;
+      } else
+        values[ival] = _phi[i][j + jj][k];
     }
+    if (!isShock)
+      dPhi[1] = Weno::evaluate(values, h[1], isNegative);
+    else
+      dPhi[1] = 0;
+
+    // Z dimension
     isNegative = true;
     if (velocity[2] >= 0)
       isNegative = false;
-    if (k - 3 >= 0 && k + 3 < _resolution[2]) {
-      values[0] = (isNegative) ? _phi[i][j][k - 2] : _phi[i][j][k - 3];
-      values[1] = (isNegative) ? _phi[i][j][k - 1] : _phi[i][j][k - 2];
-      values[2] = (isNegative) ? _phi[i][j][k - 0] : _phi[i][j][k - 1];
-      values[3] = (isNegative) ? _phi[i][j][k + 1] : _phi[i][j][k - 0];
-      values[4] = (isNegative) ? _phi[i][j][k + 2] : _phi[i][j][k + 1];
-      values[5] = (isNegative) ? _phi[i][j][k + 3] : _phi[i][j][k + 2];
-      dPhi[2] = Weno::evaluate(values, h[0], isNegative);
+    int kk = (isNegative) ? -2 : -3;
+    for (int ival = 0; ival < 6; ival++, kk++) {
+      if ((k + kk < 0) || (k + kk > _resolution[2] - 1)) {
+        isShock = true;
+      } else
+        values[ival] = _phi[i][j][k + kk];
     }
+    if (!isShock)
+      dPhi[2] = Weno::evaluate(values, h[2], isNegative);
+    else
+      dPhi[2] = 0;
+
     // Proceed to time integration and material derivative
     // Euler method
-    newPhi[i][j][k] = -velocity.dot(dPhi) * _dt;
-    newPhi[i][j][k] = (newPhi[i][j][k] + _phi[i][j][k]);
-    int aux = 10;
+    if (!isShock) {
+      newPhi[i][j][k] = -velocity.dot(dPhi) * _dt;
+      newPhi[i][j][k] = (newPhi[i][j][k] + _phi[i][j][k]);
+      int aux = 10;
+    } else {
+      newPhi[i][j][k] = _phi[i][j][k];
+    }
   }
 
 #pragma omp parallel for
