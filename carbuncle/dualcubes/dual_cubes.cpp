@@ -250,16 +250,16 @@ void DualCubes3::computeNormals() {
             // and z directions X-direction
             right =
                 (i < _resolution[0] - 1)
-                    ? (_phi[ijkToid(i + 1, j - 1, k)] +
+                    ? (_phi[ijkToid(i + 1, j, k - 1)] +
                        _phi[ijkToid(i + 1, j, k)]) /
                           2
-                    : (_phi[ijkToid(i, j - 1, k)] + _phi[ijkToid(i, j, k)]) / 2;
+                    : (_phi[ijkToid(i, j, k - 1)] + _phi[ijkToid(i, j, k)]) / 2;
             left =
                 (i > 0)
-                    ? (_phi[ijkToid(i - 1, j - 1, k)] +
+                    ? (_phi[ijkToid(i - 1, j, k - 1)] +
                        _phi[ijkToid(i - 1, j, k)]) /
                           2
-                    : (_phi[ijkToid(i, j - 1, k)] + _phi[ijkToid(i, j, k)]) / 2;
+                    : (_phi[ijkToid(i, j, k - 1)] + _phi[ijkToid(i, j, k)]) / 2;
             // Y-direction
             up =
                 (j < _resolution[1] - 1)
@@ -289,15 +289,15 @@ void DualCubes3::computeNormals() {
             right =
                 (i < _resolution[0] - 1)
                     ? (_phi[ijkToid(i + 1, j, k)] +
-                       _phi[ijkToid(i + 1, j + 1, k)]) /
+                       _phi[ijkToid(i + 1, j, k + 1)]) /
                           2
-                    : (_phi[ijkToid(i, j, k)] + _phi[ijkToid(i, j + 1, k)]) / 2;
+                    : (_phi[ijkToid(i, j, k)] + _phi[ijkToid(i, j, k + 1)]) / 2;
             left =
                 (i > 0)
                     ? (_phi[ijkToid(i - 1, j, k)] +
-                       _phi[ijkToid(i - 1, j + 1, k)]) /
+                       _phi[ijkToid(i - 1, j, k + 1)]) /
                           2
-                    : (_phi[ijkToid(i, j, k)] + _phi[ijkToid(i, j + 1, k)]) / 2;
+                    : (_phi[ijkToid(i, j, k)] + _phi[ijkToid(i, j, k + 1)]) / 2;
             // Y-direction
             up =
                 (j < _resolution[1] - 1)

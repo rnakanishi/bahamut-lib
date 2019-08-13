@@ -18,7 +18,7 @@ int main(int argc, char const *argv[]) {
   cubes.computeNormals();
   cubes.extractSurface();
   for (int i = 1; i <= 30; i++) {
-    cubes.integrateLevelSet();
+    cubes.advectWeno();
     cubes.computeIntersection();
     cubes.computeNormals();
     cubes.extractSurface();

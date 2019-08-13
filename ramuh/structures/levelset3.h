@@ -36,6 +36,8 @@ public:
    **/
   void macCormackAdvection();
 
+  void advectWeno();
+
   void solvePressure() override;
 
   ///

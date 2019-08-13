@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <fstream>
 #include <blas/interpolator.h>
+#include <blas/weno.h>
 
 namespace Ramuh {
 
@@ -317,6 +318,75 @@ void LevelSet3::macCormackAdvection() {
     for (int j = 0; j < _resolution[1]; j++)
       for (int k = 0; k < _resolution[2]; k++)
         _phi[i][j][k] = newPhi[i][j][k];
+}
+
+void LevelSet3::advectWeno() {
+  std::vector<double> values(6);
+  Eigen::Array3d h(_h[0], _h[1], _h[2]);
+  Matrix3<double> newPhi;
+  newPhi.changeSize(_resolution);
+
+  // #pragma omp parallel for
+  for (int id = 0; id < cellCount(); id++) {
+    Eigen::Array3i ijk = idToijk(id);
+    int i = ijk[0], j = ijk[1], k = ijk[2];
+
+    Eigen::Vector3d dPhi(0., 0., 0.);
+    Eigen::Vector3d velocity;
+    velocity[0] = (_u[i][j][k] + _u[i + 1][j][k]) / 2;
+    velocity[1] = (_v[i][j][k] + _v[i][j + 1][k]) / 2;
+    velocity[2] = (_w[i][j][k] + _w[i][j][k + 1]) / 2;
+
+    bool isNegative = true; // Velocity direction
+    if (velocity[0] >= 0)
+      isNegative = false;
+    if (i - 3 >= 0 && i + 3 < _resolution[0]) {
+      int ii = (isNegative) ? -2 : -3;
+      for (int ival = 0; ival < 6; ival++, ii++) {
+        if (!isNegative && i + ii < 0)
+          values[ival] = 0;
+        else
+          values[ival] = _phi[i + ii][j][k];
+      }
+      dPhi[0] = Weno::evaluate(values, h[0], isNegative);
+    }
+    isNegative = true;
+    if (velocity[1] >= 0)
+      isNegative = false;
+    if (j - 3 >= 0 && j + 3 < _resolution[1]) {
+      values[0] = (isNegative) ? _phi[i][j - 2][k] : _phi[i][j - 3][k];
+      values[1] = (isNegative) ? _phi[i][j - 1][k] : _phi[i][j - 2][k];
+      values[2] = (isNegative) ? _phi[i][j - 0][k] : _phi[i][j - 1][k];
+      values[3] = (isNegative) ? _phi[i][j + 1][k] : _phi[i][j - 0][k];
+      values[4] = (isNegative) ? _phi[i][j + 2][k] : _phi[i][j + 1][k];
+      values[5] = (isNegative) ? _phi[i][j + 3][k] : _phi[i][j + 2][k];
+      dPhi[1] = Weno::evaluate(values, h[0], isNegative);
+    }
+    isNegative = true;
+    if (velocity[2] >= 0)
+      isNegative = false;
+    if (k - 3 >= 0 && k + 3 < _resolution[2]) {
+      values[0] = (isNegative) ? _phi[i][j][k - 2] : _phi[i][j][k - 3];
+      values[1] = (isNegative) ? _phi[i][j][k - 1] : _phi[i][j][k - 2];
+      values[2] = (isNegative) ? _phi[i][j][k - 0] : _phi[i][j][k - 1];
+      values[3] = (isNegative) ? _phi[i][j][k + 1] : _phi[i][j][k - 0];
+      values[4] = (isNegative) ? _phi[i][j][k + 2] : _phi[i][j][k + 1];
+      values[5] = (isNegative) ? _phi[i][j][k + 3] : _phi[i][j][k + 2];
+      dPhi[2] = Weno::evaluate(values, h[0], isNegative);
+    }
+    // Proceed to time integration and material derivative
+    // Euler method
+    newPhi[i][j][k] = -velocity.dot(dPhi) * _dt;
+    newPhi[i][j][k] = (newPhi[i][j][k] + _phi[i][j][k]);
+    int aux = 10;
+  }
+
+#pragma omp parallel for
+  for (size_t id = 0; id < cellCount(); id++) {
+    Eigen::Array3i ijk = idToijk(id);
+    int i = ijk[0], j = ijk[1], k = ijk[2];
+    _phi[i][j][k] = newPhi[i][j][k];
+  }
 }
 
 double LevelSet3::_interpolatePhi(Eigen::Array3d position) {
@@ -662,7 +732,7 @@ void LevelSet3::solvePressure() {
 
   // Correct velocity through pressure gradient
   _maxVelocity[0] = _maxVelocity[1] = _maxVelocity[2] = -1e8;
-#pragma omp for
+#pragma omp parallel for
   // TODO: Change to fluid FACES instead of CELLS
   for (int id = 0; id < cellCount(); id++) {
     Eigen::Array3i ijk = idToijk(id);
