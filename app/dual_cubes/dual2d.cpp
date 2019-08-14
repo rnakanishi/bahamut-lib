@@ -2,6 +2,7 @@
 #include <geometry/bounding_box.h>
 #include <Eigen/Dense>
 #include <utils/file_writer.h>
+#include <utils/timer.hpp>
 #include <sstream>
 #include <iomanip>
 
@@ -17,19 +18,30 @@ int main(int argc, char const *argv[]) {
   cubes.computeIntersection();
   cubes.computeNormals();
   cubes.extractSurface();
-  for (int i = 1; i <= 10; i++) {
-    cubes.integrateLevelSet();
-    cubes.computeIntersection();
-    cubes.computeNormals();
+  Ramuh::Timer timer;
+  for (int i = 1; i <= 100; i++) {
+    timer.clearAll();
+    timer.reset();
+    cubes.cfl();
+    do {
+      cubes.advectWeno();
+      timer.registerTime("Weno");
+      cubes.computeIntersection();
+      cubes.computeNormals();
+      timer.registerTime("Hermite");
+    } while (!cubes.advanceTime());
     cubes.extractSurface();
+    timer.registerTime("Surface");
+    timer.evaluateComponentsTime();
   }
 
-  auto surface = cubes.marchingTetrahedra();
-  Ramuh::FileWriter writer;
-  std::ostringstream objname;
-  objname << "results/marching/tetra_" << std::setfill('0') << std::setw(4) << 0
-          << ".obj";
-  writer.writeMeshModel(surface, objname.str());
+  // auto surface = cubes.marchingTetrahedra();
+  // Ramuh::FileWriter writer;
+  // std::ostringstream objname;
+  // objname << "results/marching/tetra_" << std::setfill('0') << std::setw(4)
+  // << 0
+  //         << ".obj";
+  // writer.writeMeshModel(surface, objname.str());
   // }
   return 0;
 }

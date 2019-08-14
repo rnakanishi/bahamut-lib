@@ -403,7 +403,8 @@ void DualCubes3::defineVelocity() {
     for (int j = 0; j < _resolution[1]; j++) {
       for (int i = 0; i < _resolution[0]; i++) {
         Eigen::Array3d facePosition;
-        _w[i][j][k] = 0;
+        facePosition[0] = _domain.min()[0] + (i + 0.5) * _h[0];
+        _w[i][j][k] = 0.0;
       }
     }
   }

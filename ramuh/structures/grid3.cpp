@@ -125,8 +125,9 @@ void RegularGrid3::cfl() {
 
   // Check if cfl condition applies
   // Half timestep if so
-  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 3 * _h[0]) {
-    _dt = _dt / 2;
+  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 0.9 * _h[0]) {
+    int pieces = maxVel.norm() * _dt / (0.9 * _h[0]) + 1;
+    _dt = _dt / pieces;
   }
 }
 

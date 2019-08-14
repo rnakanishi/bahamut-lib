@@ -185,10 +185,6 @@ void LevelSet3::integrateLevelSet() {
     i = ijk[0];
     j = ijk[1];
     k = ijk[2];
-    // if (std::fabs(_phi[i][j][k]) > 5 * _h[0]) {
-    //   oldPhi[i][j][k] = _phi[i][j][k];
-    //   continue;
-    // }
 
     Eigen::Array3d position, backPosition, velocity, h(_h[0], _h[1], _h[2]),
         cellCenter;
@@ -321,13 +317,13 @@ void LevelSet3::macCormackAdvection() {
 }
 
 void LevelSet3::advectWeno() {
-  std::vector<double> values(6);
   Eigen::Array3d h(_h[0], _h[1], _h[2]);
   Matrix3<double> newPhi;
   newPhi.changeSize(_resolution);
 
-  // #pragma omp parallel for
+#pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
+    std::vector<double> values(6);
     Eigen::Array3i ijk = idToijk(id);
     int i = ijk[0], j = ijk[1], k = ijk[2];
 
@@ -339,63 +335,63 @@ void LevelSet3::advectWeno() {
 
     bool isNegative = true; // Velocity direction
     bool isShock = false;
-
     // X dimension
     if (velocity[0] >= 0)
       isNegative = false;
-    int ii = (isNegative) ? -2 : -3;
-    for (int ival = 0; ival < 6; ival++, ii++) {
-      if ((i + ii < 0) || (i + ii > _resolution[0] - 1)) {
-        isShock = true;
-      } else
-        values[ival] = _phi[i + ii][j][k];
+    if (!isNegative) {
+      for (int ival = 0, ii = -3; ival < 6; ival++, ii++) {
+        values[ival] =
+            _phi[std::min(_resolution[0] - 1, std::max(0, i + ii))][j][k];
+      }
+    } else {
+      for (int ival = 0, ii = 3; ival < 6; ival++, ii--) {
+        values[ival] =
+            _phi[std::min(_resolution[0] - 1, std::max(0, i + ii))][j][k];
+      }
     }
-    if (!isShock)
-      dPhi[0] = Weno::evaluate(values, h[0], isNegative);
-    else
-      dPhi[0] = 0;
+    dPhi[0] = Weno::evaluate(values, h[0], isNegative);
 
     // Y dimension
     isNegative = true;
+    // isShock = false;
     if (velocity[1] >= 0)
       isNegative = false;
     int jj = (isNegative) ? -2 : -3;
-    for (int ival = 0; ival < 6; ival++, jj++) {
-      if ((j + jj < 0) || (j + jj > _resolution[1] - 1)) {
-        isShock = true;
-      } else
-        values[ival] = _phi[i][j + jj][k];
+    if (!isNegative) {
+      for (int ival = 0; ival < 6; ival++, jj++) {
+        values[ival] =
+            _phi[i][std::min(_resolution[1] - 1, std::max(0, j + jj))][k];
+      }
+    } else {
+      for (int ival = 0, jj = 3; ival < 6; ival++, jj--) {
+        values[ival] =
+            _phi[i][std::min(_resolution[1] - 1, std::max(0, j + jj))][k];
+      }
     }
-    if (!isShock)
-      dPhi[1] = Weno::evaluate(values, h[1], isNegative);
-    else
-      dPhi[1] = 0;
+    dPhi[1] = Weno::evaluate(values, h[1], isNegative);
 
     // Z dimension
     isNegative = true;
+    // isShock = false;
     if (velocity[2] >= 0)
       isNegative = false;
     int kk = (isNegative) ? -2 : -3;
-    for (int ival = 0; ival < 6; ival++, kk++) {
-      if ((k + kk < 0) || (k + kk > _resolution[2] - 1)) {
-        isShock = true;
-      } else
-        values[ival] = _phi[i][j][k + kk];
+    if (!isNegative) {
+      for (int ival = 0, kk = -3; ival < 6; ival++, kk++) {
+        values[ival] =
+            _phi[i][j][std::min(_resolution[2] - 1, std::max(0, k + kk))];
+      }
+    } else {
+      for (int ival = 0, kk = 3; ival < 6; ival++, kk--) {
+        values[ival] =
+            _phi[i][j][std::min(_resolution[2] - 1, std::max(0, k + kk))];
+      }
     }
-    if (!isShock)
-      dPhi[2] = Weno::evaluate(values, h[2], isNegative);
-    else
-      dPhi[2] = 0;
+    dPhi[2] = Weno::evaluate(values, h[2], isNegative);
 
     // Proceed to time integration and material derivative
     // Euler method
-    if (!isShock) {
-      newPhi[i][j][k] = -velocity.dot(dPhi) * _dt;
-      newPhi[i][j][k] = (newPhi[i][j][k] + _phi[i][j][k]);
-      int aux = 10;
-    } else {
-      newPhi[i][j][k] = _phi[i][j][k];
-    }
+    newPhi[i][j][k] = -velocity.dot(dPhi) * _dt + _phi[i][j][k];
   }
 
 #pragma omp parallel for

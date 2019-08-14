@@ -24,7 +24,7 @@ public:
    * @return double differential value computed
    */
   static double evaluate(std::vector<double> values, double h,
-                         bool isLeft = true);
+                         bool isLeft = true, bool isBoundary = false);
 
 private:
 };

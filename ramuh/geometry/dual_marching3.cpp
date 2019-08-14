@@ -106,6 +106,7 @@ void DualMarching3::reconstruct() {
          << _normals[i][2] << std::endl;
   }
 
+  int fCount = 0;
   for (int i = 0; i < _resolution[0]; i++)
     for (int j = 0; j < _resolution[1]; j++)
       for (int k = 0; k < _resolution[2]; k++) {
@@ -115,6 +116,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
@@ -132,6 +134,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j - 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
@@ -149,6 +152,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j - 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
@@ -166,6 +170,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
@@ -183,6 +188,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
@@ -200,6 +206,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
@@ -217,6 +224,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i - 1, j, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
@@ -234,6 +242,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
@@ -251,6 +260,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
@@ -268,6 +278,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
@@ -285,6 +296,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j - 1, k + 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
@@ -302,6 +314,7 @@ void DualMarching3::reconstruct() {
           if (_idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j - 1, k - 1)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end()) {
+            fCount++;
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
@@ -317,7 +330,8 @@ void DualMarching3::reconstruct() {
           }
         }
       }
-  std::cerr << "File written: " << filename.str() << std::endl;
+  std::cerr << "File written: " << filename.str();
+  std::cerr << ": " << _points.size() << " vertices, " << fCount << " faces.\n";
 } // namespace Ramuh
 
 std::vector<Eigen::Array3d> &DualMarching3::getPoints() { return _points; }
