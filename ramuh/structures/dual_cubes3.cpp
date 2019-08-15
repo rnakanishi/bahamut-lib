@@ -77,6 +77,7 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius,
 
         double x, y, z, x2, y2, z2;
         double distance;
+        position = position - center;
         x = position[0] - center[0];
         y = position[1] - center[1];
         z = position[2] - center[2];
@@ -107,7 +108,14 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius,
           distance =
               std::max(std::max(std::fabs(x), std::fabs(y)), std::fabs(z)) -
               radius;
-
+          if (distance > 0) {
+            position = position.abs();
+            distance = 0.0;
+            x = std::max(0.0, position[0] - radius);
+            y = std::max(0.0, position[1] - radius);
+            z = std::max(0.0, position[2] - radius);
+            distance = sqrt(x * x + y * y + z * z);
+          }
           break;
         default:
           distance = 1e8;
