@@ -329,9 +329,9 @@ void LevelSet3::advectWeno() {
 
     Eigen::Vector3d dPhi(0., 0., 0.);
     Eigen::Vector3d velocity;
-    velocity[0] = (_u[i][j][k] + _u[i + 1][j][k]) / 2;
-    velocity[1] = (_v[i][j][k] + _v[i][j + 1][k]) / 2;
-    velocity[2] = (_w[i][j][k] + _w[i][j][k + 1]) / 2;
+    velocity[0] = _u[i][j][k];
+    velocity[1] = _v[i][j][k];
+    velocity[2] = _w[i][j][k];
 
     bool isNegative = true; // Velocity direction
     bool isShock = false;
@@ -354,14 +354,20 @@ void LevelSet3::advectWeno() {
       for (int ival = 0, ii = 3; ival < 7; ival++, ii--) {
         int index = std::min(_resolution[0] - 1, std::max(0, i + ii));
         double flux;
-        flux = (_phi[index][j][k] +
-                _phi[std::min(index + 1, _resolution[0] - 1)][j][k]) /
-               2.0;
-        flux *= _u[index][j][k];
+        flux = (_phi[index][j][k] + _phi[std::max(index - 1, 0)][j][k]) / 2.0;
+        // flux *= _u[index][j][k];
+        // flux = _phi[index][j][k];
+        // flux *= (_u[index][j][k] +
+        //          _u[std::min(index + 1, _resolution[0] - 1)][j][k]) /
+        //         2.0;
         values[ival] = flux;
       }
     }
     dPhi[0] = Weno::evaluate(values, h[0], isNegative);
+    dPhi[0] +=
+        Weno::evaluate(std::vector<double>(values.begin() + 1, values.end()),
+                       h[0], isNegative);
+    // dPhi[0] /= 2.;
 
     // Y dimension
     isNegative = true;
@@ -392,7 +398,7 @@ void LevelSet3::advectWeno() {
         values[ival] = flux;
       }
     }
-    dPhi[1] = Weno::evaluate(values, h[0], isNegative);
+    dPhi[1] = 0; // Weno::evaluate(values, h[0], isNegative);
 
     // Z dimension
     isNegative = true;
@@ -423,11 +429,13 @@ void LevelSet3::advectWeno() {
         values[ival] = flux;
       }
     }
-    dPhi[2] = Weno::evaluate(values, h[0], isNegative);
+    dPhi[2] = 0; // Weno::evaluate(values, h[0], isNegative);
 
     // Proceed to time integration and material derivative
     // Euler method
-    newPhi[i][j][k] = -dPhi.sum() * _dt + _phi[i][j][k];
+    if (i > 0 && _phi[i - 1][j][k] < 0)
+      int a = 0;
+    newPhi[i][j][k] = -dPhi.dot(velocity) * _dt + _phi[i][j][k];
   }
 
 #pragma omp parallel for

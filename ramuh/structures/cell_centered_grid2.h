@@ -43,6 +43,8 @@ public:
    **/
   std::pair<size_t, size_t> idToij(size_t id);
 
+  Eigen::Array2d getH();
+
   /**
    * @brief Create a new label in the structure. A initial value for the grid
    *can be assigned to all cells as well. If no initial value is given, then all
@@ -67,6 +69,7 @@ public:
    * @return std::vector<double>& vector containing the data for that label
    **/
   std::vector<double> &getScalarLabel(std::string label);
+  std::vector<double> &getScalarLabel(size_t id);
 
   std::vector<Eigen::Array2d> &getArrayLabel(std::string label);
 

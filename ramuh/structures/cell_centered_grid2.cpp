@@ -27,6 +27,10 @@ std::pair<size_t, size_t> CellCenteredGrid2::idToij(size_t id) {
   return index;
 }
 
+Eigen::Array2d CellCenteredGrid2::getH() {
+  return _domain.size().cwiseQuotient(_gridSize.cast<double>());
+}
+
 size_t CellCenteredGrid2::newScalarLabel(std::string label) {
   return newScalarLabel(label, 0);
 }
@@ -41,6 +45,10 @@ size_t CellCenteredGrid2::newScalarLabel(std::string label, double value) {
 
 std::vector<double> &CellCenteredGrid2::getScalarLabel(std::string label) {
   return _scalarData[_dataLabel[label]];
+}
+
+std::vector<double> &CellCenteredGrid2::getScalarLabel(size_t id) {
+  return _scalarData[id];
 }
 
 size_t CellCenteredGrid2::newArrayLabel(std::string label) {

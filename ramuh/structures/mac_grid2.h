@@ -8,6 +8,8 @@ class MacGrid2 : public CellCenteredGrid2 {
 public:
   MacGrid2();
 
+  MacGrid2(BoundingBox2 domain, Eigen::Array2i gridSize);
+
   /**
    * @brief Creates a new label for the data to be stored. Labels should be
    *unique among the same grid structure. The methods return an id for the

@@ -7,15 +7,15 @@ Weno::Weno() {}
 double Weno::evaluate(std::vector<double> values, double h, bool isNegative,
                       bool isBoundary) {
   Eigen::Vector3d w, phi, S, alpha;
-  Eigen::VectorXd v(5); // values to form the convex combination
+  std::vector<double> v(5); // values to form the convex combination
 
   if (!isNegative)
     for (int i = 0; i < 5; i++) {
-      v[i] = (values[i + 1] - values[i]) / h;
+      v[i] = (values[i + 1] + values[i]) / 2;
     }
   else {
     for (int i = 0; i < 5; i++) {
-      v[i] = (values[i] - values[i + 1]) / h;
+      v[i] = values[i];
     }
   }
 
@@ -23,7 +23,7 @@ double Weno::evaluate(std::vector<double> values, double h, bool isNegative,
   phi[1] = (-1 * v[1] + 5 * v[2] + 2 * v[3]) / 6.;
   phi[2] = (2 * v[2] + 5 * v[3] - 1 * v[4]) / 6.;
 
-  double sConst = 13 / 12;
+  double sConst = 13.0 / 12.0;
   S[0] = sConst * (v[0] - 2 * v[1] + v[2]) * (v[0] - 2 * v[1] + v[2]) +
          0.25 * (v[0] - 4 * v[1] + 3 * v[2]) * (v[0] - 4 * v[1] + 3 * v[2]);
   S[1] = sConst * (v[1] - 2 * v[2] + v[3]) * (v[1] - 2 * v[2] + v[3]) +
@@ -51,8 +51,6 @@ double Weno::evaluate(std::vector<double> values, double h, bool isNegative,
   w[2] = alpha[2] / alpha.sum();
 
   return w.dot(phi);
-
-  // TODO: implement smoothness function
 
 } // namespace Ramuh
 

@@ -3,6 +3,9 @@
 namespace Ramuh {
 MacGrid2::MacGrid2() : CellCenteredGrid2() {}
 
+MacGrid2::MacGrid2(BoundingBox2 domain, Eigen::Array2i gridSize)
+    : CellCenteredGrid2(domain, gridSize) {}
+
 size_t MacGrid2::newFaceScalarLabel(std::string label) {
   return newFaceScalarLabel(label, 0);
 }
