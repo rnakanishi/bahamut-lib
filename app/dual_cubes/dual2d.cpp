@@ -25,6 +25,7 @@ int main(int argc, char const *argv[]) {
     cubes.cfl();
     do {
       cubes.advectWeno();
+      // cubes.integrateLevelSet();
       timer.registerTime("Weno");
       cubes.computeIntersection();
       cubes.computeNormals();
