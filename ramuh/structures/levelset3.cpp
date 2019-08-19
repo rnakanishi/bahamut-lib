@@ -321,7 +321,7 @@ void LevelSet3::advectWeno() {
   Matrix3<double> newPhi;
   newPhi.changeSize(_resolution);
 
-  // #pragma omp parallel for
+#pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     std::vector<double> values(6);
     Eigen::Array3i ijk = idToijk(id);
@@ -338,36 +338,42 @@ void LevelSet3::advectWeno() {
     // X dimension
     if (velocity[0] >= 0)
       isNegative = false;
-    if (!isNegative) {
+    if ((!isNegative && i > 0) || (isNegative && i == _resolution[0] - 1)) {
+      isNegative = false;
       for (int ival = 0, ii = -3; ival < 6; ival++, ii++) {
         values[ival] =
             _phi[std::min(_resolution[0] - 1, std::max(0, i + ii))][j][k];
+        // if (i + ii < 0 || i + ii >= _resolution[0])
+        //   values[ival] = -_phi[i - ii][j][k];
       }
       if (i - 1 < 0)
-        values[2] = 2 * values[3] - values[4];
+        values[2] = 2 * values[3] - values[4]; // 1e5 * (i + 1);
       if (i - 2 < 0)
-        values[1] = 2 * values[2] - values[3];
+        values[1] = 2 * values[2] - values[3]; // 1e5 * (i + 1);
       if (i - 3 < 0)
-        values[0] = 2 * values[1] - values[2];
-      if (i + 1 > _resolution[0])
-        values[4] = 2 * values[3] - values[2];
-      if (i + 2 > _resolution[0])
-        values[5] = 2 * values[4] - values[3];
+        values[0] = 2 * values[1] - values[2]; // 1e5 * (i + 1);
+      if (i + 1 >= _resolution[0])
+        values[4] = 2 * values[3] - values[2]; // 1e5 * (i + 1);
+      if (i + 2 >= _resolution[0])
+        values[5] = 2 * values[4] - values[3]; // 1e5 * (i + 1);
     } else {
+      isNegative = true;
       for (int ival = 0, ii = 3; ival < 6; ival++, ii--) {
         values[ival] =
             _phi[std::min(_resolution[0] - 1, std::max(0, i + ii))][j][k];
+        // if (i + ii < 0 || i + ii >= _resolution[0])
+        //   values[ival] = -_phi[i - ii][j][k];
       }
       if (i - 1 < 0)
-        values[4] = 2 * values[3] - values[2];
+        values[4] = 2 * values[3] - values[2]; // 1e5 * (i + 1);
       if (i - 2 < 0)
-        values[5] = 2 * values[4] - values[3];
-      if (i + 1 > _resolution[0])
-        values[2] = 2 * values[3] - values[4];
-      if (i + 2 > _resolution[0])
-        values[1] = 2 * values[2] - values[3];
-      if (i + 3 > _resolution[0])
-        values[0] = 2 * values[1] - values[2];
+        values[5] = 2 * values[4] - values[3]; // 1e5 * (i + 1);
+      if (i + 1 >= _resolution[0])
+        values[2] = 2 * values[3] - values[4]; // 1e5 * (i + 1);
+      if (i + 2 >= _resolution[0])
+        values[1] = 2 * values[2] - values[3]; // 1e5 * (i + 1);
+      if (i + 3 >= _resolution[0])
+        values[0] = 2 * values[1] - values[2]; // 1e5 * (i + 1);
     }
     dPhi[0] = Weno::evaluate(values, h[0], isNegative);
 
@@ -376,37 +382,44 @@ void LevelSet3::advectWeno() {
     // isShock = false;
     if (velocity[1] >= 0)
       isNegative = false;
-    int jj = (isNegative) ? -2 : -3;
-    if (!isNegative) {
-      for (int ival = 0; ival < 6; ival++, jj++) {
+    // if (!isNegative) {
+    if ((!isNegative && j > 0) || (isNegative && j == _resolution[1] - 1)) {
+      isNegative = false;
+      for (int ival = 0, jj = -3; ival < 6; ival++, jj++) {
         values[ival] =
             _phi[i][std::min(_resolution[1] - 1, std::max(0, j + jj))][k];
+        // if (j + jj < 0 || j + jj >= _resolution[0])
+        //   values[ival] = -_phi[i][j - jj][k];
       }
       if (j - 1 < 0)
-        values[2] = 2 * values[3] - values[4];
+        values[2] = 2 * values[3] - values[4]; // 1e5 * (j + 1);
       if (j - 2 < 0)
-        values[1] = 2 * values[2] - values[3];
+        values[1] = 2 * values[2] - values[3]; // 1e5 * (j + 1);
       if (j - 3 < 0)
-        values[0] = 2 * values[1] - values[2];
-      if (j + 1 > _resolution[1])
-        values[4] = 2 * values[3] - values[2];
-      if (j + 2 > _resolution[1])
-        values[5] = 2 * values[4] - values[3];
+        values[0] = 2 * values[1] - values[2]; // 1e5 * (j + 1);
+      if (j + 1 >= _resolution[1])
+        values[4] = 2 * values[3] - values[2]; // 1e5 * (j + 1);
+      if (j + 2 >= _resolution[1])
+        values[5] = 2 * values[4] - values[3]; // 1e5 * (j + 1);
+
     } else {
+      isNegative = true;
       for (int ival = 0, jj = 3; ival < 6; ival++, jj--) {
         values[ival] =
             _phi[i][std::min(_resolution[1] - 1, std::max(0, j + jj))][k];
+        // if (j + jj < 0 || j + jj >= _resolution[0])
+        //   values[ival] = -_phi[i][j - jj][k];
       }
       if (j - 1 < 0)
-        values[4] = 2 * values[3] - values[2];
+        values[4] = 2 * values[3] - values[2]; // 1e5 * (j + 1);
       if (j - 2 < 0)
-        values[5] = 2 * values[4] - values[3];
-      if (j + 1 > _resolution[1])
-        values[2] = 2 * values[3] - values[4];
-      if (j + 2 > _resolution[1])
-        values[1] = 2 * values[2] - values[3];
-      if (j + 3 > _resolution[1])
-        values[0] = 2 * values[1] - values[2];
+        values[5] = 2 * values[4] - values[3]; // 1e5 * (j + 1);
+      if (j + 1 >= _resolution[1])
+        values[2] = 2 * values[3] - values[4]; // 1e5 * (j + 1);
+      if (j + 2 >= _resolution[1])
+        values[1] = 2 * values[2] - values[3]; // 1e5 * (j + 1);
+      if (j + 3 >= _resolution[1])
+        values[0] = 2 * values[1] - values[2]; // 1e5 * (j + 1);
     }
     dPhi[1] = Weno::evaluate(values, h[1], isNegative);
 
@@ -415,37 +428,44 @@ void LevelSet3::advectWeno() {
     // isShock = false;
     if (velocity[2] >= 0)
       isNegative = false;
-    int kk = (isNegative) ? -2 : -3;
-    if (!isNegative) {
+    // if (!isNegative) {
+    if ((!isNegative && k > 0) || (isNegative && k == _resolution[2] - 1)) {
+      isNegative = false;
       for (int ival = 0, kk = -3; ival < 6; ival++, kk++) {
         values[ival] =
             _phi[i][j][std::min(_resolution[2] - 1, std::max(0, k + kk))];
+        // if (k + kk < 0 || k + kk >= _resolution[2])
+        //   values[ival] = -_phi[i][j][k - kk];
       }
       if (k - 1 < 0)
-        values[2] = 2 * values[3] - values[4];
+        values[2] = 2 * values[3] - values[4]; // 1e5 * (k + 1);
       if (k - 2 < 0)
-        values[1] = 2 * values[2] - values[3];
+        values[1] = 2 * values[2] - values[3]; // 1e5 * (k + 1);
       if (k - 3 < 0)
-        values[0] = 2 * values[1] - values[2];
-      if (k + 1 > _resolution[2])
-        values[4] = 2 * values[3] - values[2];
-      if (k + 2 > _resolution[2])
-        values[5] = 2 * values[4] - values[3];
+        values[0] = 2 * values[1] - values[2]; // 1e5 * (k + 1);
+      if (k + 1 >= _resolution[2])
+        values[4] = 2 * values[3] - values[2]; // 1e5 * (k + 1);
+      if (k + 2 >= _resolution[2])
+        values[5] = 2 * values[4] - values[3]; // 1e5 * (k + 1);
+
     } else {
+      isNegative = true;
       for (int ival = 0, kk = 3; ival < 6; ival++, kk--) {
         values[ival] =
             _phi[i][j][std::min(_resolution[2] - 1, std::max(0, k + kk))];
+        // if (k + kk < 0 || k + kk >= _resolution[2])
+        //   values[ival] = -_phi[i][j][k - kk];
       }
       if (k - 1 < 0)
-        values[4] = 2 * values[3] - values[2];
+        values[4] = 2 * values[3] - values[2]; // 1e5 * (k + 1);
       if (k - 2 < 0)
-        values[5] = 2 * values[4] - values[3];
-      if (k + 1 > _resolution[2])
-        values[2] = 2 * values[3] - values[4];
-      if (k + 2 > _resolution[2])
-        values[1] = 2 * values[2] - values[3];
-      if (k + 3 > _resolution[2])
-        values[0] = 2 * values[1] - values[2];
+        values[5] = 2 * values[4] - values[3]; // 1e5 * (k + 1);
+      if (k + 1 >= _resolution[2])
+        values[2] = 2 * values[3] - values[4]; // 1e5 * (k + 1);
+      if (k + 2 >= _resolution[2])
+        values[1] = 2 * values[2] - values[3]; // 1e5 * (k + 1);
+      if (k + 3 >= _resolution[2])
+        values[0] = 2 * values[1] - values[2]; // 1e5 * (k + 1);
     }
     dPhi[2] = Weno::evaluate(values, h[2], isNegative);
 

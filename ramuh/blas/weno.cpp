@@ -31,6 +31,11 @@ double Weno::evaluate(std::vector<double> values, double h, bool isNegative,
   S[2] = sConst * (v[2] - 2 * v[3] + v[4]) * (v[2] - 2 * v[3] + v[4]) +
          0.25 * (3 * v[2] - 4 * v[3] + v[4]) * (3 * v[2] - 4 * v[3] + v[4]);
 
+  for (int i = 0; i < 5; i++) {
+    if (std::fabs(v[i]) > 1000)
+      v[i] = 0;
+  }
+
   double eps =
       1e-6 * std::max(v[0] * v[0],
                       std::max(v[1] * v[1],

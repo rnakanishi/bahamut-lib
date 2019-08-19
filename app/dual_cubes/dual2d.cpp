@@ -7,11 +7,11 @@
 #include <iomanip>
 
 int main(int argc, char const *argv[]) {
-  Ramuh::DualCubes3 cubes(
-      Eigen::Array3i(50, 50, 50),
-      Ramuh::BoundingBox3(Eigen::Array3d(-2, -2, -2), Eigen::Array3d(2, 2, 2)));
-  cubes.initialize(Eigen::Array3d(0, 0, 0), 0.5,
-                   Ramuh::DualCubes3::ParametricSurface::CUBE);
+  Ramuh::DualCubes3 cubes(Eigen::Array3i(100, 50, 50),
+                          Ramuh::BoundingBox3(Eigen::Array3d(-4., -2., -2.),
+                                              Eigen::Array3d(4., 2., 2.)));
+  cubes.initialize(Eigen::Array3d(3.4, 0., 0), 0.5,
+                   Ramuh::DualCubes3::ParametricSurface::SPHERE);
   cubes.defineVelocity();
   // cubes.printCells();
 

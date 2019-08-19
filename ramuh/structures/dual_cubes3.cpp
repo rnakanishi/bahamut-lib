@@ -49,12 +49,12 @@ DualCubes3::DualCubes3(Eigen::Array3i resolution, BoundingBox3 domain)
       _wfaceLocation[i][j].resize(resolution[2] + 1);
 
       _vertices[i][resolution[1] - 1].resize(resolution[2] + 1);
-      _ufaceNormals[resolution[1] - 1][j].resize(resolution[2]);
-      _ufaceLocation[resolution[1] - 1][j].resize(resolution[2]);
+      _ufaceNormals[resolution[0] - 1][j].resize(resolution[2]);
+      _ufaceLocation[resolution[0] - 1][j].resize(resolution[2]);
 
       _vfaceNormals[i][resolution[1] - 1].resize(resolution[2]);
       _vfaceLocation[i][resolution[1] - 1].resize(resolution[2]);
-      _vertices[resolution[1] - 1][resolution[1] - 1].resize(resolution[2] + 1);
+      _vertices[resolution[0] - 1][resolution[1] - 1].resize(resolution[2] + 1);
     }
   }
 }
@@ -77,10 +77,10 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius,
 
         double x, y, z, x2, y2, z2;
         double distance;
-        position = position - center;
         x = position[0] - center[0];
         y = position[1] - center[1];
         z = position[2] - center[2];
+        position = position - center;
         x2 = x * x;
         y2 = y * y;
         z2 = z * z;
@@ -390,7 +390,8 @@ void DualCubes3::defineVelocity() {
       for (int i = 0; i < _resolution[0] + 1; i++) {
         Eigen::Array3d facePosition;
         facePosition[1] = _domain.min()[1] + (j + 0.5) * _h[1];
-        _u[i][j][k] = facePosition[1];
+        // _u[i][j][k] = facePosition[1];
+        _u[i][j][k] = -1.0;
       }
     }
   }
@@ -401,7 +402,7 @@ void DualCubes3::defineVelocity() {
       for (int i = 0; i < _resolution[0]; i++) {
         Eigen::Array3d facePosition;
         facePosition[0] = _domain.min()[0] + (i + 0.5) * _h[0];
-        _v[i][j][k] = -facePosition[0];
+        _v[i][j][k] = 0;
       }
     }
   }

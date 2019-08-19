@@ -73,7 +73,7 @@ void RegularGrid3::setResolution(Vector3i newResolution) {
 
   _w.resize(_resolution.x());
   _wFaceMaterial.resize(_resolution.x());
-  for (int i = 0; i < _resolution.y(); i++) {
+  for (int i = 0; i < _resolution.x(); i++) {
     _w[i].resize(_resolution.y());
     _wFaceMaterial[i].resize(_resolution.y());
     for (int j = 0; j < _resolution.y(); j++) {
