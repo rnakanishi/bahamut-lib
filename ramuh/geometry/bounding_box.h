@@ -4,6 +4,42 @@
 
 namespace Ramuh {
 
+class BoundingBox3 {
+public:
+  BoundingBox3();
+
+  BoundingBox3(Eigen::Array3d min, Eigen::Array3d max);
+
+  /**
+   * @brief creates a new instance of a bounding box with min coordinates at
+   *origin and unit side.
+   *
+   * @return BoundingBox3
+   **/
+  static BoundingBox3 unitBox();
+
+  /**
+   * @brief Returns this bpunding box total size with double precision
+   *
+   * @return Eigen::Array3d Each coordinate of the array corresponds to the
+   *respective side's size.
+   **/
+  Eigen::Array3d size();
+
+  Eigen::Array3d min();
+
+  Eigen::Array3d max();
+
+  Eigen::Array3d center();
+
+  Eigen::Array3d clamp(Eigen::Array3d point);
+
+  bool contains(Eigen::Array3d);
+
+private:
+  Eigen::Array3d _min, _max;
+};
+
 class BoundingBox2 {
 public:
   BoundingBox2();
@@ -40,40 +76,40 @@ private:
   Eigen::Array2d _min, _max;
 };
 
-class BoundingBox3 {
+class BoundingBox1 {
 public:
-  BoundingBox3();
+  BoundingBox1();
 
-  BoundingBox3(Eigen::Array3d min, Eigen::Array3d max);
+  BoundingBox1(double min, double max);
 
   /**
    * @brief creates a new instance of a bounding box with min coordinates at
    *origin and unit side.
    *
-   * @return BoundingBox3
+   * @return BoundingBox2
    **/
-  static BoundingBox3 unitBox();
+  static BoundingBox1 unitBox();
 
   /**
    * @brief Returns this bpunding box total size with double precision
    *
-   * @return Eigen::Array3d Each coordinate of the array corresponds to the
+   * @return double Each coordinate of the array corresponds to the
    *respective side's size.
    **/
-  Eigen::Array3d size();
+  double size();
 
-  Eigen::Array3d min();
+  double min();
 
-  Eigen::Array3d max();
+  double max();
 
-  Eigen::Array3d center();
+  double center();
 
-  Eigen::Array3d clamp(Eigen::Array3d point);
+  double clamp(double point);
 
-  bool contains(Eigen::Array3d);
+  bool contains(double);
 
 private:
-  Eigen::Array3d _min, _max;
+  double _min, _max;
 };
 
 } // namespace Ramuh

@@ -31,6 +31,11 @@ Eigen::Array2d CellCenteredGrid2::getH() {
   return _domain.size().cwiseQuotient(_gridSize.cast<double>());
 }
 
+Eigen::Array2d CellCenteredGrid2::getPosition(int i, int j) {
+  auto h = getH();
+  return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
+}
+
 size_t CellCenteredGrid2::newScalarLabel(std::string label) {
   return newScalarLabel(label, 0);
 }

@@ -10,8 +10,8 @@ int main(int argc, char const *argv[]) {
   Ramuh::DualCubes3 cubes(Eigen::Array3i(50, 50, 50),
                           Ramuh::BoundingBox3(Eigen::Array3d(-4., -2., -2.),
                                               Eigen::Array3d(4., 2., 2.)));
-  cubes.initialize(Eigen::Array3d(3.25, 0., 0), 0.5,
-                   Ramuh::DualCubes3::ParametricSurface::SPHERE);
+  cubes.initialize(Eigen::Array3d(-3, 0., 0), 0.5,
+                   Ramuh::DualCubes3::ParametricSurface::CUBE);
   cubes.defineVelocity();
   // cubes.printCells();
 

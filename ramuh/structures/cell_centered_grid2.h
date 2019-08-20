@@ -1,5 +1,5 @@
-#ifndef __RAMUH_CELL_CENTERED_GRID_H__
-#define __RAMUH_CELL_CENTERED_GRID_H__
+#ifndef __RAMUH_CELL_CENTERED_GRID_2_H__
+#define __RAMUH_CELL_CENTERED_GRID_2_H__
 
 #include <cstdlib>
 #include <map>
@@ -44,6 +44,8 @@ public:
   std::pair<size_t, size_t> idToij(size_t id);
 
   Eigen::Array2d getH();
+
+  Eigen::Array2d getPosition(int i, int j);
 
   /**
    * @brief Create a new label in the structure. A initial value for the grid

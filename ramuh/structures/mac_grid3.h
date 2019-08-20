@@ -1,5 +1,5 @@
-#ifndef __RAMUH_MAC_GRID_H__
-#define __RAMUH_MAC_GRID_H__
+#ifndef __RAMUH_MAC_GRID_3_H__
+#define __RAMUH_MAC_GRID_3_H__
 #include <structures/cell_centered_grid3.h>
 
 namespace Ramuh {

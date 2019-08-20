@@ -151,7 +151,7 @@ void LevelSetFluid3::advectWeno() {
 
 double LevelSetFluid3::__interpolateVelocityU(Eigen::Array3d position) {
   double _min, _max;
-  __interpolateVelocityU(position, _min, _max);
+  return __interpolateVelocityU(position, _min, _max);
 }
 
 double LevelSetFluid3::__interpolateVelocityU(Eigen::Array3d position,
@@ -216,7 +216,7 @@ double LevelSetFluid3::__interpolateVelocityU(Eigen::Array3d position,
 
 double LevelSetFluid3::__interpolateVelocityV(Eigen::Array3d position) {
   double _min, _max;
-  __interpolateVelocityV(position, _min, _max);
+  return __interpolateVelocityV(position, _min, _max);
 }
 
 double LevelSetFluid3::__interpolateVelocityV(Eigen::Array3d position,
@@ -279,7 +279,7 @@ double LevelSetFluid3::__interpolateVelocityV(Eigen::Array3d position,
 
 double LevelSetFluid3::__interpolateVelocityW(Eigen::Array3d position) {
   double _min, _max;
-  __interpolateVelocityW(position, _min, _max);
+  return __interpolateVelocityW(position, _min, _max);
 }
 
 double LevelSetFluid3::__interpolateVelocityW(Eigen::Array3d position,

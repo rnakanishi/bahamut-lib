@@ -1,5 +1,5 @@
-#ifndef __RAMUH_CELL_CENTERED_GRID_H__
-#define __RAMUH_CELL_CENTERED_GRID_H__
+#ifndef __RAMUH_CELL_CENTERED_GRID_3_H__
+#define __RAMUH_CELL_CENTERED_GRID_3_H__
 
 #include <cstdlib>
 #include <map>
