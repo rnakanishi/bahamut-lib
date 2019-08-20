@@ -41,18 +41,29 @@ public:
 
       // compute weno
       for (int ival = 0, ii = 3; ival < 7; ival++, ii--) {
-        int index = std::min(_gridSize - 1, std::max(0, i + ii));
-        int index1 = std::min(_gridSize - 1, std::max(0, i + ii - 1));
-        values[ival] = (phi[index] + phi[index1]) / 2;
+        int index, index1;
+        if (i + ii >= 0 && i + ii < _gridSize) {
+          index = std::min(_gridSize - 1, std::max(0, i + ii));
+          index1 = std::min(_gridSize - 1, std::max(0, i + ii - 1));
+          values[ival] = (phi[index] + phi[index1]) / 2;
+        } else {
+          index = i - ii;
+          index1 = i - ii + 1;
+          values[ival] = 0;
+        }
       }
-      double dPhi = Ramuh::Weno::evaluate(values, h, false);
-      weno[i] = dPhi;
+      if (i >= 0 || i < _gridSize) {
+        double dPhi = Ramuh::Weno::evaluate(values, h, false);
+        weno[i] = dPhi;
+      } else {
+        weno[i] = phi[i];
+      }
     }
     int newWenoId = newLabel("newWeno");
     auto &newWeno = getLabelData(newWenoId);
 
     double alpha = 0;
-    for (size_t i = 0; i < _gridSize - 1; i++) {
+    for (size_t i = 0; i < _gridSize; i++) {
       if (i > 0)
         alpha = std::max(alpha, abs(weno[i] - weno[i - 1]) / h);
       else
@@ -66,7 +77,7 @@ public:
       double flux = 0.5 * (dPhi + dPhi1);
       newWeno[i] = flux;
     }
-    for (size_t i = 0; i < _gridSize - 1; i++) {
+    for (size_t i = 0; i < _gridSize; i++) {
       if (i > 0)
         weno[i] = -(newWeno[i] - newWeno[i - 1]) / h;
       else

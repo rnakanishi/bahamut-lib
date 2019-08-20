@@ -8,7 +8,7 @@
 
 class DiffGrid : public Ramuh::MacGrid1 {
 public:
-  DiffGrid() : Ramuh::MacGrid1(Ramuh::BoundingBox1(0, M_PI), 20) {}
+  DiffGrid() : Ramuh::MacGrid1(Ramuh::BoundingBox1(0, M_PI), 15) {}
 
   void initialize() {
     _functionId = newLabel("function");
@@ -36,15 +36,23 @@ public:
       auto h = getH();
       double position = getPosition(i);
       double x = position;
-      double solution = -cos(position);
+      double solution = cos(position);
       analytic[i] = solution;
 
       // compute weno
       for (int ival = 0, ii = 3; ival < 7; ival++, ii--) {
-        int index = std::min(_gridSize - 1, std::max(0, i + ii));
-        int index1 = std::min(_gridSize - 1, std::max(0, i + ii - 1));
-        values[ival] = (phi[index1] - phi[index]) / h;
+        int index = std::min(_gridSize - 1, std::max(1, i + ii));
+        int index1 = std::min(_gridSize - 2, std::max(0, i + ii - 1));
+        values[ival] = (phi[index] - phi[index1]) / h;
+        if (i + ii < 0) {
+          double diff = (phi[1] - phi[0]) / h;
+          values[ival] = diff;
+        }
       }
+      if (i == 0 || i == 1)
+        values[5] = values[4] = 1e4;
+      if (i == _gridSize - 1 || i == _gridSize - 2)
+        values[0] = values[1] = 1e4;
       double dPhi = Ramuh::Weno::evaluate(values, h, false);
       weno[i] = dPhi;
     }

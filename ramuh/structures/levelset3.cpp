@@ -318,7 +318,7 @@ void LevelSet3::macCormackAdvection() {
 
 void LevelSet3::advectWeno() {
   Eigen::Array3d h(_h[0], _h[1], _h[2]);
-  Matrix3<double> newPhi;
+  Matrix3<double> newPhi, weno;
   newPhi.changeSize(_resolution);
 
 #pragma omp parallel for
@@ -343,10 +343,9 @@ void LevelSet3::advectWeno() {
       for (int ival = 0, ii = -3; ival < 7; ival++, ii++) {
         if (i + ii >= 0 || i + ii < _resolution[0]) {
           int index = std::min(_resolution[0] - 1, std::max(0, i + ii));
+          int index1 = std::min(_resolution[0] - 1, std::max(0, i + ii + 1));
           double flux;
-          flux = (_phi[index][j][k] -
-                  _phi[std::min(index + 1, _resolution[0] - 1)][j][k]) /
-                 h[0];
+          flux = (_phi[index][j][k] + _phi[index1][j][k]) / 2;
           values[ival] = flux;
         } else {
           values[ival] = 0;
@@ -356,89 +355,78 @@ void LevelSet3::advectWeno() {
       isNegative = true;
       for (int ival = 0, ii = 3; ival < 7; ival++, ii--) {
         int index = std::min(_resolution[0] - 1, std::max(0, i + ii));
+        int index1 = std::min(_resolution[0] - 1, std::max(0, i + ii - 1));
         double flux;
-        flux = _phi[index][j][k];
-        // flux *= _u[index][j][k];
-        // flux = _phi[index][j][k];
-        // flux *= (_u[index][j][k] +
-        //          _u[std::min(index + 1, _resolution[0] - 1)][j][k]) /
-        //         2.0;
+        flux = (_phi[index][j][k] + _phi[index1][j][k]) / 2;
         values[ival] = flux;
       }
     }
-    double p;
-    if (i > 0)
-      p = (_phi[i][j][k] - _phi[i - 1][j][k]) / h[0];
-    // if ((p < 0 || i == 0) && i < _resolution[0])
-    else
-      p = (_phi[i + 1][j][k] - _phi[i][j][k]) / h[0];
-    dPhi[0] = p;
 
     dPhi[0] = Weno::evaluate(values, h[0], isNegative);
-    // dPhi[0] /= 2.;
-
-    // Y dimension
-    isNegative = true;
-    // isShock = false;
-    if (velocity[1] >= 0)
-      isNegative = false;
-    // if (!isNegative) {
-    if ((!isNegative && j > 0) || (isNegative && j == _resolution[1] - 1)) {
-      isNegative = false;
-      for (int ival = 0, jj = -3; ival < 7; ival++, jj++) {
-        int index = std::min(_resolution[1] - 1, std::max(0, j + jj));
-        double flux;
-        flux = (_phi[i][index][k] +
-                _phi[i][std::min(index + 1, _resolution[1] - 1)][k]) /
-               2.0;
-        flux *= _v[i][index][k];
-        values[ival] = flux;
-      }
-    } else {
+    {
+      // Y dimension
       isNegative = true;
-      for (int ival = 0, jj = 3; ival < 7; ival++, jj--) {
-        int index = std::min(_resolution[1] - 1, std::max(0, j + jj));
-        double flux;
-        flux = (_phi[i][index][k] +
-                _phi[i][std::min(index + 1, _resolution[1] - 1)][k]) /
-               2.0;
-        flux *= _v[i][index][k];
-        values[ival] = flux;
+      // isShock = false;
+      if (velocity[1] >= 0)
+        isNegative = false;
+      // if (!isNegative) {
+      if ((!isNegative && j > 0) || (isNegative && j == _resolution[1] - 1)) {
+        isNegative = false;
+        for (int ival = 0, jj = -3; ival < 7; ival++, jj++) {
+          int index = std::min(_resolution[1] - 1, std::max(0, j + jj));
+          double flux;
+          flux = (_phi[i][index][k] +
+                  _phi[i][std::min(index + 1, _resolution[1] - 1)][k]) /
+                 2.0;
+          flux *= _v[i][index][k];
+          values[ival] = flux;
+        }
+      } else {
+        isNegative = true;
+        for (int ival = 0, jj = 3; ival < 7; ival++, jj--) {
+          int index = std::min(_resolution[1] - 1, std::max(0, j + jj));
+          double flux;
+          flux = (_phi[i][index][k] +
+                  _phi[i][std::min(index + 1, _resolution[1] - 1)][k]) /
+                 2.0;
+          flux *= _v[i][index][k];
+          values[ival] = flux;
+        }
       }
+      dPhi[1] = 0; // Weno::evaluate(values, h[0], isNegative);
     }
-    dPhi[1] = 0; // Weno::evaluate(values, h[0], isNegative);
-
-    // Z dimension
-    isNegative = true;
-    // isShock = false;
-    if (velocity[2] >= 0)
-      isNegative = false;
-    // if (!isNegative) {
-    if ((!isNegative && k > 0) || (isNegative && k == _resolution[2] - 1)) {
-      isNegative = false;
-      for (int ival = 0, kk = -3; ival < 7; ival++, kk++) {
-        int index = std::min(_resolution[2] - 1, std::max(0, k + kk));
-        double flux;
-        flux = (_phi[i][j][index] +
-                _phi[i][j][std::min(index + 1, _resolution[2] - 1)]) /
-               2.0;
-        flux *= _w[i][j][index];
-        values[ival] = flux;
-      }
-    } else {
+    {
+      // Z dimension
       isNegative = true;
-      for (int ival = 0, kk = 3; ival < 7; ival++, kk--) {
-        int index = std::min(_resolution[2] - 1, std::max(0, k + kk));
-        double flux;
-        flux = (_phi[i][j][index] +
-                _phi[i][j][std::min(index + 1, _resolution[2] - 1)]) /
-               2.0;
-        flux *= _w[i][j][index];
-        values[ival] = flux;
+      // isShock = false;
+      if (velocity[2] >= 0)
+        isNegative = false;
+      // if (!isNegative) {
+      if ((!isNegative && k > 0) || (isNegative && k == _resolution[2] - 1)) {
+        isNegative = false;
+        for (int ival = 0, kk = -3; ival < 7; ival++, kk++) {
+          int index = std::min(_resolution[2] - 1, std::max(0, k + kk));
+          double flux;
+          flux = (_phi[i][j][index] +
+                  _phi[i][j][std::min(index + 1, _resolution[2] - 1)]) /
+                 2.0;
+          flux *= _w[i][j][index];
+          values[ival] = flux;
+        }
+      } else {
+        isNegative = true;
+        for (int ival = 0, kk = 3; ival < 7; ival++, kk--) {
+          int index = std::min(_resolution[2] - 1, std::max(0, k + kk));
+          double flux;
+          flux = (_phi[i][j][index] +
+                  _phi[i][j][std::min(index + 1, _resolution[2] - 1)]) /
+                 2.0;
+          flux *= _w[i][j][index];
+          values[ival] = flux;
+        }
       }
+      dPhi[2] = 0; // Weno::evaluate(values, h[0], isNegative);
     }
-    dPhi[2] = 0; // Weno::evaluate(values, h[0], isNegative);
-
     // Proceed to time integration and material derivative
     // Euler method
     if (i > 0 && _phi[i - 1][j][k] < 0)
