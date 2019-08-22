@@ -23,6 +23,7 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
 }
 
 void LevelSetFluid3::advectSemiLagrangean() {
+  // FIXME: Possibly contain errors. Track and fix them
   size_t nCells = cellCount();
   auto &newPhi = getScalarData("newPhi");
   auto &phi = getScalarData(_phiId);

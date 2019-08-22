@@ -7,6 +7,8 @@
 #include <structures/mac_grid3.h>
 #include <structures/mac_grid2.h>
 #include <fluids/levelset_fluid3.h>
+#include <fstream>
+#include <sstream>
 
 namespace Carbuncle {
 
@@ -60,6 +62,20 @@ public:
   void computeIntersection();
 
   void extractSurface();
+
+  void print() {
+    auto &phi = getFaceArrayData(0, "facePosition");
+    static int count = 0;
+    std::ofstream file;
+    std::stringstream filename;
+    filename << "results/levelset/3d/" << count++;
+    file.open(filename.str().c_str(), std::ofstream::out);
+
+    for (size_t i = 0; i < cellCount(); i++) {
+      file << phi[i] << "\n";
+    }
+    file.close();
+  }
 
 private:
   bool signChange(double valueA, double valueB);

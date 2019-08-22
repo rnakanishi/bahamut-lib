@@ -335,8 +335,8 @@ void DualCubes3::computeIntersection() {
           if (centerSign != neighSign) {
             // Compute intersection location
             double theta = _phi[ijkToid(i, j, k)] - _phi[ijkToid(i - 1, j, k)];
-            double x = domainMin[0] +
-                       -_h[0] * _phi[ijkToid(i, j, k)] / (theta) +
+            double x = domainMin[0] -
+                       _h[0] * _phi[ijkToid(i - 1, j, k)] / (theta) +
                        (i - 0.5) * _h[0];
             double y = domainMin[1] + (j + 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
@@ -362,7 +362,8 @@ void DualCubes3::computeIntersection() {
             // Compute intersection location
             double theta = _phi[ijkToid(i, j, k)] - _phi[ijkToid(i, j - 1, k)];
             double x = domainMin[0] + (i + 0.5) * _h[0];
-            double y = domainMin[1] - _h[1] * _phi[ijkToid(i, j, k)] / (theta) +
+            double y = domainMin[1] -
+                       _h[1] * _phi[ijkToid(i, j - 1, k)] / (theta) +
                        (j - 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _vfaceLocation[ijkToid(i, j, k)] = Eigen::Array3d(x, y, z);
@@ -388,7 +389,8 @@ void DualCubes3::computeIntersection() {
             double theta = _phi[ijkToid(i, j, k)] - _phi[ijkToid(i, j, k - 1)];
             double x = domainMin[0] + (i + 0.5) * _h[0];
             double y = domainMin[1] + (j + 0.5) * _h[1];
-            double z = domainMin[2] - _h[2] * _phi[ijkToid(i, j, k)] / (theta) +
+            double z = domainMin[2] -
+                       _h[2] * _phi[ijkToid(i, j, k - 1)] / (theta) +
                        (k - 0.5) * _h[2];
             _wfaceLocation[ijkToid(i, j, k)] = Eigen::Array3d(x, y, z);
           }
