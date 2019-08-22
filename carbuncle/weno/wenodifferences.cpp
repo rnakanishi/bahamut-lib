@@ -4,7 +4,6 @@
 #include <cmath>
 #include <iostream>
 #include <utility>
-#include <cmath>
 
 class DiffGrid : public Ramuh::MacGrid1 {
 public:
@@ -33,7 +32,6 @@ public:
     std::vector<double> values(6);
 
     for (int i = 0; i < _gridSize; i++) {
-      auto h = getH();
       double position = getPosition(i);
       double x = position;
       double solution = cos(position);

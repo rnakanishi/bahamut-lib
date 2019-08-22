@@ -26,6 +26,28 @@ public:
   size_t newFaceArrayLabel(std::string label, Eigen::Array2d value);
 
   /**
+   * @brief Returns a face position over the domain. The face coordinate should
+   * be given first and then the face id which position is queried
+   *
+   * @param face x, y or z coordinate (0, 1 or 2)
+   * @param faceId
+   * @return Eigen::Array2d position in domain
+   */
+  Eigen::Array2d facePosition(size_t face, int faceId);
+
+  /**
+   * @brief Return the total amount of faces over a single dimension, based on
+   * the number of cells and its dimensions
+   *
+   * @return int total number of faces
+   */
+  int uFaceCount();
+  int vFaceCount();
+
+  int faceijToid(int face, int i, int j);
+  std::pair<int, int> faceIdToij(int face, int id);
+
+  /**
    * @brief Get a reference for the vector containing data for a given face.
    *Face id should follow (x = 0, y = 1)
    *
@@ -34,8 +56,10 @@ public:
    * @return std::vector<double>& reference pointer to the data
    **/
   std::vector<double> &getFaceScalarLabel(size_t face, std::string label);
+  std::vector<double> &getFaceScalarLabel(size_t face, int id);
   std::vector<Eigen::Array2d> &getFaceArrayLabel(size_t face,
                                                  std::string label);
+  std::vector<Eigen::Array2d> &getFaceArrayLabel(size_t face, int id);
 
 protected:
   std::vector<std::vector<double>> _uScalar, _vScalar;

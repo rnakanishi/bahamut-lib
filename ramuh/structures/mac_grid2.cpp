@@ -28,6 +28,12 @@ std::vector<double> &MacGrid2::getFaceScalarLabel(size_t face,
   return _vScalar[_faceDataLabel[label]];
 }
 
+std::vector<double> &MacGrid2::getFaceScalarLabel(size_t face, int id) {
+  if (face == 0)
+    return _uScalar[id];
+  return _vScalar[id];
+}
+
 size_t MacGrid2::newFaceArrayLabel(std::string label) {
   return newFaceArrayLabel(label, Eigen::Array2d(0., 0.));
 }
@@ -48,6 +54,44 @@ std::vector<Eigen::Array2d> &MacGrid2::getFaceArrayLabel(size_t face,
   if (face == 0)
     return _uArray[_faceDataLabel[label]];
   return _vArray[_faceDataLabel[label]];
+}
+
+std::vector<Eigen::Array2d> &MacGrid2::getFaceArrayLabel(size_t face, int id) {
+  if (face == 0)
+    return _uArray[id];
+  return _vArray[id];
+}
+
+int MacGrid2::uFaceCount() { return (_gridSize[0] + 1) * _gridSize[1]; }
+
+int MacGrid2::vFaceCount() { return _gridSize[0] * (_gridSize[1] + 1); }
+
+Eigen::Array2d MacGrid2::facePosition(size_t face, int faceId) {
+  auto ij = idToij(faceId);
+  auto h = getH();
+  int i = ij.first, j = ij.second;
+  if (face == 0)
+    return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], j * h[1]);
+  return _domain.min() + Eigen::Array2d(i * h[0], (j + 0.5) * h[1]);
+}
+
+int MacGrid2::faceijToid(int face, int i, int j) {
+  if (face == 0)
+    return j * (_gridSize[0] + 1) + i;
+  else
+    return j * _gridSize[0] + i;
+}
+
+std::pair<int, int> MacGrid2::faceIdToij(int face, int id) {
+  std::pair<size_t, size_t> index;
+  if (face == 0) {
+    index.second = id / (_gridSize[0] + 1);
+    index.first = id % (_gridSize[0] + 1);
+  } else {
+    index.second = id / (_gridSize[0]);
+    index.first = id % (_gridSize[0]);
+  }
+  return index;
 }
 
 } // namespace Ramuh

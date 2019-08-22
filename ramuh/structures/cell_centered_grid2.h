@@ -46,6 +46,9 @@ public:
   Eigen::Array2d getH();
 
   Eigen::Array2d getPosition(int i, int j);
+  Eigen::Array2d getPosition(int id);
+
+  int cellCount();
 
   /**
    * @brief Create a new label in the structure. A initial value for the grid
