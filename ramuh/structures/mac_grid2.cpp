@@ -21,14 +21,14 @@ size_t MacGrid2::newFaceScalarLabel(std::string label, double value) {
   return _faceDataLabel[label];
 }
 
-std::vector<double> &MacGrid2::getFaceScalarLabel(size_t face,
-                                                  std::string label) {
+std::vector<double> &MacGrid2::getFaceScalarData(size_t face,
+                                                 std::string label) {
   if (face == 0)
     return _uScalar[_faceDataLabel[label]];
   return _vScalar[_faceDataLabel[label]];
 }
 
-std::vector<double> &MacGrid2::getFaceScalarLabel(size_t face, int id) {
+std::vector<double> &MacGrid2::getFaceScalarData(size_t face, int id) {
   if (face == 0)
     return _uScalar[id];
   return _vScalar[id];
@@ -49,14 +49,14 @@ size_t MacGrid2::newFaceArrayLabel(std::string label, Eigen::Array2d value) {
   return _faceDataLabel[label];
 }
 
-std::vector<Eigen::Array2d> &MacGrid2::getFaceArrayLabel(size_t face,
-                                                         std::string label) {
+std::vector<Eigen::Array2d> &MacGrid2::getFaceArrayData(size_t face,
+                                                        std::string label) {
   if (face == 0)
     return _uArray[_faceDataLabel[label]];
   return _vArray[_faceDataLabel[label]];
 }
 
-std::vector<Eigen::Array2d> &MacGrid2::getFaceArrayLabel(size_t face, int id) {
+std::vector<Eigen::Array2d> &MacGrid2::getFaceArrayData(size_t face, int id) {
   if (face == 0)
     return _uArray[id];
   return _vArray[id];

@@ -57,11 +57,11 @@ size_t CellCenteredGrid2::newScalarLabel(std::string label, double value) {
   return _dataLabel[label];
 }
 
-std::vector<double> &CellCenteredGrid2::getScalarLabel(std::string label) {
+std::vector<double> &CellCenteredGrid2::getScalarData(std::string label) {
   return _scalarData[_dataLabel[label]];
 }
 
-std::vector<double> &CellCenteredGrid2::getScalarLabel(size_t id) {
+std::vector<double> &CellCenteredGrid2::getScalarData(size_t id) {
   return _scalarData[id];
 }
 
@@ -80,8 +80,12 @@ size_t CellCenteredGrid2::newArrayLabel(std::string label,
 }
 
 std::vector<Eigen::Array2d> &
-CellCenteredGrid2::getArrayLabel(std::string label) {
+CellCenteredGrid2::getArrayData(std::string label) {
   return _arrayData[_dataLabel[label]];
+}
+
+std::vector<Eigen::Array2d> &CellCenteredGrid2::getArrayData(int id) {
+  return _arrayData[id];
 }
 
 } // namespace Ramuh

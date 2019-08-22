@@ -23,8 +23,8 @@ public:
 
     _velocityId = newFaceScalarLabel("velocity");
 
-    auto &function = getScalarLabel(_functionId);
-    auto &analytic = getScalarLabel(_analyticId);
+    auto &function = getScalarData(_functionId);
+    auto &analytic = getScalarData(_analyticId);
     for (size_t i = 0; i < cellCount(); i++) {
       auto p = getPosition(i).abs();
 
@@ -34,7 +34,7 @@ public:
       //     function[i] = analytic[i] = 0;
     }
 
-    auto &u = getFaceScalarLabel(0, _velocityId);
+    auto &u = getFaceScalarData(0, _velocityId);
     for (size_t i = 0; i < faceCount(0); i++) {
       auto ij = faceIdToij(0, i);
       auto p = facePosition(0, i);
@@ -43,7 +43,7 @@ public:
       //   else
       //     u[i] = 0;
     }
-    auto &v = getFaceScalarLabel(1, _velocityId);
+    auto &v = getFaceScalarData(1, _velocityId);
     for (size_t i = 0; i < faceCount(1); i++) {
       auto ij = faceIdToij(1, i);
       auto p = facePosition(1, i);
@@ -56,9 +56,9 @@ public:
 
   void solveTimestep() {
     auto h = getH();
-    auto &phi = getScalarLabel(_functionId);
-    auto &analytic = getScalarLabel(_analyticId);
-    auto &weno = getScalarLabel(_wenoId);
+    auto &phi = getScalarData(_functionId);
+    auto &analytic = getScalarData(_analyticId);
+    auto &weno = getScalarData(_wenoId);
 
     // Weno computation
     std::vector<double> values(6);
@@ -77,7 +77,7 @@ public:
       //   analytic[id] = sin(p[0] + _ellapsedTime) * cos(p[1] + _ellapsedTime);
 
       for (size_t coord = 0; coord < 2; coord++) {
-        auto &u = getFaceScalarLabel(coord, _velocityId);
+        auto &u = getFaceScalarData(coord, _velocityId);
         auto faceij = ij;
         int facei = faceij.first, facej = faceij.second;
 
@@ -175,8 +175,8 @@ public:
   }
 
   void print() {
-    auto &analytic = getScalarLabel(_analyticId);
-    auto &phi = getScalarLabel(_functionId);
+    auto &analytic = getScalarData(_analyticId);
+    auto &phi = getScalarData(_functionId);
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;

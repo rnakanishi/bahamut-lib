@@ -54,11 +54,10 @@ public:
    * @param which data are being retrieved
    * @return std::vector<double>& reference pointer to the data
    **/
-  std::vector<double> &getFaceScalarLabel(size_t face, std::string label);
-  std::vector<double> &getFaceScalarLabel(size_t face, int id);
-  std::vector<Eigen::Array2d> &getFaceArrayLabel(size_t face,
-                                                 std::string label);
-  std::vector<Eigen::Array2d> &getFaceArrayLabel(size_t face, int id);
+  std::vector<double> &getFaceScalarData(size_t face, std::string label);
+  std::vector<double> &getFaceScalarData(size_t face, int id);
+  std::vector<Eigen::Array2d> &getFaceArrayData(size_t face, std::string label);
+  std::vector<Eigen::Array2d> &getFaceArrayData(size_t face, int id);
 
 protected:
   std::vector<std::vector<double>> _uScalar, _vScalar;

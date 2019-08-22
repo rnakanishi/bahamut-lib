@@ -73,10 +73,11 @@ public:
    * @param label string value. Must have been created
    * @return std::vector<double>& vector containing the data for that label
    **/
-  std::vector<double> &getScalarLabel(std::string label);
-  std::vector<double> &getScalarLabel(size_t id);
+  std::vector<double> &getScalarData(std::string label);
+  std::vector<double> &getScalarData(size_t id);
 
-  std::vector<Eigen::Array2d> &getArrayLabel(std::string label);
+  std::vector<Eigen::Array2d> &getArrayData(std::string label);
+  std::vector<Eigen::Array2d> &getArrayData(int id);
 
 protected:
   Eigen::Array2i _gridSize;
