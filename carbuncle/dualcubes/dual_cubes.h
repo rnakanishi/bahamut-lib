@@ -61,8 +61,6 @@ public:
 
   void extractSurface();
 
-  void printCells();
-
 private:
   bool signChange(double valueA, double valueB);
 
@@ -77,4 +75,4 @@ protected:
 };
 } // namespace Carbuncle
 
-#endif 
+#endif

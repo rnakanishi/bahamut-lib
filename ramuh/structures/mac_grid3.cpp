@@ -23,8 +23,8 @@ size_t MacGrid3::newFaceScalarLabel(std::string label, double value) {
   return _faceDataLabel[label];
 }
 
-std::vector<double> &MacGrid3::getFaceScalarVector(size_t face,
-                                                   std::string label) {
+std::vector<double> &MacGrid3::getFaceScalarData(size_t face,
+                                                 std::string label) {
   if (face == 0)
     return _uScalar[_faceDataLabel[label]];
   if (face == 1)
@@ -32,7 +32,7 @@ std::vector<double> &MacGrid3::getFaceScalarVector(size_t face,
   return _wScalar[_faceDataLabel[label]];
 }
 
-std::vector<double> &MacGrid3::getFaceScalarVector(size_t face, size_t index) {
+std::vector<double> &MacGrid3::getFaceScalarData(size_t face, size_t index) {
   if (face == 0)
     return _uScalar[index];
   if (face == 1)
@@ -57,8 +57,8 @@ size_t MacGrid3::newFaceArrayLabel(std::string label, Eigen::Array3d value) {
   return _faceDataLabel[label];
 }
 
-std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayVector(size_t face,
-                                                          std::string label) {
+std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayData(size_t face,
+                                                        std::string label) {
   if (face == 0)
     return _uArray[_faceDataLabel[label]];
   if (face == 1)
@@ -66,8 +66,8 @@ std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayVector(size_t face,
   return _wArray[_faceDataLabel[label]];
 }
 
-std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayVector(size_t face,
-                                                          size_t index) {
+std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayData(size_t face,
+                                                        size_t index) {
   if (face == 0)
     return _uArray[index];
   if (face == 1)
@@ -75,6 +75,42 @@ std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayVector(size_t face,
   return _wArray[index];
 }
 
-size_t MacGrid3::cellCount() { return _gridSize.prod(); }
+int MacGrid3::faceCount(int face) {
+  if (face == 2)
+    return _gridSize[0] * _gridSize[1] * (_gridSize[2] + 1);
+  else if (face == 1)
+    return _gridSize[0] * (_gridSize[1] + 1) * _gridSize[2];
+  else
+    return (_gridSize[0] + 1) * _gridSize[1] * _gridSize[2];
+}
+
+int MacGrid3::faceijkToid(int face, int i, int j, int k) {
+  if (face == 2)
+    return k * _gridSize[0] * _gridSize[1] + j * _gridSize[0] + i;
+  else if (face == 1)
+    return k * _gridSize[0] * (_gridSize[1] + 1) + j * _gridSize[0] + i;
+  else
+    return k * (_gridSize[0] + 1) * _gridSize[1] + j * (_gridSize[0] + 1) + i;
+}
+
+std::vector<int> MacGrid3::faceIdToijk(int face, int id) {
+  std::vector<int> indices(3);
+  if (face == 2) {
+    indices[2] = id / (_gridSize[0] * _gridSize[1]);
+    indices[1] = (id % (_gridSize[0] * _gridSize[1])) / _gridSize[0];
+    indices[0] = (id % (_gridSize[0] * _gridSize[1])) % _gridSize[0];
+  } else if (face == 1) {
+    indices[2] = id / (_gridSize[0] * (_gridSize[1] + 1));
+    indices[1] = (id % (_gridSize[0] * (_gridSize[1] + 1))) / _gridSize[0];
+    indices[0] = (id % (_gridSize[0] * (_gridSize[1] + 1))) % _gridSize[0];
+  } else {
+    indices[2] = id / ((_gridSize[0] + 1) * _gridSize[1]);
+    indices[1] =
+        (id % ((_gridSize[0] + 1) * _gridSize[1])) / (_gridSize[0] + 1);
+    indices[0] =
+        (id % ((_gridSize[0] + 1) * _gridSize[1])) % (_gridSize[0] + 1);
+  }
+  return indices;
+}
 
 } // namespace Ramuh

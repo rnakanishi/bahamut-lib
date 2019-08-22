@@ -26,12 +26,16 @@ public:
     auto &function = getScalarLabel(_functionId);
     auto &analytic = getScalarLabel(_analyticId);
     for (size_t i = 0; i < cellCount(); i++) {
-      auto p = getPosition(i);
-      function[i] = analytic[i] = sin(p[0]) * cos(p[1]);
+      auto p = getPosition(i).abs();
+
+      //   if (p.maxCoeff() <= 1)
+      function[i] = analytic[i] = p.maxCoeff() - 1;
+      //   else
+      //     function[i] = analytic[i] = 0;
     }
 
     auto &u = getFaceScalarLabel(0, _velocityId);
-    for (size_t i = 0; i < uFaceCount(); i++) {
+    for (size_t i = 0; i < faceCount(0); i++) {
       auto ij = faceIdToij(0, i);
       auto p = facePosition(0, i);
       if (ij.first > 0 && ij.first < _gridSize[0])
@@ -40,7 +44,7 @@ public:
       //     u[i] = 0;
     }
     auto &v = getFaceScalarLabel(1, _velocityId);
-    for (size_t i = 0; i < vFaceCount(); i++) {
+    for (size_t i = 0; i < faceCount(1); i++) {
       auto ij = faceIdToij(1, i);
       auto p = facePosition(1, i);
       if (ij.second > 0 && ij.second < _gridSize[1])
@@ -69,7 +73,7 @@ public:
       rotation.row(0) << cos(angle), sin(angle);
       rotation.row(1) << -sin(angle), cos(angle);
       p = rotation * p.matrix();
-      analytic[id] = sin(p[0]) * cos(p[1]);
+      //   analytic[id] = sin(p[0]) * cos(p[1]);
       //   analytic[id] = sin(p[0] + _ellapsedTime) * cos(p[1] + _ellapsedTime);
 
       for (size_t coord = 0; coord < 2; coord++) {

@@ -31,18 +31,16 @@ public:
    * @param which data are being retrieved
    * @return std::vector<double>& reference pointer to the data
    **/
-  std::vector<double> &getFaceScalarVector(size_t face, std::string label);
-  std::vector<double> &getFaceScalarVector(size_t face, size_t index);
-  std::vector<Eigen::Array3d> &getFaceArrayVector(size_t face,
+  std::vector<double> &getFaceScalarData(size_t face, std::string label);
+  std::vector<double> &getFaceScalarData(size_t face, size_t index);
+  std::vector<Eigen::Array3d> &getFaceArrayData(size_t face,
                                                   std::string label);
-  std::vector<Eigen::Array3d> &getFaceArrayVector(size_t face, size_t index);
+  std::vector<Eigen::Array3d> &getFaceArrayData(size_t face, size_t index);
 
-  /**
-   * @brief Return the total number of cells present in the grid
-   *
-   * @return total number of cells
-   **/
-  size_t cellCount();
+  int faceCount(int face);
+
+  int faceijkToid(int face, int i, int j, int k);
+  std::vector<int> faceIdToijk(int face, int id);
 
 protected:
   std::vector<std::vector<double>> _uScalar, _vScalar, _wScalar;

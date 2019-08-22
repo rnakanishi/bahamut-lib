@@ -41,8 +41,7 @@ public:
    *
    * @return int total number of faces
    */
-  int uFaceCount();
-  int vFaceCount();
+  int faceCount(int face);
 
   int faceijToid(int face, int i, int j);
   std::pair<int, int> faceIdToij(int face, int id);

@@ -18,7 +18,7 @@ public:
 
   size_t ijkToid(size_t i, size_t j, size_t k);
 
-  std::tuple<size_t, size_t, size_t> idToijk(size_t id);
+  std::vector<int> idToijk(size_t id);
 
   /**
    * @brief Computes the cell size using domain information and number of grid
@@ -50,11 +50,18 @@ public:
    * @param label string value. Must have been created
    * @return std::vector<double>& vector containing the data for that label
    **/
-  std::vector<double> &getScalarVector(std::string label);
-  std::vector<double> &getScalarVector(size_t index);
+  std::vector<double> &getScalarData(std::string label);
+  std::vector<double> &getScalarData(size_t index);
 
-  std::vector<Eigen::Array3d> &getArrayVector(std::string label);
-  std::vector<Eigen::Array3d> &getArrayVector(size_t index);
+  std::vector<Eigen::Array3d> &getArrayData(std::string label);
+  std::vector<Eigen::Array3d> &getArrayData(size_t index);
+
+  /**
+   * @brief Return the total number of cells present in the grid
+   *
+   * @return total number of cells
+   **/
+  size_t cellCount();
 
 protected:
   Eigen::Array3i _gridSize;

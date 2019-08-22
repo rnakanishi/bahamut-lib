@@ -26,7 +26,7 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
 void DualCubes3::initialize(Eigen::Array3d center, double radius,
                             DualCubes3::ParametricSurface surface) {
   Eigen::Array3d domainMin = _domain.min();
-  auto &_phi = getScalarVector("phi");
+  auto &_phi = getScalarData("phi");
 
   // ====== Initialize cell surfaces
   for (int k = 0; k < _resolution[2]; k++)
@@ -79,10 +79,10 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius,
 }
 
 void DualCubes3::computeNormals() {
-  auto &_phi = getScalarVector("phi");
-  auto &_ufaceNormals = getFaceArrayVector(0, "faceNormal");
-  auto &_vfaceNormals = getFaceArrayVector(1, "faceNormal");
-  auto &_wfaceNormals = getFaceArrayVector(2, "faceNormal");
+  auto &_phi = getScalarData("phi");
+  auto &_ufaceNormals = getFaceArrayData(0, "faceNormal");
+  auto &_vfaceNormals = getFaceArrayData(1, "faceNormal");
+  auto &_wfaceNormals = getFaceArrayData(2, "faceNormal");
   for (int k = 0; k < _resolution[2]; k++)
     for (int j = 0; j < _resolution[1]; j++)
       for (int i = 0; i < _resolution[0]; i++) {
@@ -320,10 +320,10 @@ void DualCubes3::computeNormals() {
 }
 
 void DualCubes3::computeIntersection() {
-  auto &_phi = getScalarVector("phi");
-  auto &_ufaceLocation = getFaceArrayVector(0, "facePosition");
-  auto &_vfaceLocation = getFaceArrayVector(1, "facePosition");
-  auto &_wfaceLocation = getFaceArrayVector(2, "facePosition");
+  auto &_phi = getScalarData("phi");
+  auto &_ufaceLocation = getFaceArrayData(0, "facePosition");
+  auto &_vfaceLocation = getFaceArrayData(1, "facePosition");
+  auto &_wfaceLocation = getFaceArrayData(2, "facePosition");
 
   Eigen::Array3d domainMin = _domain.min();
   for (int k = 0; k < _resolution[2]; k++)
@@ -409,50 +409,10 @@ void DualCubes3::computeIntersection() {
       }
 }
 
-void DualCubes3::printCells() {
-  auto &_ufaceLocation = getFaceArrayVector(0, "facePosition");
-  auto &_vfaceLocation = getFaceArrayVector(1, "facePosition");
-  auto &_wfaceLocation = getFaceArrayVector(2, "facePosition");
-  auto &_ufaceNormals = getFaceArrayVector(0, "faceNormal");
-  auto &_vfaceNormals = getFaceArrayVector(1, "faceNormal");
-  auto &_wfaceNormals = getFaceArrayVector(2, "faceNormal");
-
-  for (int k = 0; k < _resolution[2]; k++) {
-    for (int j = 0; j < _resolution[1]; j++) {
-      for (int i = 0; i < _resolution[0]; i++) {
-        if (!_ufaceNormals[ijkToid(i, j, k)].matrix().isApprox(
-                Eigen::Vector3d(0, 0, 0), 1e-8))
-          std::cout << _ufaceLocation[ijkToid(i, j, k)][0] << " "
-                    << _ufaceLocation[ijkToid(i, j, k)][1] << " "
-                    << _ufaceLocation[ijkToid(i, j, k)][2] << " "
-                    << _ufaceNormals[ijkToid(i, j, k)][0] << " "
-                    << _ufaceNormals[ijkToid(i, j, k)][1] << " "
-                    << _ufaceNormals[ijkToid(i, j, k)][2] << std::endl;
-        if (!_vfaceNormals[ijkToid(i, j, k)].matrix().isApprox(
-                Eigen::Vector3d(0, 0, 0), 1e-8))
-          std::cout << _vfaceLocation[ijkToid(i, j, k)][0] << " "
-                    << _vfaceLocation[ijkToid(i, j, k)][1] << " "
-                    << _vfaceLocation[ijkToid(i, j, k)][2] << " "
-                    << _vfaceNormals[ijkToid(i, j, k)][0] << " "
-                    << _vfaceNormals[ijkToid(i, j, k)][1] << " "
-                    << _vfaceNormals[ijkToid(i, j, k)][2] << std::endl;
-        if (!_wfaceNormals[ijkToid(i, j, k)].matrix().isApprox(
-                Eigen::Vector3d(0, 0, 0), 1e-8))
-          std::cout << _wfaceLocation[ijkToid(i, j, k)][0] << " "
-                    << _wfaceLocation[ijkToid(i, j, k)][1] << " "
-                    << _wfaceLocation[ijkToid(i, j, k)][2] << " "
-                    << _wfaceNormals[ijkToid(i, j, k)][0] << " "
-                    << _wfaceNormals[ijkToid(i, j, k)][1] << " "
-                    << _wfaceNormals[ijkToid(i, j, k)][2] << std::endl;
-      }
-    }
-  }
-}
-
 void DualCubes3::defineVelocity() {
-  auto &_u = getFaceScalarVector(0, _velocityId);
-  auto &_v = getFaceScalarVector(1, _velocityId);
-  auto &_w = getFaceScalarVector(2, _velocityId);
+  auto &_u = getFaceScalarData(0, _velocityId);
+  auto &_v = getFaceScalarData(1, _velocityId);
+  auto &_w = getFaceScalarData(2, _velocityId);
   // u velocities
   for (int k = 0; k < _resolution[2]; k++) {
     for (int j = 0; j < _resolution[1]; j++) {
@@ -488,13 +448,13 @@ void DualCubes3::defineVelocity() {
 
 void DualCubes3::extractSurface() {
   Ramuh::DualMarching3 surface(_resolution);
-  auto &_phi = getScalarVector("phi");
-  auto &_ufaceLocation = getFaceArrayVector(0, "facePosition");
-  auto &_vfaceLocation = getFaceArrayVector(1, "facePosition");
-  auto &_wfaceLocation = getFaceArrayVector(2, "facePosition");
-  auto &_ufaceNormals = getFaceArrayVector(0, "faceNormal");
-  auto &_vfaceNormals = getFaceArrayVector(1, "faceNormal");
-  auto &_wfaceNormals = getFaceArrayVector(2, "faceNormal");
+  auto &_phi = getScalarData("phi");
+  auto &_ufaceLocation = getFaceArrayData(0, "facePosition");
+  auto &_vfaceLocation = getFaceArrayData(1, "facePosition");
+  auto &_wfaceLocation = getFaceArrayData(2, "facePosition");
+  auto &_ufaceNormals = getFaceArrayData(0, "faceNormal");
+  auto &_vfaceNormals = getFaceArrayData(1, "faceNormal");
+  auto &_wfaceNormals = getFaceArrayData(2, "faceNormal");
 
   std::vector<Ramuh::DualMarching3> surfaces(omp_get_max_threads(),
                                              Ramuh::DualMarching3(_resolution));

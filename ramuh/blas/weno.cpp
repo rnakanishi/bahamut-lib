@@ -4,20 +4,9 @@
 namespace Ramuh {
 Weno::Weno() {}
 
-double Weno::evaluate(std::vector<double> values, double h, bool isNegative,
+double Weno::evaluate(std::vector<double> v, double h, bool isNegative,
                       bool isBoundary) {
   Eigen::Vector3d w, phi, S, alpha;
-  std::vector<double> v(5); // values to form the convex combination
-
-  // if (!isNegative)
-  for (int i = 0; i < 5; i++) {
-    v[i] = values[i];
-  }
-  // else {
-  //   for (int i = 0; i < 5; i++) {
-  //     v[i] = (values[i] - values[i + 1]) / h;
-  //   }
-  // }
 
   phi[0] = (2 * v[0] - 7 * v[1] + 11 * v[2]) / 6.;
   phi[1] = (-1 * v[1] + 5 * v[2] + 2 * v[3]) / 6.;

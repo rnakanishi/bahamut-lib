@@ -62,9 +62,12 @@ std::vector<Eigen::Array2d> &MacGrid2::getFaceArrayLabel(size_t face, int id) {
   return _vArray[id];
 }
 
-int MacGrid2::uFaceCount() { return (_gridSize[0] + 1) * _gridSize[1]; }
-
-int MacGrid2::vFaceCount() { return _gridSize[0] * (_gridSize[1] + 1); }
+int MacGrid2::faceCount(int face) {
+  if (face == 0)
+    return (_gridSize[0] + 1) * _gridSize[1];
+  else
+    return _gridSize[0] * (_gridSize[1] + 1);
+}
 
 Eigen::Array2d MacGrid2::facePosition(size_t face, int faceId) {
   auto ij = idToij(faceId);

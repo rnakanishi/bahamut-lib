@@ -18,12 +18,12 @@ Eigen::Array3d CellCenteredGrid3::getH() {
   return _domain.size().cwiseQuotient(_gridSize.cast<double>());
 }
 
-std::tuple<size_t, size_t, size_t> CellCenteredGrid3::idToijk(size_t id) {
-  size_t first, second, third;
-  third = id / (_gridSize[0] * _gridSize[1]);
-  second = (id % (_gridSize[0] * _gridSize[1])) / _gridSize[0];
-  first = (id % (_gridSize[0] * _gridSize[1])) % _gridSize[0];
-  return std::make_tuple(first, second, third);
+std::vector<int> CellCenteredGrid3::idToijk(size_t id) {
+  std::vector<int> indices(3);
+  indices[2] = id / (_gridSize[0] * _gridSize[1]);
+  indices[1] = (id % (_gridSize[0] * _gridSize[1])) / _gridSize[0];
+  indices[0] = (id % (_gridSize[0] * _gridSize[1])) % _gridSize[0];
+  return indices;
 }
 
 size_t CellCenteredGrid3::newScalarLabel(std::string label) {
@@ -52,21 +52,23 @@ size_t CellCenteredGrid3::newArrayLabel(std::string label,
   return _dataLabel[label];
 }
 
-std::vector<double> &CellCenteredGrid3::getScalarVector(std::string label) {
+std::vector<double> &CellCenteredGrid3::getScalarData(std::string label) {
   return _scalarData[_dataLabel[label]];
 }
 
-std::vector<double> &CellCenteredGrid3::getScalarVector(size_t index) {
+std::vector<double> &CellCenteredGrid3::getScalarData(size_t index) {
   return _scalarData[index];
 }
 
 std::vector<Eigen::Array3d> &
-CellCenteredGrid3::getArrayVector(std::string label) {
+CellCenteredGrid3::getArrayData(std::string label) {
   return _arrayData[_dataLabel[label]];
 }
 
-std::vector<Eigen::Array3d> &CellCenteredGrid3::getArrayVector(size_t index) {
+std::vector<Eigen::Array3d> &CellCenteredGrid3::getArrayData(size_t index) {
   return _arrayData[index];
 }
+
+size_t CellCenteredGrid3::cellCount() { return _gridSize.prod(); }
 
 } // namespace Ramuh

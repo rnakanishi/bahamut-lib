@@ -31,7 +31,7 @@ public:
     }
 
     auto &u = getFaceScalarLabel(0, _velocityId);
-    for (size_t i = 0; i < uFaceCount(); i++) {
+    for (size_t i = 0; i < faceCount(0); i++) {
       auto ij = idToij(i);
       auto p = facePosition(0, i);
       if (ij.first > 0 && ij.first < _gridSize[0] - 1)
@@ -40,7 +40,7 @@ public:
       //     u[i] = 0;
     }
     auto &v = getFaceScalarLabel(1, _velocityId);
-    for (size_t i = 0; i < vFaceCount(); i++) {
+    for (size_t i = 0; i < faceCount(1); i++) {
       auto ij = idToij(i);
       auto p = facePosition(1, i);
       if (ij.second > 0 && ij.second < _gridSize[1] - 1)

@@ -4,16 +4,10 @@
 
 namespace Leviathan {
 
-LevelSetFluid3::LevelSetFluid3() : Ramuh::MacGrid3() {
-  _phiId = newScalarLabel("phi");
-  _velocityId = newFaceScalarLabel("velocity");
-  //  --> Even though velocities are vector, MAC grid split them into scalar
-  //  pieces for each coordinate
-  _dt = 1. / 60;
-  _tolerance = 1e-10;
-
-  newScalarLabel("newPhi");
-}
+LevelSetFluid3::LevelSetFluid3()
+    : LevelSetFluid3(Eigen::Array3i(32, 32, 32),
+                     Ramuh::BoundingBox3(Eigen::Array3d(-1, -1, -1),
+                                         Eigen::Array3d(1, 1, 1))) {}
 
 LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
                                Ramuh::BoundingBox3 domain)
@@ -30,8 +24,8 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
 
 void LevelSetFluid3::advectSemiLagrangean() {
   size_t nCells = cellCount();
-  auto &newPhi = getScalarVector("newPhi");
-  auto &phi = getScalarVector(_phiId);
+  auto &newPhi = getScalarData("newPhi");
+  auto &phi = getScalarData(_phiId);
 
 #pragma omp parallel for
   for (size_t id = 0; id < nCells; id++) {
@@ -59,95 +53,7 @@ void LevelSetFluid3::advectSemiLagrangean() {
   }
 }
 
-void LevelSetFluid3::advectWeno() {
-  size_t nCells = cellCount();
-  std::vector<double> values(6); // function values
-  auto h = getH();
-
-  // For each coordinate, perform HJ-WENO advection separatedly
-
-  auto &_u = getFaceScalarVector(0, _velocityId);
-  auto &_v = getFaceScalarVector(1, _velocityId);
-  auto &_w = getFaceScalarVector(2, _velocityId);
-  auto &_phi = getScalarVector(_phiId);
-  auto &newPhi = getScalarVector("newPhi");
-#pragma omp parallel for
-  for (size_t id = 0; id < nCells; id++) {
-    Eigen::Vector3d velocity;
-    Eigen::Vector3d dPhi;
-    Eigen::Array3i ijk;
-    std::tie(ijk[0], ijk[1], ijk[2]) = idToijk(id);
-
-    // Average velocities from faces
-    velocity[0] = (_u[id] + _u[ijkToid(ijk[0] + 1, ijk[1], ijk[2])]) / 2;
-    velocity[1] = (_v[id] + _v[ijkToid(ijk[0], ijk[1] + 1, ijk[2])]) / 2;
-    velocity[2] = (_w[id] + _w[ijkToid(ijk[0], ijk[1], ijk[2] + 1)]) / 2;
-
-    // For center points, check if velocity is positive or negative. If
-    // negative, the perform right-weno, otherwise, perform legt-weno.
-    // TODO: treat boundary index
-    bool isNegative = true;
-    if (velocity[0] >= 0)
-      isNegative = false;
-    values[0] = (isNegative) ? _u[ijkToid(ijk[0] - 2, ijk[1], ijk[2])]
-                             : _u[ijkToid(ijk[0] - 3, ijk[1], ijk[2])];
-    values[1] = (isNegative) ? _u[ijkToid(ijk[0] - 1, ijk[1], ijk[2])]
-                             : _u[ijkToid(ijk[0] - 2, ijk[1], ijk[2])];
-    values[2] = (isNegative) ? _u[ijkToid(ijk[0] - 0, ijk[1], ijk[2])]
-                             : _u[ijkToid(ijk[0] - 1, ijk[1], ijk[2])];
-    values[3] = (isNegative) ? _u[ijkToid(ijk[0] + 1, ijk[1], ijk[2])]
-                             : _u[ijkToid(ijk[0] - 0, ijk[1], ijk[2])];
-    values[4] = (isNegative) ? _u[ijkToid(ijk[0] + 2, ijk[1], ijk[2])]
-                             : _u[ijkToid(ijk[0] + 1, ijk[1], ijk[2])];
-    values[5] = (isNegative) ? _u[ijkToid(ijk[0] + 3, ijk[1], ijk[2])]
-                             : _u[ijkToid(ijk[0] + 2, ijk[1], ijk[2])];
-    dPhi[0] = Ramuh::Weno::evaluate(values, h[0], isNegative);
-
-    isNegative = true;
-    if (velocity[1] >= 0)
-      isNegative = false;
-    values[0] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] - 2, ijk[2])]
-                             : _v[ijkToid(ijk[0], ijk[1] - 3, ijk[2])];
-    values[1] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] - 1, ijk[2])]
-                             : _v[ijkToid(ijk[0], ijk[1] - 2, ijk[2])];
-    values[2] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] - 0, ijk[2])]
-                             : _v[ijkToid(ijk[0], ijk[1] - 1, ijk[2])];
-    values[3] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] + 1, ijk[2])]
-                             : _v[ijkToid(ijk[0], ijk[1] - 0, ijk[2])];
-    values[4] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] + 2, ijk[2])]
-                             : _v[ijkToid(ijk[0], ijk[1] + 1, ijk[2])];
-    values[5] = (isNegative) ? _v[ijkToid(ijk[0], ijk[1] + 3, ijk[2])]
-                             : _v[ijkToid(ijk[0], ijk[1] + 2, ijk[2])];
-    dPhi[1] = Ramuh::Weno::evaluate(values, h[0], isNegative);
-
-    isNegative = true;
-    if (velocity[2] >= 0)
-      isNegative = false;
-    values[0] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] - 2)]
-                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] - 3)];
-    values[1] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] - 1)]
-                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] - 2)];
-    values[2] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] - 0)]
-                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] - 1)];
-    values[3] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] + 1)]
-                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] - 0)];
-    values[4] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] + 2)]
-                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] + 1)];
-    values[5] = (isNegative) ? _w[ijkToid(ijk[0], ijk[1], ijk[2] + 3)]
-                             : _w[ijkToid(ijk[0], ijk[1], ijk[2] + 2)];
-    dPhi[2] = Ramuh::Weno::evaluate(values, h[0], isNegative);
-
-    // Proceed to time integration and material derivative
-    // Euler method
-    newPhi[id] = -velocity.dot(dPhi) * _dt;
-    newPhi[id] = (newPhi[id] + _phi[id]);
-  }
-
-#pragma omp parallel for
-  for (size_t id = 0; id < nCells; id++) {
-    _phi[id] = newPhi[id];
-  }
-}
+void LevelSetFluid3::advectWeno() {}
 
 double LevelSetFluid3::__interpolateVelocityU(Eigen::Array3d position) {
   double _min, _max;
@@ -157,7 +63,7 @@ double LevelSetFluid3::__interpolateVelocityU(Eigen::Array3d position) {
 double LevelSetFluid3::__interpolateVelocityU(Eigen::Array3d position,
                                               double &_min, double &_max) {
   Eigen::Array3d h = getH();
-  auto &_u = getFaceScalarVector(0, _velocityId);
+  auto &_u = getFaceScalarData(0, _velocityId);
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>() * h + h / 2.0;
@@ -221,7 +127,7 @@ double LevelSetFluid3::__interpolateVelocityV(Eigen::Array3d position) {
 
 double LevelSetFluid3::__interpolateVelocityV(Eigen::Array3d position,
                                               double &_min, double &_max) {
-  auto &_v = getFaceScalarVector(1, _velocityId);
+  auto &_v = getFaceScalarData(1, _velocityId);
   Eigen::Array3d h = getH();
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
@@ -284,7 +190,7 @@ double LevelSetFluid3::__interpolateVelocityW(Eigen::Array3d position) {
 
 double LevelSetFluid3::__interpolateVelocityW(Eigen::Array3d position,
                                               double &_min, double &_max) {
-  auto &_w = getFaceScalarVector(2, _velocityId);
+  auto &_w = getFaceScalarData(2, _velocityId);
   Eigen::Array3d h = getH();
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
@@ -348,7 +254,7 @@ double LevelSetFluid3::__interpolatePhi(Eigen::Array3d position) {
 double LevelSetFluid3::__interpolatePhi(Eigen::Array3d position, double &_min,
                                         double &_max) {
   Eigen::Array3d h = getH();
-  auto &_phi = getScalarVector(_phiId);
+  auto &_phi = getScalarData(_phiId);
   Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
   // Check if inside domain
   Eigen::Array3d cellCenter = index.cast<double>().cwiseProduct(h) + h / 2.0;
