@@ -24,7 +24,7 @@ for f in range(scn.frame_start, scn.frame_end+1):
     mod.thickness = 0.01
 
     bpy.context.scene.render.image_settings.file_format = 'JPEG'
-    bpy.context.scene.render.filepath = "/home/rnakanishi/Documents/blender/ando/marching/frames/cube/{:04d}.jpg".format(
+    bpy.context.scene.render.filepath = "/home/rnakanishi/Documents/blender/marching/frames/cube/{:04d}.jpg".format(
         f)
     bpy.context.scene.render.engine = "CYCLES"
     bpy.context.scene.render.resolution_percentage = 75

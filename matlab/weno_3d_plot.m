@@ -1,6 +1,6 @@
 clear;
-N = 50;
-timesteps = 500;
+N = 32;
+timesteps = 5;
 
 x = linspace(-2 * pi, 2 * pi, N);
 [X, Y] = meshgrid(x, x);
@@ -12,14 +12,13 @@ el = 90;
 for count = 0:timesteps - 1
     clf, hold on;
     view(az, el);
-    weno2d = dlmread(['~/git/bahamut-lib/results/weno/2d/' num2str(count)]);
+    weno3d = dlmread(['~/git/bahamut-lib/results/weno/3d/' num2str(count)]);
 
-    analytic = reshape(weno2d(:, 1), N, N);
-    weno = reshape(weno2d(:, 2), N, N);
+    weno = reshape(weno3d, N, N, N);
 
     % anSurf = surf(X, Y, analytic);
     % weSurf = surf(X, Y, weno);
-    contour(weno, [0,0]);
+    isosurface(weno, 0.);
     axis equal;
 
     % axis([-2*pi 2*pi -2*pi 2*pi]);
@@ -29,7 +28,7 @@ for count = 0:timesteps - 1
     ylabel('Y');
     title(num2str(count))
 
-    pause(1/100);
+    pause;
     % pause;
     [az, el] = view();
 end
