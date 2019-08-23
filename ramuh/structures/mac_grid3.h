@@ -33,9 +33,11 @@ public:
    **/
   std::vector<double> &getFaceScalarData(size_t face, std::string label);
   std::vector<double> &getFaceScalarData(size_t face, size_t index);
-  std::vector<Eigen::Array3d> &getFaceArrayData(size_t face,
-                                                  std::string label);
+  std::vector<Eigen::Array3d> &getFaceArrayData(size_t face, std::string label);
   std::vector<Eigen::Array3d> &getFaceArrayData(size_t face, size_t index);
+
+  Eigen::Array3d facePosition(int face, int id);
+  Eigen::Array3d facePosition(int face, int i, int j, int k);
 
   int faceCount(int face);
 

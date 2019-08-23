@@ -75,6 +75,23 @@ std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayData(size_t face,
   return _wArray[index];
 }
 
+Eigen::Array3d MacGrid3::facePosition(int face, int id) {
+  auto ijk = faceIdToijk(face, id);
+  auto h = getH();
+  int i = ijk[0], j = ijk[1], k = ijk[2];
+  if (face == 2)
+    return _domain.min() + Eigen::Array3d(i * h[0], j * h[1], (k + 0.5) * h[2]);
+  if (face == 1)
+    return _domain.min() + Eigen::Array3d(i * h[0], (j + 0.5) * h[1], k * h[2]);
+  if (face == 0)
+    return _domain.min() + Eigen::Array3d((i + 0.5) * h[0], j * h[1], k * h[2]);
+  return Eigen::Array3d(0);
+}
+
+Eigen::Array3d MacGrid3::facePosition(int face, int i, int j, int k) {
+  return facePosition(face, ijkToid(i, j, k));
+}
+
 int MacGrid3::faceCount(int face) {
   if (face == 2)
     return _gridSize[0] * _gridSize[1] * (_gridSize[2] + 1);

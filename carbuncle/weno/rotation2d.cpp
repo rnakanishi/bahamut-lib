@@ -61,8 +61,8 @@ public:
     auto &weno = getScalarData(_wenoId);
 
     // Weno computation
-    std::vector<double> values(6);
     for (int id = 0; id < cellCount(); id++) {
+      std::vector<double> values(6);
       auto p = getPosition(id);
       auto ij = idToij(id);
       int i = ij.first, j = ij.second;
@@ -82,6 +82,7 @@ public:
         int facei = faceij.first, facej = faceij.second;
 
         double velocity;
+        // Each coordinate has its own velocity
         if (coord == 0)
           velocity = ((u[faceijToid(coord, facei, facej)] +
                        u[faceijToid(coord, facei + 1, facej)]) /
@@ -90,16 +91,23 @@ public:
           velocity = ((u[faceijToid(coord, facei, facej)] +
                        u[faceijToid(coord, facei, facej + 1)]) /
                       2);
+        // If positive velocity, upwind-based scheme is used. Otherwise,
+        // downwind
         if (velocity <= 0) { // Downwind
           for (int ival = 0, inc = 3; ival < 7; ival++, inc--) {
             int index, index1, faceIndex;
+            // X and Y coordinates have to be treated separatedly due to i-j
+            // indices
             if (coord == 0) {
+              // =====================
+              // X
               index = std::min(_gridSize[coord] - 1, std::max(1, i + inc));
               index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc - 1));
               faceIndex = std::min(_gridSize[coord], std::max(0, i + inc));
               values[ival] = u[faceijToid(coord, faceIndex, facej)] *
                              (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) /
                              h[coord];
+              // Boundary conditions. This ensure weno doesnt use outside values
               if (i <= 1)
                 values[5] = 1e4;
               if (i <= 0)
@@ -109,6 +117,8 @@ public:
               if (i >= _gridSize[coord] - 1)
                 values[1] = 1e4;
             } else {
+              // =====================
+              // Y
               index = std::min(_gridSize[coord] - 1, std::max(1, j + inc));
               index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc - 1));
               faceIndex = std::min(_gridSize[coord], std::max(0, j + inc));
@@ -129,6 +139,8 @@ public:
           for (int ival = 0, inc = -3; ival < 7; ival++, inc++) {
             int index, index1, faceIndex;
             if (coord == 0) {
+              // =====================
+              // X
               index = std::min(_gridSize[coord] - 1, std::max(1, i + inc + 1));
               index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc));
               faceIndex = std::min(_gridSize[coord], std::max(0, i + inc + 1));
@@ -144,6 +156,8 @@ public:
               if (i >= _gridSize[coord] - 1)
                 values[4] = 1e4;
             } else {
+              // =====================
+              // Y
               index = std::min(_gridSize[coord] - 1, std::max(1, j + inc + 1));
               index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc));
               faceIndex = std::min(_gridSize[coord], std::max(0, j + inc + 1));
@@ -163,10 +177,12 @@ public:
         }
 
         double dPhi = Ramuh::Weno::evaluate(values, h[coord], false);
+        // Summing up all gradients to obtain flux
         weno[id] += dPhi;
       }
     }
 
+    // Time integration step. Euler method
     for (int id = 0; id < cellCount(); id++) {
       phi[id] = phi[id] - weno[id] * _dt;
     }

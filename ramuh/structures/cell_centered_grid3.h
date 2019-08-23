@@ -28,6 +28,9 @@ public:
    **/
   Eigen::Array3d getH();
 
+  Eigen::Array3d getPosition(int id);
+  Eigen::Array3d getPosition(int i, int j, int k);
+
   /**
    * @brief Create a new scalar label in the structure. A initial value for the
    *grid can be assigned to all cells as well. If label already exists, then the

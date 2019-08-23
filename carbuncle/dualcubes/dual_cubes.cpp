@@ -416,35 +416,21 @@ void DualCubes3::defineVelocity() {
   auto &_v = getFaceScalarData(1, _velocityId);
   auto &_w = getFaceScalarData(2, _velocityId);
   // u velocities
-  for (int k = 0; k < _resolution[2]; k++) {
-    for (int j = 0; j < _resolution[1]; j++) {
-      for (int i = 0; i < _resolution[0] + 1; i++) {
-        Eigen::Array3d facePosition;
-        facePosition[1] = _domain.min()[1] + (j + 0.5) * _h[1];
-        _u[ijkToid(i, j, k)] = facePosition[1];
-      }
-    }
+  for (int i = 0; i < faceCount(0); i++) {
+    auto p = facePosition(0, i);
+    _u[i] = p[1];
   }
 
   // v velocities
-  for (int k = 0; k < _resolution[2]; k++) {
-    for (int j = 0; j < _resolution[1] + 1; j++) {
-      for (int i = 0; i < _resolution[0]; i++) {
-        Eigen::Array3d facePosition;
-        facePosition[0] = _domain.min()[0] + (i + 0.5) * _h[0];
-        _v[ijkToid(i, j, k)] = -facePosition[0];
-      }
-    }
+  for (int i = 0; i < faceCount(1); i++) {
+    auto p = facePosition(1, i);
+    _v[i] = -p[0];
   }
 
   // w velocities
-  for (int k = 0; k < _resolution[2] + 1; k++) {
-    for (int j = 0; j < _resolution[1]; j++) {
-      for (int i = 0; i < _resolution[0]; i++) {
-        Eigen::Array3d facePosition;
-        _w[ijkToid(i, j, k)] = 0;
-      }
-    }
+  for (int i = 0; i < faceCount(2); i++) {
+    auto p = facePosition(2, i);
+    _w[i] = 0;
   }
 }
 

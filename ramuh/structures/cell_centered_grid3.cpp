@@ -18,6 +18,17 @@ Eigen::Array3d CellCenteredGrid3::getH() {
   return _domain.size().cwiseQuotient(_gridSize.cast<double>());
 }
 
+Eigen::Array3d CellCenteredGrid3::getPosition(int i, int j, int k) {
+  auto h = getH();
+  return _domain.min() +
+         Eigen::Array3d((i + 0.5) * h[0], (j + 0.5) * h[1], (k + 0.5) * h[2]);
+}
+
+Eigen::Array3d CellCenteredGrid3::getPosition(int id) {
+  auto ijk = idToijk(id);
+  return getPosition(ijk[0], ijk[1], ijk[2]);
+}
+
 std::vector<int> CellCenteredGrid3::idToijk(size_t id) {
   std::vector<int> indices(3);
   indices[2] = id / (_gridSize[0] * _gridSize[1]);

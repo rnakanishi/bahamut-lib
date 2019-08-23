@@ -54,7 +54,159 @@ void LevelSetFluid3::advectSemiLagrangean() {
   }
 }
 
-void LevelSetFluid3::advectWeno() {}
+void LevelSetFluid3::advectWeno() {
+  auto h = getH();
+  auto &phi = getScalarData(_phiId);
+  std::vector<double> weno(cellCount());
+
+// Weno computation
+#pragma omp parallel for
+  for (int id = 0; id < cellCount(); id++) {
+    std::vector<double> values(6);
+    auto ijk = idToijk(id);
+    int i = ijk[0], j = ijk[1], k = ijk[2];
+    weno[id] = 0;
+
+    for (size_t coord = 0; coord < 3; coord++) {
+      auto &u = getFaceScalarData(coord, _velocityId);
+      auto faceijk = ijk;
+      int facei = faceijk[0], facej = faceijk[1], facek = faceijk[2];
+      double velocity;
+
+      int cellijk;
+      if (coord == 0)
+        cellijk = i;
+      else if (coord == 1)
+        cellijk = j;
+      else if (coord == 2)
+        cellijk = k;
+
+      // For each coordinate, compute its own velocity
+      switch (coord) {
+      case 0: // X coordinate
+        velocity = ((u[faceijkToid(coord, facei, facej, facek)] +
+                     u[faceijkToid(coord, facei + 1, facej, facek)]) /
+                    2);
+        break;
+      case 1: // Y coordinate
+        velocity = ((u[faceijkToid(coord, facei, facej, facek)] +
+                     u[faceijkToid(coord, facei, facej + 1, facek)]) /
+                    2);
+        break;
+      case 2: // Z coordinate
+        velocity = ((u[faceijkToid(coord, facei, facej, facek)] +
+                     u[faceijkToid(coord, facei, facej, facek + 1)]) /
+                    2);
+        break;
+      }
+      // For positive velocity  upwind-based scheme is used. Otherwise,
+      // downwind
+      if (velocity <= 0) {
+        // ========= DOWNWIND =========
+        for (int ival = 0, inc = 3; ival < 7; ival++, inc--) {
+          int index, index1, faceIndex;
+          // Each coordinate have to be treated separatedly due to cell-face
+          // indexation
+          switch (coord) {
+          case 0:
+            index = std::min(_gridSize[coord] - 1, std::max(1, i + inc));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc - 1));
+            faceIndex = std::min(_gridSize[coord], std::max(0, facei + inc));
+            values[ival] =
+                u[faceijkToid(coord, faceIndex, facej, facek)] *
+                (phi[ijkToid(index, j, k)] - phi[ijkToid(index1, j, k)]) /
+                h[coord];
+            break;
+          case 1:
+            index = std::min(_gridSize[coord] - 1, std::max(1, j + inc));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc - 1));
+            faceIndex = std::min(_gridSize[coord], std::max(0, facej + inc));
+            values[ival] =
+                u[faceijkToid(coord, facei, faceIndex, facek)] *
+                (phi[ijkToid(i, index, k)] - phi[ijkToid(i, index1, k)]) /
+                h[coord];
+            break;
+          case 2:
+            index = std::min(_gridSize[coord] - 1, std::max(1, k + inc));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, k + inc - 1));
+            faceIndex = std::min(_gridSize[coord], std::max(0, facek + inc));
+            values[ival] =
+                u[faceijkToid(coord, facei, facej, faceIndex)] *
+                (phi[ijkToid(i, j, index)] - phi[ijkToid(i, j, index1)]) /
+                h[coord];
+            break;
+          }
+        }
+        // Boundary conditions. This ensure weno doesnt use outside values
+        if (cellijk <= 1)
+          values[5] = 1e4;
+        if (cellijk <= 0)
+          values[4] = 1e4;
+        if (cellijk >= _gridSize[coord] - 2)
+          values[0] = 1e4;
+        if (cellijk >= _gridSize[coord] - 1)
+          values[1] = 1e4;
+      } else {
+        // ========= UPWIND =========
+        for (int ival = 0, inc = -3; ival < 7; ival++, inc++) {
+          int index, index1, faceIndex;
+          // Each coordinate have to be treated separatedly due to cell-face
+          // indexation
+          switch (coord) {
+          case 0:
+            index = std::min(_gridSize[coord] - 1, std::max(1, i + inc + 1));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc));
+            faceIndex =
+                std::min(_gridSize[coord], std::max(0, facei + inc + 1));
+            values[ival] =
+                u[faceijkToid(coord, faceIndex, facej, facek)] *
+                (phi[ijkToid(index, j, k)] - phi[ijkToid(index1, j, k)]) /
+                h[coord];
+            break;
+          case 1:
+            index = std::min(_gridSize[coord] - 1, std::max(1, j + inc + 1));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc));
+            faceIndex =
+                std::min(_gridSize[coord], std::max(0, facej + inc + 1));
+            values[ival] =
+                u[faceijkToid(coord, facei, faceIndex, facek)] *
+                (phi[ijkToid(i, index, k)] - phi[ijkToid(i, index1, k)]) /
+                h[coord];
+            break;
+          case 2:
+            index = std::min(_gridSize[coord] - 1, std::max(1, k + inc + 1));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, k + inc));
+            faceIndex =
+                std::min(_gridSize[coord], std::max(0, facek + inc + 1));
+            values[ival] =
+                u[faceijkToid(coord, facei, facej, faceIndex)] *
+                (phi[ijkToid(i, j, index)] - phi[ijkToid(i, j, index1)]) /
+                h[coord];
+            break;
+          }
+        }
+        if (cellijk <= 1)
+          values[0] = 1e4;
+        if (cellijk <= 0)
+          values[1] = 1e4;
+        if (cellijk >= _gridSize[coord] - 2)
+          values[5] = 1e4;
+        if (cellijk >= _gridSize[coord] - 1)
+          values[4] = 1e4;
+      }
+
+      double dPhi = Ramuh::Weno::evaluate(values, h[coord], false);
+      // Summing up all gradients to obtain flux
+      weno[id] += dPhi;
+    }
+  }
+
+// Time integration step. Euler method
+#pragma omp parallel for
+  for (int id = 0; id < cellCount(); id++) {
+    phi[id] = phi[id] - weno[id] * _dt;
+  }
+}
 
 double LevelSetFluid3::__interpolateVelocityU(Eigen::Array3d position) {
   double _min, _max;

@@ -64,11 +64,11 @@ public:
   void extractSurface();
 
   void print() {
-    auto &phi = getFaceArrayData(0, "facePosition");
+    auto &phi = getScalarData(_phiId);
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;
-    filename << "results/levelset/3d/" << count++;
+    filename << "results/weno/3d/" << count++;
     file.open(filename.str().c_str(), std::ofstream::out);
 
     for (size_t i = 0; i < cellCount(); i++) {

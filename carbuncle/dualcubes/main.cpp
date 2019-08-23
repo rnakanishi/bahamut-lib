@@ -7,7 +7,7 @@
 
 int main(int argc, char const *argv[]) {
   Carbuncle::DualCubes3 cubes(
-      Eigen::Array3i(20, 20, 20),
+      Eigen::Array3i(32, 32, 32),
       Ramuh::BoundingBox3(Eigen::Array3d(-2, -2, -2), Eigen::Array3d(2, 2, 2)));
   cubes.initialize(Eigen::Array3d(0, 0, 0), 0.5,
                    Carbuncle::DualCubes3::ParametricSurface::CUBE);
@@ -16,15 +16,16 @@ int main(int argc, char const *argv[]) {
 
   cubes.computeIntersection();
   cubes.computeNormals();
-  cubes.extractSurface();
   cubes.computeIntersection();
+  cubes.extractSurface();
   cubes.print();
-  return 1;
-  for (int i = 1; i <= 1; i++) {
-    cubes.advectSemiLagrangean();
+
+  for (int i = 1; i <= 10; i++) {
+    cubes.advectWeno();
     cubes.computeIntersection();
     cubes.computeNormals();
     cubes.extractSurface();
+    cubes.print();
   }
 
   //   auto surface = cubes.marchingTetrahedra();
