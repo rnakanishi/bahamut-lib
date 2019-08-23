@@ -1,6 +1,7 @@
 #include <fluids/levelset_fluid3.h>
 #include <blas/interpolator.h>
 #include <blas/weno.h>
+#include <cmath>
 
 namespace Leviathan {
 
@@ -54,6 +55,100 @@ void LevelSetFluid3::advectSemiLagrangean() {
   }
 }
 
+void LevelSetFluid3::advectUpwind() {
+  auto h = getH();
+  auto &phi = getScalarData(_phiId);
+  std::vector<double> upwind(cellCount());
+
+#pragma omp parallel for
+  for (int id = 0; id < cellCount(); id++) {
+    std::vector<double> values(6);
+    auto ijk = idToijk(id);
+    int i = ijk[0], j = ijk[1], k = ijk[2];
+    double dotGrad = 0.;
+
+    for (size_t coord = 0; coord < 3; coord++) {
+      auto &u = getFaceScalarData(coord, _velocityId);
+      auto faceijk = faceIdToijk(coord, id);
+      int facei = faceijk[0], facej = faceijk[1], facek = faceijk[2];
+      double velocity;
+
+      int cellijk;
+      if (coord == 0)
+        cellijk = i;
+      else if (coord == 1)
+        cellijk = j;
+      else if (coord == 2)
+        cellijk = k;
+
+      // For each coordinate, compute its own velocity
+      switch (coord) {
+      case 0: // X coordinate
+        velocity = ((u[faceijkToid(coord, facei, facej, facek)] +
+                     u[faceijkToid(coord, facei + 1, facej, facek)]) /
+                    2);
+        break;
+      case 1: // Y coordinate
+        velocity = ((u[faceijkToid(coord, facei, facej, facek)] +
+                     u[faceijkToid(coord, facei, facej + 1, facek)]) /
+                    2);
+        break;
+      case 2: // Z coordinate
+        velocity = ((u[faceijkToid(coord, facei, facej, facek)] +
+                     u[faceijkToid(coord, facei, facej, facek + 1)]) /
+                    2);
+        break;
+      }
+      if (velocity <= 0) {
+        int index;
+        switch (coord) {
+        case 0:
+          index = std::max(0, i - 1);
+          dotGrad +=
+              velocity * (phi[id] - phi[ijkToid(index, j, k)]) / h[coord];
+          break;
+        case 1:
+          index = std::max(0, j - 1);
+          dotGrad +=
+              velocity * (phi[id] - phi[ijkToid(i, index, k)]) / h[coord];
+          break;
+        case 2:
+          index = std::max(0, k - 1);
+          dotGrad +=
+              velocity * (phi[id] - phi[ijkToid(i, j, index)]) / h[coord];
+          break;
+        }
+      } else {
+        int index;
+        switch (coord) {
+        case 0:
+          index = std::min(_gridSize[0] - 1, i + 1);
+          dotGrad +=
+              velocity * (phi[ijkToid(index, j, k)] - phi[id]) / h[coord];
+          break;
+        case 1:
+          index = std::min(_gridSize[1] - 1, j + 1);
+          dotGrad +=
+              velocity * (phi[ijkToid(i, index, k)] - phi[id]) / h[coord];
+          break;
+        case 2:
+          index = std::min(_gridSize[2] - 1, k + 1);
+          dotGrad +=
+              velocity * (phi[ijkToid(i, j, index)] - phi[id]) / h[coord];
+          break;
+        }
+      }
+    }
+    upwind[id] = dotGrad;
+  }
+
+// Time integration step. Euler method
+#pragma omp parallel for
+  for (int id = 0; id < cellCount(); id++) {
+    phi[id] = phi[id] - upwind[id] * _dt;
+  }
+}
+
 void LevelSetFluid3::advectWeno() {
   auto h = getH();
   auto &phi = getScalarData(_phiId);
@@ -69,7 +164,7 @@ void LevelSetFluid3::advectWeno() {
 
     for (size_t coord = 0; coord < 3; coord++) {
       auto &u = getFaceScalarData(coord, _velocityId);
-      auto faceijk = ijk;
+      auto faceijk = ijk; // FIXME: change to faceIdToijk(id) and check errors
       int facei = faceijk[0], facej = faceijk[1], facek = faceijk[2];
       double velocity;
 
@@ -108,6 +203,8 @@ void LevelSetFluid3::advectWeno() {
           // Each coordinate have to be treated separatedly due to cell-face
           // indexation
           switch (coord) {
+            // FIXME: for each cell in the stencil, use average velocity,
+            // instead of face velocity
           case 0:
             index = std::min(_gridSize[coord] - 1, std::max(1, i + inc));
             index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc - 1));
@@ -205,6 +302,59 @@ void LevelSetFluid3::advectWeno() {
 #pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     phi[id] = phi[id] - weno[id] * _dt;
+  }
+}
+
+void LevelSetFluid3::redistance() {
+  auto &phi = getScalarData(_phiId);
+  std::vector<double> gradient(cellCount());
+  std::vector<double> smooth(cellCount());
+  std::vector<double> phiSign(cellCount());
+  double eps = 1e-16;
+  for (size_t id = 0; id < cellCount(); id++)
+    phiSign[id] = (phi[id] >= 0) ? 1 : -1;
+
+  for (size_t t = 0; t < 20; t++) {
+    // FIXME: Run this equaiton until stationary state is reached
+    // #pragma omp parallel for
+    for (size_t id = 0; id < cellCount(); id++) {
+      // Smooth function
+      smooth[id] = phi[id] / sqrt(phi[id] * phi[id] + eps * eps);
+
+      // Compute gradients
+      std::vector<double> partials(3);
+      auto h = getH();
+      auto ijk = idToijk(id);
+      int i = ijk[0], j = ijk[1], k = ijk[2];
+      gradient[id] = 0.0;
+      int index;
+      if (phiSign[id] > 0) {
+        partials[0] = (phi[id] - phi[ijkToid(std::max(0, i - 1), j, k)]) / h[0];
+        partials[1] = (phi[id] - phi[ijkToid(i, std::max(0, j - 1), k)]) / h[1];
+        partials[2] = (phi[id] - phi[ijkToid(i, j, std::max(0, k - 1))]) / h[2];
+      } else {
+        partials[0] =
+            (phi[id] - phi[ijkToid(std::min(_gridSize[0] - 1, i + 1), j, k)]) /
+            h[0];
+        partials[1] =
+            (phi[ijkToid(i, std::min(_gridSize[1] - 1, j + 1), k)] - phi[id]) /
+            h[1];
+        partials[2] =
+            (phi[ijkToid(i, j, std::min(_gridSize[2] - 1, k + 1))] - phi[id]) /
+            h[2];
+      }
+
+      if (abs(phi[id]) >= 1e-10) {
+        gradient[id] =
+            sqrt(partials[0] * partials[0] + partials[1] * partials[1] +
+                 partials[2] * partials[2]) -
+            1;
+      }
+    }
+
+    for (size_t id = 0; id < cellCount(); id++) {
+      phi[id] = phi[id] - _dt * smooth[id] * gradient[id];
+    }
   }
 }
 

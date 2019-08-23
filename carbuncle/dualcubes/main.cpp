@@ -20,15 +20,15 @@ int main(int argc, char const *argv[]) {
   cubes.extractSurface();
   cubes.print();
 
-  for (int i = 1; i <= 10; i++) {
-    cubes.advectWeno();
+  for (int i = 1; i <= 30; i++) {
+    cubes.advectUpwind();
     cubes.computeIntersection();
     cubes.computeNormals();
     cubes.extractSurface();
     cubes.print();
   }
 
-  //   auto surface = cubes.marchingTetrahedra();
+  //   auto surface = cubes.marc hingTetrahedra();
   //   Ramuh::FileWriter writer;
   //   std::ostringstream objname;
   //   objname << "results/marching/tetra_" << std::setfill('0') << std::setw(4)

@@ -21,6 +21,8 @@ public:
 
   void advectWeno();
 
+  void advectUpwind();
+
   void redistance();
 
 protected:
