@@ -324,54 +324,86 @@ void LevelSetFluid3::advectWeno() {
 }
 
 void LevelSetFluid3::redistance() {
+  auto h = getH();
   auto &phi = getScalarData(_phiId);
-  std::vector<double> gradient(cellCount());
-  std::vector<double> smooth(cellCount());
-  std::vector<double> phiSign(cellCount());
   double eps = 1e-16;
-  for (size_t id = 0; id < cellCount(); id++)
-    phiSign[id] = (phi[id] >= 0) ? 1 : -1;
+  std::vector<double> upwind(cellCount());
+  std::vector<int> cellSignal(cellCount());
+  std::vector<Eigen::Vector3d> direction(cellCount());
 
-  for (size_t t = 0; t < 20; t++) {
-    // FIXME: Run this equaiton until stationary state is reached
+#pragma omp parallel for
+  for (int id = 0; id < cellCount(); id++) {
+    auto ijk = idToijk(id);
+    int i = ijk[0], j = ijk[1], k = ijk[2];
+    cellSignal[id] = phi[id] / sqrt(phi[id] * phi[id] + eps * eps);
+    if (i > 0)
+      direction[id][0] = (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[0];
+    else
+      direction[id][0] = (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[0];
+    if (j > 0)
+      direction[id][1] = (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[1];
+    else
+      direction[id][1] = (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[1];
+    if (k > 0)
+      direction[id][2] = (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[2];
+    else
+      direction[id][2] = (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[2];
+    direction[id] = direction[id] * cellSignal[id];
+    direction[id].normalize();
+  }
+
+  for (int t = 0; t < 1; t++) {
+
     // #pragma omp parallel for
-    for (size_t id = 0; id < cellCount(); id++) {
-      // Smooth function
-      smooth[id] = phi[id] / sqrt(phi[id] * phi[id] + eps * eps);
-
-      // Compute gradients
-      std::vector<double> partials(3);
-      auto h = getH();
+    for (int id = 0; id < cellCount(); id++) {
       auto ijk = idToijk(id);
       int i = ijk[0], j = ijk[1], k = ijk[2];
-      gradient[id] = 0.0;
-      int index;
-      if (phiSign[id] > 0) {
-        partials[0] = (phi[id] - phi[ijkToid(std::max(0, i - 1), j, k)]) / h[0];
-        partials[1] = (phi[id] - phi[ijkToid(i, std::max(0, j - 1), k)]) / h[1];
-        partials[2] = (phi[id] - phi[ijkToid(i, j, std::max(0, k - 1))]) / h[2];
-      } else {
-        partials[0] =
-            (phi[id] - phi[ijkToid(std::min(_gridSize[0] - 1, i + 1), j, k)]) /
-            h[0];
-        partials[1] =
-            (phi[ijkToid(i, std::min(_gridSize[1] - 1, j + 1), k)] - phi[id]) /
-            h[1];
-        partials[2] =
-            (phi[ijkToid(i, j, std::min(_gridSize[2] - 1, k + 1))] - phi[id]) /
-            h[2];
-      }
+      double dotGrad = 0.;
+      // Eigen::Vector3d direction;
 
-      if (abs(phi[id]) >= 1e-10) {
-        gradient[id] =
-            sqrt(partials[0] * partials[0] + partials[1] * partials[1] +
-                 partials[2] * partials[2]) -
-            1;
+      for (size_t coord = 0; coord < 3; coord++) {
+        // For each coordinate, compute its own direction
+        if (direction[id][coord] > 0) { // DOWNWIND
+          int index;
+          switch (coord) {
+          case 0:
+            dotGrad += direction[id][coord] *
+                       (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[coord];
+            break;
+          case 1:
+            dotGrad += direction[id][coord] *
+                       (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[coord];
+            break;
+          case 2:
+            dotGrad += direction[id][coord] *
+                       (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[coord];
+            break;
+          }
+        } else if (direction[id][coord] < 0) { // UP
+          int index;
+          switch (coord) {
+          case 0:
+            dotGrad += direction[id][coord] *
+                       (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[coord];
+            break;
+          case 1:
+            dotGrad += direction[id][coord] *
+                       (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[coord];
+            break;
+          case 2:
+            dotGrad += direction[id][coord] *
+                       (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[coord];
+            break;
+          }
+        }
       }
+      upwind[id] = cellSignal[id] - dotGrad;
     }
 
-    for (size_t id = 0; id < cellCount(); id++) {
-      phi[id] = phi[id] - _dt * smooth[id] * gradient[id];
+// Time integration step. Euler method
+#pragma omp parallel for
+    for (int id = 0; id < cellCount(); id++) {
+      phi[id] = phi[id] - upwind[id] * _dt;
     }
   }
 }

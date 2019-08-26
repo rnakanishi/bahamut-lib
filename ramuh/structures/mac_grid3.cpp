@@ -89,7 +89,7 @@ Eigen::Array3d MacGrid3::facePosition(int face, int id) {
 }
 
 Eigen::Array3d MacGrid3::facePosition(int face, int i, int j, int k) {
-  return facePosition(face, ijkToid(i, j, k));
+  return facePosition(face, faceijkToid(face, i, j, k));
 }
 
 int MacGrid3::faceCount(int face) {

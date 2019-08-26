@@ -55,6 +55,9 @@ public:
   void initialize(Eigen::Array3d center, double radius,
                   ParametricSurface surface);
 
+  void analyticNormals(Eigen::Array3d center, double radius,
+                       ParametricSurface surface);
+
   void computeNormals();
 
   void defineVelocity();

@@ -61,6 +61,7 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
     // std::cerr << "Limits: " << cubeLimits.min().transpose() << " x "
     //           << cubeLimits.max().transpose();
     // std::cerr << "   point: " << x.transpose() << std::endl;
+
     x = cubeLimits.clamp(x);
     // TODO: implement constrained QEF solver
   }
@@ -87,12 +88,13 @@ void DualMarching3::reconstruct() {
   std::ofstream file;
   static int count = 0;
   std::stringstream filename;
-  filename << "results/marching/dualcubes_" << std::setfill('0') << std::setw(4)
+  filename << "results/dual_marching/" << std::setfill('0') << std::setw(4)
            << count++ << ".obj";
-  try {
-    file.open(filename.str().c_str(), std::ofstream::out);
-  } catch (std::exception e) {
-    std::cerr << "Failed opening file " << filename.str() << std::endl;
+  auto fullpath = filename.str();
+  file.open(fullpath.c_str(), std::ofstream::out);
+  if (!file.is_open()) {
+    std::cerr << "\033[1;31m[ X ]\033[0m Failed opening file " << filename.str()
+              << std::endl;
     return;
   }
 

@@ -14,14 +14,20 @@ int main(int argc, char const *argv[]) {
   cubes.defineVelocity();
   // cubes.printCells();
 
-  cubes.computeIntersection();
+  // cubes.computeIntersection();
+  // cubes.analyticNormals(Eigen::Array3d(0, 0, 0), 0.8,
+  //                       Carbuncle::DualCubes3::ParametricSurface::CUBE);
+  // cubes.extractSurface();
+  // return 1;
+
   cubes.computeNormals();
   cubes.computeIntersection();
   cubes.extractSurface();
   cubes.print();
 
-  for (int i = 1; i <= 300; i++) {
+  for (int i = 1; i <= 100; i++) {
     cubes.advectWeno();
+    // cubes.redistance();
     cubes.computeIntersection();
     cubes.computeNormals();
     cubes.extractSurface();
