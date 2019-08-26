@@ -69,7 +69,7 @@ void LevelSetFluid3::advectUpwind() {
 
     for (size_t coord = 0; coord < 3; coord++) {
       auto &u = getFaceScalarData(coord, _velocityId);
-      auto faceijk = faceIdToijk(coord, id);
+      auto faceijk = ijk;
       int facei = faceijk[0], facej = faceijk[1], facek = faceijk[2];
       double velocity;
 
@@ -99,42 +99,60 @@ void LevelSetFluid3::advectUpwind() {
                     2);
         break;
       }
-      if (velocity <= 0) {
+      if (velocity > 0) { // DOWNWIND
         int index;
         switch (coord) {
         case 0:
-          index = std::max(0, i - 1);
-          dotGrad +=
-              velocity * (phi[id] - phi[ijkToid(index, j, k)]) / h[coord];
+          if (i > 0)
+            dotGrad +=
+                velocity * (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[coord];
+          else
+            dotGrad +=
+                velocity * (phi[ijkToid(i + 1, j, k) - phi[id]]) / h[coord];
           break;
         case 1:
-          index = std::max(0, j - 1);
-          dotGrad +=
-              velocity * (phi[id] - phi[ijkToid(i, index, k)]) / h[coord];
+          if (j > 0)
+            dotGrad +=
+                velocity * (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[coord];
+          else
+            dotGrad +=
+                velocity * (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[coord];
           break;
         case 2:
-          index = std::max(0, k - 1);
-          dotGrad +=
-              velocity * (phi[id] - phi[ijkToid(i, j, index)]) / h[coord];
+          if (k > 0)
+            dotGrad +=
+                velocity * (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[coord];
+          else
+            dotGrad +=
+                velocity * (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[coord];
           break;
         }
-      } else {
+      } else { // UP
         int index;
         switch (coord) {
         case 0:
-          index = std::min(_gridSize[0] - 1, i + 1);
-          dotGrad +=
-              velocity * (phi[ijkToid(index, j, k)] - phi[id]) / h[coord];
+          if (i < _gridSize[0] - 1)
+            dotGrad +=
+                velocity * (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[coord];
+          else
+            dotGrad +=
+                velocity * (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[coord];
           break;
         case 1:
-          index = std::min(_gridSize[1] - 1, j + 1);
-          dotGrad +=
-              velocity * (phi[ijkToid(i, index, k)] - phi[id]) / h[coord];
+          if (j < _gridSize[1] - 1)
+            dotGrad +=
+                velocity * (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[coord];
+          else
+            dotGrad +=
+                velocity * (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[coord];
           break;
         case 2:
-          index = std::min(_gridSize[2] - 1, k + 1);
-          dotGrad +=
-              velocity * (phi[ijkToid(i, j, index)] - phi[id]) / h[coord];
+          if (k < _gridSize[2] - 1)
+            dotGrad +=
+                velocity * (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[coord];
+          else
+            dotGrad +=
+                velocity * (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[coord];
           break;
         }
       }

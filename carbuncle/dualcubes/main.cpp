@@ -20,8 +20,8 @@ int main(int argc, char const *argv[]) {
   cubes.extractSurface();
   cubes.print();
 
-  for (int i = 1; i <= 30; i++) {
-    cubes.advectUpwind();
+  for (int i = 1; i <= 300; i++) {
+    cubes.advectWeno();
     cubes.computeIntersection();
     cubes.computeNormals();
     cubes.extractSurface();
