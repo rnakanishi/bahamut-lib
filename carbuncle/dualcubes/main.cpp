@@ -7,7 +7,7 @@
 
 int main(int argc, char const *argv[]) {
   Carbuncle::DualCubes3 cubes(
-      Eigen::Array3i(32, 32, 32),
+      Eigen::Array3i(40, 40, 40),
       Ramuh::BoundingBox3(Eigen::Array3d(-2, -2, -2), Eigen::Array3d(2, 2, 2)));
   cubes.initialize(Eigen::Array3d(0, 0, 0), 0.5,
                    Carbuncle::DualCubes3::ParametricSurface::CUBE);
@@ -20,16 +20,19 @@ int main(int argc, char const *argv[]) {
   // cubes.extractSurface();
   // return 1;
 
-  cubes.computeNormals();
   cubes.computeIntersection();
+  cubes.computeNormals();
   cubes.extractSurface();
-  cubes.print();
+  // return 1;
 
-  for (int i = 1; i <= 100; i++) {
+  for (int i = 1; i <= 500; i++) {
     cubes.advectWeno();
     // cubes.redistance();
-    cubes.computeIntersection();
-    cubes.computeNormals();
+    // cubes.computeIntersection();
+    // cubes.computeNormals();
+
+    cubes.computeCellsGradient();
+    cubes.computeIntersectionAndNormals();
     cubes.extractSurface();
     cubes.print();
   }

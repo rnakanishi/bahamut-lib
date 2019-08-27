@@ -1,4 +1,5 @@
 #include <structures/cell_centered_grid3.h>
+#include <iostream>
 
 namespace Ramuh {
 CellCenteredGrid3::CellCenteredGrid3()
@@ -64,7 +65,10 @@ size_t CellCenteredGrid3::newArrayLabel(std::string label,
 }
 
 std::vector<double> &CellCenteredGrid3::getScalarData(std::string label) {
-  return _scalarData[_dataLabel[label]];
+  if (_dataLabel.find(label) != _dataLabel.end())
+    return _scalarData[_dataLabel[label]];
+  std::cerr << "\033[1;31m[ ERROR ]\033[0mLabel not found!\n";
+  return _scalarData[0];
 }
 
 std::vector<double> &CellCenteredGrid3::getScalarData(size_t index) {

@@ -14,7 +14,7 @@ DualCubes3::DualCubes3(Eigen::Array3i resolution)
 DualCubes3::DualCubes3(Eigen::Array3i resolution, Ramuh::BoundingBox3 domain)
     : Leviathan::LevelSetFluid3(resolution, domain) {
   _h = _domain.size().cwiseQuotient(resolution.cast<double>());
-  _resolution = resolution;
+  newArrayLabel("cellGradient");
   newFaceArrayLabel("faceNormal");
   newFaceArrayLabel("facePosition");
 }
@@ -29,9 +29,9 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius,
   auto &_phi = getScalarData("phi");
 
   // ====== Initialize cell surfaces
-  for (int k = 0; k < _resolution[2]; k++)
-    for (int j = 0; j < _resolution[1]; j++)
-      for (int i = 0; i < _resolution[0]; i++) {
+  for (int k = 0; k < _gridSize[2]; k++)
+    for (int j = 0; j < _gridSize[1]; j++)
+      for (int i = 0; i < _gridSize[0]; i++) {
         Eigen::Array3d h(_h);
         Eigen::Array3d position =
             domainMin + Eigen::Array3d(i, j, k).cwiseProduct(h) + h / 2.0;
@@ -96,9 +96,9 @@ void DualCubes3::analyticNormals(Eigen::Array3d center, double radius,
   auto &vfaceNormal = getFaceArrayData(1, "faceNormal");
   auto &wfaceNormal = getFaceArrayData(2, "faceNormal");
 
-  for (int k = 1; k < _resolution[2] - 1; k++)
-    for (int j = 1; j < _resolution[1] - 1; j++)
-      for (int i = 1; i < _resolution[0] - 1; i++) {
+  for (int k = 1; k < _gridSize[2] - 1; k++)
+    for (int j = 1; j < _gridSize[1] - 1; j++)
+      for (int i = 1; i < _gridSize[0] - 1; i++) {
         Eigen::Array3d h(_h);
         Eigen::Array3d position =
             domainMin + Eigen::Array3d(i, j, k).cwiseProduct(h) + h / 2.0;
@@ -176,9 +176,9 @@ void DualCubes3::computeNormals() {
   auto &_wfaceNormals = getFaceArrayData(2, "faceNormal");
   // TODO: Store normal location only on negative levelset cells
   // TODO: Voundary treatment for discrete normal computation
-  for (int k = 0; k < _resolution[2]; k++)
-    for (int j = 0; j < _resolution[1]; j++)
-      for (int i = 0; i < _resolution[0]; i++) {
+  for (int k = 0; k < _gridSize[2]; k++)
+    for (int j = 0; j < _gridSize[1]; j++)
+      for (int i = 0; i < _gridSize[0]; i++) {
         int centerSign = (_phi[ijkToid(i, j, k)] < 0) ? -1 : 1;
         double left, right, up, bot, back, front;
         if (i > 0) {
@@ -190,7 +190,7 @@ void DualCubes3::computeNormals() {
             // Average first and then compute derivative for y
             // and z directions Y-direction
             up =
-                (j < _resolution[1] - 1)
+                (j < _gridSize[1] - 1)
                     ? (_phi[ijkToid(i - 1, j + 1, k)] +
                        _phi[ijkToid(i, j + 1, k)]) /
                           2
@@ -203,7 +203,7 @@ void DualCubes3::computeNormals() {
                     : (_phi[ijkToid(i - 1, j, k)] + _phi[ijkToid(i, j, k)]) / 2;
             // Z-direction
             front =
-                (k < _resolution[1] - 1)
+                (k < _gridSize[1] - 1)
                     ? (_phi[ijkToid(i - 1, j, k + 1)] +
                        _phi[ijkToid(i, j, k + 1)]) /
                           2
@@ -219,7 +219,7 @@ void DualCubes3::computeNormals() {
             _ufaceNormals[faceijkToid(0, i, j, k)] = normal.normalized();
           }
         }
-        if (i < _resolution[0] - 1) {
+        if (i < _gridSize[0] - 1) {
           int neighSign = (_phi[ijkToid(i + 1, j, k)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
@@ -228,7 +228,7 @@ void DualCubes3::computeNormals() {
             // Average first and then compute derivative for y
             // and z directions Y-direction
             up =
-                (j < _resolution[1] - 1)
+                (j < _gridSize[1] - 1)
                     ? (_phi[ijkToid(i, j + 1, k)] +
                        _phi[ijkToid(i + 1, j + 1, k)]) /
                           2
@@ -241,7 +241,7 @@ void DualCubes3::computeNormals() {
                     : (_phi[ijkToid(i, j, k)] + _phi[ijkToid(i + 1, j, k)]) / 2;
             // Z-direction
             front =
-                (k < _resolution[1] - 1)
+                (k < _gridSize[1] - 1)
                     ? (_phi[ijkToid(i, j, k + 1)] +
                        _phi[ijkToid(i + 1, j, k + 1)]) /
                           2
@@ -266,7 +266,7 @@ void DualCubes3::computeNormals() {
             // Average first and then compute derivative for y
             // and z directions X-direction
             right =
-                (i < _resolution[0] - 1)
+                (i < _gridSize[0] - 1)
                     ? (_phi[ijkToid(i + 1, j - 1, k)] +
                        _phi[ijkToid(i + 1, j, k)]) /
                           2
@@ -279,7 +279,7 @@ void DualCubes3::computeNormals() {
                     : (_phi[ijkToid(i, j - 1, k)] + _phi[ijkToid(i, j, k)]) / 2;
             // Z-direction
             front =
-                (k < _resolution[1] - 1)
+                (k < _gridSize[1] - 1)
                     ? (_phi[ijkToid(i, j - 1, k + 1)] +
                        _phi[ijkToid(i, j, k + 1)]) /
                           2
@@ -295,7 +295,7 @@ void DualCubes3::computeNormals() {
             _vfaceNormals[faceijkToid(1, i, j, k)] = normal.normalized();
           }
         }
-        if (j < _resolution[1] - 1) {
+        if (j < _gridSize[1] - 1) {
           int neighSign = (_phi[ijkToid(i, j + 1, k)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
@@ -304,7 +304,7 @@ void DualCubes3::computeNormals() {
             // Average first and then compute derivative for y
             // and z directions Y-direction
             right =
-                (i < _resolution[0] - 1)
+                (i < _gridSize[0] - 1)
                     ? (_phi[ijkToid(i + 1, j, k)] +
                        _phi[ijkToid(i + 1, j + 1, k)]) /
                           2
@@ -317,7 +317,7 @@ void DualCubes3::computeNormals() {
                     : (_phi[ijkToid(i, j, k)] + _phi[ijkToid(i, j + 1, k)]) / 2;
             // Z-direction
             front =
-                (k < _resolution[2] - 1)
+                (k < _gridSize[2] - 1)
                     ? (_phi[ijkToid(i, j, k + 1)] +
                        _phi[ijkToid(i, j + 1, k + 1)]) /
                           2
@@ -342,7 +342,7 @@ void DualCubes3::computeNormals() {
             // Average first and then compute derivative for y
             // and z directions X-direction
             right =
-                (i < _resolution[0] - 1)
+                (i < _gridSize[0] - 1)
                     ? (_phi[ijkToid(i + 1, j, k - 1)] +
                        _phi[ijkToid(i + 1, j, k)]) /
                           2
@@ -355,7 +355,7 @@ void DualCubes3::computeNormals() {
                     : (_phi[ijkToid(i, j, k - 1)] + _phi[ijkToid(i, j, k)]) / 2;
             // Y-direction
             up =
-                (j < _resolution[1] - 1)
+                (j < _gridSize[1] - 1)
                     ? (_phi[ijkToid(i, j + 1, k - 1)] +
                        _phi[ijkToid(i, j + 1, k)]) /
                           2
@@ -371,7 +371,7 @@ void DualCubes3::computeNormals() {
             _wfaceNormals[faceijkToid(2, i, j, k)] = normal.normalized();
           }
         }
-        if (k < _resolution[2] - 1) {
+        if (k < _gridSize[2] - 1) {
           int neighSign = (_phi[ijkToid(i, j, k + 1)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             Eigen::Vector3d normal;
@@ -380,7 +380,7 @@ void DualCubes3::computeNormals() {
             // Average first and then compute derivative for y
             // and z directions Y-direction
             right =
-                (i < _resolution[0] - 1)
+                (i < _gridSize[0] - 1)
                     ? (_phi[ijkToid(i + 1, j, k)] +
                        _phi[ijkToid(i + 1, j, k + 1)]) /
                           2
@@ -393,7 +393,7 @@ void DualCubes3::computeNormals() {
                     : (_phi[ijkToid(i, j, k)] + _phi[ijkToid(i, j, k + 1)]) / 2;
             // Y-direction
             up =
-                (j < _resolution[1] - 1)
+                (j < _gridSize[1] - 1)
                     ? (_phi[ijkToid(i, j + 1, k + 1)] +
                        _phi[ijkToid(i, j + 1, k)]) /
                           2
@@ -412,6 +412,102 @@ void DualCubes3::computeNormals() {
       }
 }
 
+void DualCubes3::computeCellsGradient() {
+  auto &phi = getScalarData("phi");
+  auto &gradient = getArrayData("cellGradient");
+  auto h = getH();
+#pragma omp parallel for
+  for (int k = 0; k < _gridSize[2]; k++)
+    for (int j = 0; j < _gridSize[1]; j++)
+      for (int i = 0; i < _gridSize[0]; i++) {
+        int id = ijkToid(i, j, k);
+        if (i > 0)
+          gradient[id][0] = (phi[id] - phi[ijkToid(i - 1, j, k)] / h[0]);
+        else
+          gradient[id][0] = (phi[ijkToid(i + 1, j, k) - phi[id]] / h[0]);
+
+        if (j > 0)
+          gradient[id][1] = (phi[id] - phi[ijkToid(i, j - 1, k)] / h[1]);
+        else
+          gradient[id][1] = (phi[ijkToid(i, j + 1, k) - phi[id]] / h[1]);
+
+        if (i > 0)
+          gradient[id][2] = (phi[id] - phi[ijkToid(i, j, k - 1)] / h[2]);
+        else
+          gradient[id][2] = (phi[ijkToid(i, j, k + 1) - phi[id]] / h[2]);
+      }
+}
+
+void DualCubes3::computeIntersectionAndNormals() {
+  auto &phi = getScalarData("phi");
+  auto &gradient = getArrayData("cellGradient");
+  auto &ufaceLocation = getFaceArrayData(0, "facePosition");
+  auto &vfaceLocation = getFaceArrayData(1, "facePosition");
+  auto &wfaceLocation = getFaceArrayData(2, "facePosition");
+  auto &ufaceNormals = getFaceArrayData(0, "faceNormal");
+  auto &vfaceNormals = getFaceArrayData(1, "faceNormal");
+  auto &wfaceNormals = getFaceArrayData(2, "faceNormal");
+
+  Eigen::Array3d domainMin = _domain.min();
+#pragma omp parallel for
+  for (int k = 0; k < _gridSize[2]; k++)
+    for (int j = 0; j < _gridSize[1]; j++)
+      for (int i = 0; i < _gridSize[0]; i++) {
+        int centerSign = (phi[ijkToid(i, j, k)] < 0) ? -1 : 1;
+        int id = ijkToid(i, j, k);
+        if (i < _gridSize[0] - 1) {
+          int neighSign = (phi[ijkToid(i + 1, j, k)] < 0) ? -1 : 1;
+          if (centerSign != neighSign) {
+            // Compute intersection location
+            double theta = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i, j, k)];
+            double x = domainMin[0] - _h[0] * phi[ijkToid(i, j, k)] / (theta) +
+                       (i + 0.5) * _h[0];
+            double y = domainMin[1] + (j + 0.5) * _h[1];
+            double z = domainMin[2] + (k + 0.5) * _h[2];
+            ufaceLocation[faceijkToid(0, i + 1, j, k)] =
+                Eigen::Array3d(x, y, z);
+            ufaceNormals[faceijkToid(0, i, j, k)] =
+                (gradient[id] - gradient[ijkToid(i + 1, j, k)]) / theta +
+                gradient[id];
+          }
+          if (j < _gridSize[1] - 1) {
+            int neighSign = (phi[ijkToid(i, j + 1, k)] < 0) ? -1 : 1;
+            if (centerSign != neighSign) {
+              // Compute intersection location
+              double theta = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j, k)];
+              double x = domainMin[0] + (i + 0.5) * _h[0];
+              double y = domainMin[1] -
+                         _h[1] * phi[ijkToid(i, j, k)] / (theta) +
+                         (j + 0.5) * _h[1];
+              double z = domainMin[2] + (k + 0.5) * _h[2];
+              vfaceLocation[faceijkToid(1, i, j + 1, k)] =
+                  Eigen::Array3d(x, y, z);
+              vfaceNormals[faceijkToid(1, i, j, k)] =
+                  (gradient[id] - gradient[ijkToid(i, j + 1, k)]) / theta +
+                  gradient[id];
+            }
+          }
+          if (k < _gridSize[2] - 1) {
+            int neighSign = (phi[ijkToid(i, j, k + 1)] < 0) ? -1 : 1;
+            if (centerSign != neighSign) {
+              // Compute intersection location
+              double theta = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k)];
+              double x = domainMin[0] + (i + 0.5) * _h[0];
+              double y = domainMin[1] + (j + 0.5) * _h[1];
+              double z = domainMin[2] +
+                         -_h[2] * phi[ijkToid(i, j, k)] / (theta) +
+                         (k + 0.5) * _h[2];
+              wfaceLocation[faceijkToid(2, i, j, k + 1)] =
+                  Eigen::Array3d(x, y, z);
+              wfaceNormals[faceijkToid(2, i, j, k)] =
+                  (gradient[id] - gradient[ijkToid(i, j, k + 1)]) / theta +
+                  gradient[id];
+            }
+          }
+        }
+      }
+}
+
 void DualCubes3::computeIntersection() {
   auto &_phi = getScalarData("phi");
   auto &_ufaceLocation = getFaceArrayData(0, "facePosition");
@@ -419,9 +515,9 @@ void DualCubes3::computeIntersection() {
   auto &_wfaceLocation = getFaceArrayData(2, "facePosition");
 
   Eigen::Array3d domainMin = _domain.min();
-  for (int k = 0; k < _resolution[2]; k++)
-    for (int j = 0; j < _resolution[1]; j++)
-      for (int i = 0; i < _resolution[0]; i++) {
+  for (int k = 0; k < _gridSize[2]; k++)
+    for (int j = 0; j < _gridSize[1]; j++)
+      for (int i = 0; i < _gridSize[0]; i++) {
         int centerSign = (_phi[ijkToid(i, j, k)] < 0) ? -1 : 1;
         if (i > 0) {
           int neighSign = (_phi[ijkToid(i - 1, j, k)] < 0) ? -1 : 1;
@@ -436,13 +532,12 @@ void DualCubes3::computeIntersection() {
             _ufaceLocation[faceijkToid(0, i, j, k)] = Eigen::Array3d(x, y, z);
           }
         }
-        if (i < _resolution[0] - 1) {
+        if (i < _gridSize[0] - 1) {
           int neighSign = (_phi[ijkToid(i + 1, j, k)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
             double theta = _phi[ijkToid(i + 1, j, k)] - _phi[ijkToid(i, j, k)];
-            double x = domainMin[0] -
-                       _h[0] * _phi[ijkToid(i + 1, j, k)] / (theta) +
+            double x = domainMin[0] - _h[0] * _phi[ijkToid(i, j, k)] / (theta) +
                        (i + 0.5) * _h[0];
             double y = domainMin[1] + (j + 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
@@ -463,14 +558,13 @@ void DualCubes3::computeIntersection() {
             _vfaceLocation[faceijkToid(1, i, j, k)] = Eigen::Array3d(x, y, z);
           }
         }
-        if (j < _resolution[1] - 1) {
+        if (j < _gridSize[1] - 1) {
           int neighSign = (_phi[ijkToid(i, j + 1, k)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
             double theta = _phi[ijkToid(i, j + 1, k)] - _phi[ijkToid(i, j, k)];
             double x = domainMin[0] + (i + 0.5) * _h[0];
-            double y = domainMin[1] -
-                       _h[1] * _phi[ijkToid(i, j + 1, k)] / (theta) +
+            double y = domainMin[1] - _h[1] * _phi[ijkToid(i, j, k)] / (theta) +
                        (j + 0.5) * _h[1];
             double z = domainMin[2] + (k + 0.5) * _h[2];
             _vfaceLocation[faceijkToid(1, i, j + 1, k)] =
@@ -490,7 +584,7 @@ void DualCubes3::computeIntersection() {
             _wfaceLocation[faceijkToid(2, i, j, k)] = Eigen::Array3d(x, y, z);
           }
         }
-        if (k < _resolution[2] - 1) {
+        if (k < _gridSize[2] - 1) {
           int neighSign = (_phi[ijkToid(i, j, k + 1)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
             // Compute intersection location
@@ -498,7 +592,7 @@ void DualCubes3::computeIntersection() {
             double x = domainMin[0] + (i + 0.5) * _h[0];
             double y = domainMin[1] + (j + 0.5) * _h[1];
             double z = domainMin[2] +
-                       -_h[2] * _phi[ijkToid(i, j, k + 1)] / (theta) +
+                       -_h[2] * _phi[ijkToid(i, j, k)] / (theta) +
                        (k + 0.5) * _h[2];
             _wfaceLocation[faceijkToid(2, i, j, k + 1)] =
                 Eigen::Array3d(x, y, z);
@@ -507,31 +601,66 @@ void DualCubes3::computeIntersection() {
       }
 }
 
+Eigen::Array3d DualCubes3::computeNormal(int cellId) {
+  Eigen::Array3d normal;
+  auto h = getH();
+  auto &phi = getScalarData(_phiId);
+  double cell = phi[cellId];
+  auto ijk = idToijk(cellId);
+  int i = ijk[0], j = ijk[1], k = ijk[2];
+
+  double neigh;
+  if (i > 0) {
+    neigh = phi[ijkToid(i - 1, j, k)];
+    normal[0] = (cell - neigh) / h[0];
+  } else {
+    neigh = phi[ijkToid(i + 1, j, k)];
+    normal[0] = (neigh - cell) / h[0];
+  }
+
+  if (j > 0) {
+    neigh = phi[ijkToid(i, j - 1, k)];
+    normal[1] = (cell - neigh) / h[1];
+  } else {
+    neigh = phi[ijkToid(i, j + 1, k)];
+    normal[1] = (neigh - cell) / h[1];
+  }
+
+  if (k > 0) {
+    neigh = phi[ijkToid(i, j, k - 1)];
+    normal[2] = (cell - neigh) / h[2];
+  } else {
+    neigh = phi[ijkToid(i, j, k + 1)];
+    normal[2] = (neigh - cell) / h[2];
+  }
+  return normal;
+}
+
 void DualCubes3::defineVelocity() {
   auto &_u = getFaceScalarData(0, _velocityId);
   auto &_v = getFaceScalarData(1, _velocityId);
   auto &_w = getFaceScalarData(2, _velocityId);
   // u velocities
-  for (int i = 0; i < faceCount(0); i++) {
-    auto p = facePosition(0, i);
-    _u[i] = p[1];
+  for (int id = 0; id < faceCount(0); id++) {
+    auto p = facePosition(0, id);
+    _u[id] = p[1];
   }
 
   // v velocities
-  for (int i = 0; i < faceCount(1); i++) {
-    auto p = facePosition(1, i);
-    _v[i] = -p[0];
+  for (int id = 0; id < faceCount(1); id++) {
+    auto p = facePosition(1, id);
+    _v[id] = -p[0];
   }
 
   // w velocities
-  for (int i = 0; i < faceCount(2); i++) {
-    auto p = facePosition(2, i);
-    _w[i] = 0;
+  for (int id = 0; id < faceCount(2); id++) {
+    auto p = facePosition(2, id);
+    _w[id] = 0;
   }
 }
 
 void DualCubes3::extractSurface() {
-  Ramuh::DualMarching3 surface(_resolution);
+  Ramuh::DualMarching3 surface(_gridSize);
   auto &_phi = getScalarData("phi");
   auto &_ufaceLocation = getFaceArrayData(0, "facePosition");
   auto &_vfaceLocation = getFaceArrayData(1, "facePosition");
@@ -541,12 +670,12 @@ void DualCubes3::extractSurface() {
   auto &_wfaceNormals = getFaceArrayData(2, "faceNormal");
 
   std::vector<Ramuh::DualMarching3> surfaces(omp_get_max_threads(),
-                                             Ramuh::DualMarching3(_resolution));
+                                             Ramuh::DualMarching3(_gridSize));
 
   // #pragma omp parallel for
-  for (int k = 0; k < _resolution[2] - 1; k++) {
-    for (int j = 0; j < _resolution[1] - 1; j++) {
-      for (int i = 0; i < _resolution[0] - 1; i++) {
+  for (int k = 0; k < _gridSize[2] - 1; k++) {
+    for (int j = 0; j < _gridSize[1] - 1; j++) {
+      for (int i = 0; i < _gridSize[0] - 1; i++) {
         std::vector<Eigen::Array3d> normalPosition;
         std::vector<Eigen::Vector3d> normal;
         bool isSurface = false;
@@ -554,29 +683,28 @@ void DualCubes3::extractSurface() {
         // yz-plane
         if (signChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i + 1, j, k)])) {
           isSurface = true;
-          normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _ufaceLocation[faceijkToid(0, i + 1, j, k)]);
         }
         if (signChange(_phi[ijkToid(i + 1, j + 1, k)],
                        _phi[ijkToid(i, j + 1, k)])) {
           isSurface = true;
-          normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j + 1, k)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _ufaceLocation[faceijkToid(0, i + 1, j + 1, k)]);
         }
         if (signChange(_phi[ijkToid(i, j, k + 1)],
                        _phi[ijkToid(i + 1, j, k + 1)])) {
           isSurface = true;
-          normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k + 1)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _ufaceLocation[faceijkToid(0, i + 1, j, k + 1)]);
         }
         if (signChange(_phi[ijkToid(i + 1, j + 1, k + 1)],
                        _phi[ijkToid(i, j + 1, k + 1)])) {
           isSurface = true;
-          normal.emplace_back(
-              _ufaceNormals[faceijkToid(0, i + 1, j + 1, k + 1)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _ufaceLocation[faceijkToid(0, i + 1, j + 1, k + 1)]);
         }
@@ -585,28 +713,27 @@ void DualCubes3::extractSurface() {
         if (signChange(_phi[ijkToid(i + 1, j, k)],
                        _phi[ijkToid(i + 1, j + 1, k)])) {
           isSurface = true;
-          normal.emplace_back(_vfaceNormals[faceijkToid(1, i + 1, j + 1, k)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _vfaceLocation[faceijkToid(1, i + 1, j + 1, k)]);
         }
         if (signChange(_phi[ijkToid(i, j + 1, k)], _phi[ijkToid(i, j, k)])) {
           isSurface = true;
-          normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _vfaceLocation[faceijkToid(1, i, j + 1, k)]);
         }
         if (signChange(_phi[ijkToid(i + 1, j, k + 1)],
                        _phi[ijkToid(i + 1, j + 1, k + 1)])) {
           isSurface = true;
-          normal.emplace_back(
-              _vfaceNormals[faceijkToid(1, i + 1, j + 1, k + 1)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _vfaceLocation[faceijkToid(1, i + 1, j + 1, k + 1)]);
         }
         if (signChange(_phi[ijkToid(i, j + 1, k + 1)],
                        _phi[ijkToid(i, j, k + 1)])) {
           isSurface = true;
-          normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k + 1)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _vfaceLocation[faceijkToid(1, i, j + 1, k + 1)]);
         }
@@ -614,29 +741,28 @@ void DualCubes3::extractSurface() {
         // xy-plane
         if (signChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i, j, k + 1)])) {
           isSurface = true;
-          normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j, k + 1)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _wfaceLocation[faceijkToid(2, i, j, k + 1)]);
         }
         if (signChange(_phi[ijkToid(i + 1, j, k)],
                        _phi[ijkToid(i + 1, j, k + 1)])) {
           isSurface = true;
-          normal.emplace_back(_wfaceNormals[faceijkToid(2, i + 1, j, k + 1)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _wfaceLocation[faceijkToid(2, i + 1, j, k + 1)]);
         }
         if (signChange(_phi[ijkToid(i + 1, j + 1, k)],
                        _phi[ijkToid(i + 1, j + 1, k + 1)])) {
           isSurface = true;
-          normal.emplace_back(
-              _wfaceNormals[faceijkToid(2, i + 1, j + 1, k + 1)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _wfaceLocation[faceijkToid(2, i + 1, j + 1, k + 1)]);
         }
         if (signChange(_phi[ijkToid(i, j + 1, k)],
                        _phi[ijkToid(i, j + 1, k + 1)])) {
           isSurface = true;
-          normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j + 1, k + 1)]);
+          normal.emplace_back(computeNormal(ijkToid(i, j, k)));
           normalPosition.emplace_back(
               _wfaceLocation[faceijkToid(2, i, j + 1, k + 1)]);
         }

@@ -109,6 +109,8 @@ void DualMarching3::reconstruct() {
   }
 
   int fCount = 0;
+  // FIXME: When eight surface boundary cells are near, they merge faces
+  // wrongly. The outside surface is correct, but inner faces are created too
   for (int i = 0; i < _resolution[0]; i++)
     for (int j = 0; j < _resolution[1]; j++)
       for (int k = 0; k < _resolution[2]; k++) {
@@ -124,114 +126,6 @@ void DualMarching3::reconstruct() {
             pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i + 1, j + 1, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
-          // Bottom right
-          if (_idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i + 1, j - 1, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j - 1, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
-          // Left bottom
-          if (_idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i - 1, j - 1, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j - 1, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
-          // Top left
-          if (_idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i - 1, j + 1, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j + 1, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
-          // Right back
-          if (_idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i + 1, j, k - 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k - 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
-          // Back left
-          if (_idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i - 1, j, k - 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k - 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
-          // Left front
-          if (_idMap.find(std::make_tuple(i - 1, j, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i - 1, j, k + 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i - 1, j, k + 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
             if (!_consistentNormals(pIds))
               std::swap(pIds[0], pIds[2]);
             file << "f ";
@@ -258,24 +152,6 @@ void DualMarching3::reconstruct() {
             }
             file << std::endl;
           }
-          // back top
-          if (_idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j + 1, k - 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k - 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
           // top front
           if (_idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end() &&
               _idMap.find(std::make_tuple(i, j + 1, k + 1)) != _idMap.end() &&
@@ -286,42 +162,6 @@ void DualMarching3::reconstruct() {
             pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k + 1)]);
             pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
-          // Front bottom
-          if (_idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j - 1, k + 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k + 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
-            if (!_consistentNormals(pIds))
-              std::swap(pIds[0], pIds[2]);
-            file << "f ";
-            for (auto id : pIds) {
-              file << id << " ";
-            }
-            file << std::endl;
-          }
-          // Bottom back
-          if (_idMap.find(std::make_tuple(i, j - 1, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j - 1, k - 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j, k - 1)) != _idMap.end()) {
-            fCount++;
-            std::vector<int> pIds;
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j - 1, k - 1)]);
-            pIds.emplace_back(_idMap[std::make_tuple(i, j, k - 1)]);
             if (!_consistentNormals(pIds))
               std::swap(pIds[0], pIds[2]);
             file << "f ";

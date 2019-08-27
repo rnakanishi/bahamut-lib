@@ -58,11 +58,16 @@ public:
   void analyticNormals(Eigen::Array3d center, double radius,
                        ParametricSurface surface);
 
+  void computeCellsGradient();
+
   void computeNormals();
+  Eigen::Array3d computeNormal(int cellId);
 
   void defineVelocity();
 
   void computeIntersection();
+  void computeIntersectionAndNormals();
+  Eigen::Array3d computeIntersection(int cell1, int cell2);
 
   void extractSurface();
 

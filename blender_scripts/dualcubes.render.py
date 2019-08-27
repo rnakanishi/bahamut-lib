@@ -55,3 +55,4 @@ for f in range(scn.frame_start, scn.frame_end+1):
     objs.remove(objs[obj2.name])
     objs.remove(objs[obj3.name])
     objs.remove(objs[obj4.name])
+

@@ -80,11 +80,14 @@ Eigen::Array3d MacGrid3::facePosition(int face, int id) {
   auto h = getH();
   int i = ijk[0], j = ijk[1], k = ijk[2];
   if (face == 2)
-    return _domain.min() + Eigen::Array3d(i * h[0], j * h[1], (k + 0.5) * h[2]);
+    return _domain.min() +
+           Eigen::Array3d((i + .5) * h[0], (j + .5) * h[1], k * h[2]);
   if (face == 1)
-    return _domain.min() + Eigen::Array3d(i * h[0], (j + 0.5) * h[1], k * h[2]);
+    return _domain.min() +
+           Eigen::Array3d((i + .5) * h[0], j * h[1], (k + .5) * h[2]);
   if (face == 0)
-    return _domain.min() + Eigen::Array3d((i + 0.5) * h[0], j * h[1], k * h[2]);
+    return _domain.min() +
+           Eigen::Array3d(i * h[0], (j + .5) * h[1], (k + .5) * h[2]);
   return Eigen::Array3d(0);
 }
 
