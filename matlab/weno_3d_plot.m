@@ -9,7 +9,7 @@ figure, hold on;
 az = 0;
 el = 90;
 
-for count = 0:timesteps - 1
+for count = 25:35
     clf, hold on;
     view(az, el);
     weno3d = dlmread(['~/git/bahamut-lib/results/weno/3d/' num2str(count)]);

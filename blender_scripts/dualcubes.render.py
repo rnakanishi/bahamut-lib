@@ -7,7 +7,7 @@ wiremat = bpy.data.materials.get("wireframe")
 
 for f in range(scn.frame_start, scn.frame_end+1):
     fpath = bpy.path.abspath(
-        '/home/rnakanishi/git/bahamut-lib/results/marching/dualcubes_{:04d}.obj'.format(f))
+        '/home/rnakanishi/git/bahamut-lib/results/dual_marching/{:04d}.obj'.format(f))
     objname = 'dualcubes_{:04d}'.format(f)
     # fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/obj/{:04d}.obj'.format(f))
     bpy.ops.import_scene.obj(filepath=fpath)
@@ -25,7 +25,7 @@ for f in range(scn.frame_start, scn.frame_end+1):
     mod.thickness = 0.01
     
     fpath = bpy.path.abspath(
-        '/home/rnakanishi/git/bahamut-lib/results/upwind_cube/dualcubes_{:04d}.obj'.format(f))
+        '/home/rnakanishi/git/bahamut-lib/results/weno_cube/{:04d}.obj'.format(f))
     objname = 'dualcubes_{:04d}'.format(f)
     # fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/obj/{:04d}.obj'.format(f))
     bpy.ops.import_scene.obj(filepath=fpath)
