@@ -16,9 +16,9 @@ Eigen::Array3d
 DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
                             std::vector<Eigen::Array3d> normalLocation,
                             std::vector<Eigen::Vector3d> normals) {
-  return evaluateCube(pointIndices, normalLocation, normals,
-                      BoundingBox3(Eigen::Array3d(-1e8, -1e8, -1e8),
-                                   Eigen::Array3d(1e8, 1e8, 1e8)));
+  // return evaluateCube(pointIndices, normalLocation, normals,
+  //                     BoundingBox3(Eigen::Array3d(-1e8, -1e8, -1e8),
+  //                                  Eigen::Array3d(1e8, 1e8, 1e8)));
 }
 Eigen::Array3d
 DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
@@ -66,20 +66,37 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
     // TODO: implement constrained QEF solver
   }
 
-  int nPoints = _idMap.size() + 1;
-  _idMap[pointIndices] = nPoints;
+  _idMap[pointIndices] = _points.size();
   _points.emplace_back(x);
-  _normals.emplace_back(normalAvg.normalized());
+  _normals.emplace_back(normalAvg);
 
   return x;
 }
 
 bool DualMarching3::_consistentNormals(std::vector<int> ids) {
-  Eigen::Vector3d base1, base2;
+  Eigen::Vector3d avgNormal;
 
-  base1 = (_points[ids[1]] - _points[ids[0]]).matrix();
-  base2 = (_points[ids[2]] - _points[ids[1]]).matrix();
-  if (base1.cross(base2).dot(_normals[ids[1]]) < 0)
+  for (auto id : ids)
+    avgNormal += _normals[id];
+  avgNormal /= ids.size();
+
+  Eigen::Vector3d base01 = (_points[ids[1]] - _points[ids[0]]).matrix();
+  Eigen::Vector3d base02 = (_points[ids[2]] - _points[ids[0]]).matrix();
+  Eigen::Vector3d base03 = (_points[ids[3]] - _points[ids[0]]).matrix();
+  Eigen::Vector3d base10 = (_points[ids[0]] - _points[ids[1]]).matrix();
+  Eigen::Vector3d base12 = (_points[ids[2]] - _points[ids[1]]).matrix();
+  Eigen::Vector3d base13 = (_points[ids[3]] - _points[ids[1]]).matrix();
+
+  Eigen::Vector3d cross012 = base01.cross(base02);
+  Eigen::Vector3d cross023 = base02.cross(base03);
+  Eigen::Vector3d cross123 = base12.cross(base13);
+  Eigen::Vector3d cross130 = base13.cross(base10);
+
+  Eigen::Vector3d avgCross = (cross012 + cross023 + cross123 + cross130) / 4;
+  avgCross.normalize();
+  avgNormal.normalize();
+
+  if (avgCross.dot(avgNormal) < 0)
     return false;
   return true;
 }
@@ -130,7 +147,7 @@ void DualMarching3::reconstruct() {
               std::swap(pIds[0], pIds[2]);
             file << "f ";
             for (auto id : pIds) {
-              file << id << " ";
+              file << id + 1 << " ";
             }
             file << std::endl;
           }
@@ -148,7 +165,7 @@ void DualMarching3::reconstruct() {
               std::swap(pIds[0], pIds[2]);
             file << "f ";
             for (auto id : pIds) {
-              file << id << " ";
+              file << id + 1 << " ";
             }
             file << std::endl;
           }
@@ -166,7 +183,7 @@ void DualMarching3::reconstruct() {
               std::swap(pIds[0], pIds[2]);
             file << "f ";
             for (auto id : pIds) {
-              file << id << " ";
+              file << id + 1 << " ";
             }
             file << std::endl;
           }

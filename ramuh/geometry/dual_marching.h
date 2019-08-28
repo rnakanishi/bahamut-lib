@@ -78,6 +78,12 @@ public:
                               std::vector<Eigen::Vector3d> normals,
                               BoundingBox3 cubeLimits);
 
+  Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
+                              std::vector<Eigen::Array3d> normalLocation,
+                              std::vector<Eigen::Vector3d> normals,
+                              BoundingBox3 cubeLimits,
+                              Eigen::Vector3d cellGradient);
+
   /**
    * @brief After all cubes of the domain are processed, then this method is
    *called to attach all neighbor cubes together. A different file is written
@@ -103,7 +109,6 @@ public:
 
 protected:
   bool _consistentNormals(std::vector<int> ids);
-
 
 private:
   std::map<std::tuple<int, int, int>, int> _idMap;

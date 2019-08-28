@@ -20,14 +20,14 @@ int main(int argc, char const *argv[]) {
   // cubes.extractSurface();
   // return 1;
 
-  cubes.computeIntersection();
-  cubes.computeNormals();
+  cubes.computeCellsGradient();
+  cubes.computeIntersectionAndNormals();
   cubes.extractSurface();
   // return 1;
 
   for (int i = 1; i <= 377; i++) {
-    // cubes.advectWeno();
-    cubes.advectUpwind();
+    cubes.advectWeno();
+    // cubes.advectUpwind();
 
     // cubes.redistance();
     // cubes.computeIntersection();
