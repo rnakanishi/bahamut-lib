@@ -674,6 +674,7 @@ void DualCubes3::extractSurface() {
   std::vector<Ramuh::DualMarching3> surfaces(omp_get_max_threads(),
                                              Ramuh::DualMarching3(_gridSize));
 
+  std::vector<std::pair<Ramuh::_Trio, Ramuh::_Trio>> connections;
   // #pragma omp parallel for
   for (int k = 0; k < _gridSize[2] - 1; k++) {
     for (int j = 0; j < _gridSize[1] - 1; j++) {
@@ -689,6 +690,15 @@ void DualCubes3::extractSurface() {
           normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k)]);
           normalPosition.emplace_back(
               _ufaceLocation[faceijkToid(0, i + 1, j, k)]);
+
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j, k), std::make_tuple(i, j, k - 1)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j, k), std::make_tuple(i, j - 1, k)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j, k - 1), std::make_tuple(i, j - 1, k - 1)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j - 1, k), std::make_tuple(i, j - 1, k - 1)));
         }
         if (signChange(_phi[ijkToid(i + 1, j + 1, k)],
                        _phi[ijkToid(i, j + 1, k)])) {
@@ -726,6 +736,15 @@ void DualCubes3::extractSurface() {
           normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k)]);
           normalPosition.emplace_back(
               _vfaceLocation[faceijkToid(1, i, j + 1, k)]);
+
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j, k), std::make_tuple(i, j, k - 1)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j, k), std::make_tuple(i - 1, j, k)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j, k - 1), std::make_tuple(i - 1, j, k - 1)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i - 1, j, k), std::make_tuple(i - 1, j, k - 1)));
         }
         if (signChange(_phi[ijkToid(i + 1, j, k + 1)],
                        _phi[ijkToid(i + 1, j + 1, k + 1)])) {
@@ -749,6 +768,15 @@ void DualCubes3::extractSurface() {
           normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j, k + 1)]);
           normalPosition.emplace_back(
               _wfaceLocation[faceijkToid(2, i, j, k + 1)]);
+
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j, k), std::make_tuple(i - 1, j, k)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j, k), std::make_tuple(i, j - 1, k)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i - 1, j, k), std::make_tuple(i - 1, j - 1, k)));
+          connections.emplace_back(std::make_pair(
+              std::make_tuple(i, j - 1, k), std::make_tuple(i - 1, j - 1, k)));
         }
         if (signChange(_phi[ijkToid(i + 1, j, k)],
                        _phi[ijkToid(i + 1, j, k + 1)])) {
@@ -794,7 +822,7 @@ void DualCubes3::extractSurface() {
     surface.merge(surfaces[i]);
   }
 
-  surface.reconstruct();
+  surface.reconstruct(connections);
 }
 
 bool DualCubes3::signChange(double valueA, double valueB) {

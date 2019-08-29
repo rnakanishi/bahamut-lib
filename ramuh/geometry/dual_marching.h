@@ -7,6 +7,8 @@
 #include <geometry/bounding_box.h>
 
 namespace Ramuh {
+typedef std::tuple<int, int, int> _Trio;
+
 class DualMarching2 {
 public:
   DualMarching2();
@@ -54,7 +56,7 @@ public:
    * @param normals normalLocation correspondent normal vector
    * @return Eigen::Array3d surface point that minimizes QEF function
    **/
-  Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
+  Eigen::Array3d evaluateCube(_Trio pointIndices,
                               std::vector<Eigen::Array3d> normalLocation,
                               std::vector<Eigen::Vector3d> normals);
 
@@ -67,22 +69,16 @@ public:
    *all cubes of the domain are evalueated, reconstruct() method should be
    *called to generate proper surface polygons.
    *
-   * @param pointIndices unique index for each surface point
+   * @param cellIndex unique index for each surface point
    * @param normalLocation 3D position of the intersection points
    * @param normals normalLocation correspondent normal vector
    * @param cubeLimits boundary limiting cube
    * @return Eigen::Array3d surface point that minimizes QEF function
    **/
-  Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
+  Eigen::Array3d evaluateCube(_Trio cellIndex,
                               std::vector<Eigen::Array3d> normalLocation,
                               std::vector<Eigen::Vector3d> normals,
                               BoundingBox3 cubeLimits);
-
-  Eigen::Array3d evaluateCube(std::tuple<int, int, int> pointIndices,
-                              std::vector<Eigen::Array3d> normalLocation,
-                              std::vector<Eigen::Vector3d> normals,
-                              BoundingBox3 cubeLimits,
-                              Eigen::Vector3d cellGradient);
 
   /**
    * @brief After all cubes of the domain are processed, then this method is
@@ -92,6 +88,7 @@ public:
    *
    **/
   void reconstruct();
+  void reconstruct(std::vector<std::pair<_Trio, _Trio>> connections);
 
   /**
    * @brief merge the contents of a previously instantiated cube into this
@@ -105,16 +102,21 @@ public:
 
   std::vector<Eigen::Vector3d> &getNormals();
 
-  std::map<std::tuple<int, int, int>, int> &getIdMap();
+  std::map<_Trio, int> &getIdMap();
 
 protected:
   bool _consistentNormals(std::vector<int> ids);
 
+  bool _hasConnection(_Trio tuple1, _Trio tuple2);
+
+  void _buildConnectionMap(std::vector<std::pair<_Trio, _Trio>> connections);
+
 private:
-  std::map<std::tuple<int, int, int>, int> _idMap;
+  std::map<_Trio, int> _idMap;
   std::vector<Eigen::Array3d> _points;
   std::vector<Eigen::Vector3d> _normals;
   Eigen::Array3i _resolution;
+  std::map<int, std::vector<int>> _connections;
 };
 
 } // namespace Ramuh
