@@ -14,7 +14,6 @@ DualCubes3::DualCubes3(Eigen::Array3i resolution)
 DualCubes3::DualCubes3(Eigen::Array3i resolution, Ramuh::BoundingBox3 domain)
     : Leviathan::LevelSetFluid3(resolution, domain) {
   _h = _domain.size().cwiseQuotient(resolution.cast<double>());
-  newArrayLabel("cellGradient");
   newFaceArrayLabel("faceNormal");
   newFaceArrayLabel("facePosition");
 }
@@ -409,32 +408,6 @@ void DualCubes3::computeNormals() {
             _wfaceNormals[faceijkToid(2, i, j, k)] = normal.normalized();
           }
         }
-      }
-}
-
-void DualCubes3::computeCellsGradient() {
-  auto &phi = getScalarData("phi");
-  auto &gradient = getArrayData("cellGradient");
-  auto h = getH();
-#pragma omp parallel for
-  for (int k = 0; k < _gridSize[2]; k++)
-    for (int j = 0; j < _gridSize[1]; j++)
-      for (int i = 0; i < _gridSize[0]; i++) {
-        int id = ijkToid(i, j, k);
-        if (i < _gridSize[0])
-          gradient[id][0] = (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[0];
-        else
-          gradient[id] = (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[0];
-
-        if (j < _gridSize[1])
-          gradient[id][1] = (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[1];
-        else
-          gradient[id] = (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[1];
-
-        if (k < _gridSize[2])
-          gradient[id][2] = (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[2];
-        else
-          gradient[id] = (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[2];
       }
 }
 

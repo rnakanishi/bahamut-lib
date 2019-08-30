@@ -23,6 +23,8 @@ public:
 
   void advectUpwind();
 
+  void computeCellsGradient();
+
   void redistance();
 
 protected:

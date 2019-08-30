@@ -41,7 +41,7 @@ public:
    * @param id
    * @return std::pair<size_t, size_t>
    **/
-  std::pair<size_t, size_t> idToij(size_t id);
+  std::vector<size_t> idToij(size_t id);
 
   Eigen::Array2d getH();
 

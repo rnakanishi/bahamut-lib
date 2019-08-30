@@ -58,8 +58,6 @@ public:
   void analyticNormals(Eigen::Array3d center, double radius,
                        ParametricSurface surface);
 
-  void computeCellsGradient();
-
   void computeNormals();
   Eigen::Array3d computeNormal(int cellId);
 

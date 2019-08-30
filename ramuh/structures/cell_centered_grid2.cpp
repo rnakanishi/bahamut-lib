@@ -20,10 +20,10 @@ size_t CellCenteredGrid2::ijToid(size_t i, size_t j) {
   return j * _gridSize[0] + i;
 }
 
-std::pair<size_t, size_t> CellCenteredGrid2::idToij(size_t id) {
-  std::pair<size_t, size_t> index;
-  index.second = id / (_gridSize[0]);
-  index.first = id % _gridSize[0];
+std::vector<size_t> CellCenteredGrid2::idToij(size_t id) {
+  std::vector<size_t> index(2);
+  index[0] = id / (_gridSize[0]);
+  index[1] = id % _gridSize[0];
   return index;
 }
 
@@ -39,7 +39,7 @@ Eigen::Array2d CellCenteredGrid2::getPosition(int i, int j) {
 Eigen::Array2d CellCenteredGrid2::getPosition(int id) {
   auto ij = idToij(id);
   auto h = getH();
-  int i = ij.first, j = ij.second;
+  int i = ij[0], j = ij[1];
   return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
 }
 

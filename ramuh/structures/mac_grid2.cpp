@@ -72,7 +72,7 @@ int MacGrid2::faceCount(int face) {
 Eigen::Array2d MacGrid2::facePosition(size_t face, int faceId) {
   auto ij = idToij(faceId);
   auto h = getH();
-  int i = ij.first, j = ij.second;
+  int i = ij[0], j = ij[1];
   if (face == 0)
     return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], j * h[1]);
   return _domain.min() + Eigen::Array2d(i * h[0], (j + 0.5) * h[1]);
