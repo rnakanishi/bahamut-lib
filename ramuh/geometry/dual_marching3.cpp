@@ -47,12 +47,12 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> cellIndex,
 
   // Bias
   // Adding more vectors so it enforces the new point to be inside the cube
-  A.row(nsize + 0) << 1e-1, 0., 0.;
-  A.row(nsize + 1) << 0., 1e-1, 0.;
-  A.row(nsize + 2) << 0., 0., 1e-1;
-  b[nsize + 0] = Eigen::Vector3d(1e-1, 0., 0.).dot(posAvg.matrix());
-  b[nsize + 1] = Eigen::Vector3d(0., 1e-1, 0.).dot(posAvg.matrix());
-  b[nsize + 2] = Eigen::Vector3d(0., 0., 1e-1).dot(posAvg.matrix());
+  A.row(nsize + 0) << 1e-4, 0., 0.;
+  A.row(nsize + 1) << 0., 1e-4, 0.;
+  A.row(nsize + 2) << 0., 0., 1e-4;
+  b[nsize + 0] = Eigen::Vector3d(1e-4, 0., 0.).dot(posAvg.matrix());
+  b[nsize + 1] = Eigen::Vector3d(0., 1e-4, 0.).dot(posAvg.matrix());
+  b[nsize + 2] = Eigen::Vector3d(0., 0., 1e-4).dot(posAvg.matrix());
 
   // Check boundaries so the point remains inside, even if the ouside result is
   // correct
@@ -61,8 +61,8 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> cellIndex,
   // (A.transpose() * A).colPivHouseholderQr().solve(A.transpose() * b);
 
   if (!cubeLimits.contains(x)) {
-    x = cubeLimits.clamp(x);
-    // x = posAvg;
+    // x = cubeLimits.clamp(x);
+    x = posAvg;
     // TODO: implement constrained QEF solver
   }
 

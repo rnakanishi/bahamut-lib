@@ -50,11 +50,23 @@ void LevelSetFluid2::redistance() {
   std::vector<double> gradient(cellCount());
   std::vector<double> cellSignal(cellCount());
   std::vector<double> initialPhi(cellCount());
+  std::vector<double> interfaceFactor(cellCount());
   std::vector<Eigen::Vector2d> direction(cellCount());
 
   for (int id = 0; id < cellCount(); id++) {
     cellSignal[id] = phi[id] / sqrt(phi[id] * phi[id] + eps * eps);
     initialPhi[id] = phi[id];
+
+    auto ij = idToij(id);
+    int i = ij[0], j = ij[1];
+    if (i > 0 && i < _gridSize[0] - 1 && j > 0 && j < _gridSize[1] - 1) {
+      interfaceFactor[id] = h[0] * 2 * phi[id];
+      interfaceFactor[id] /=
+          sqrt(pow(phi[ijToid(i + 1, j)] - phi[ijToid(i - 1, j)], 2) +
+               pow(phi[ijToid(i, j + 1)] - phi[ijToid(i, j - 1)], 2));
+    } else {
+      interfaceFactor[id] = 0;
+    }
   }
   int t;
   for (t = 0; t < 10; t++) {
