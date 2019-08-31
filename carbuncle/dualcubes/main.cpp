@@ -10,7 +10,7 @@ int main(int argc, char const *argv[]) {
       Eigen::Array3i(40, 40, 40),
       Ramuh::BoundingBox3(Eigen::Array3d(-2, -2, -2), Eigen::Array3d(2, 2, 2)));
   cubes.initialize(Eigen::Array3d(0, 0, 0), 0.5,
-                   Carbuncle::DualCubes3::ParametricSurface::CUBE);
+                   Carbuncle::DualCubes3::ParametricSurface::SPHERE);
   cubes.defineVelocity();
   // cubes.printCells();
 
@@ -23,6 +23,8 @@ int main(int argc, char const *argv[]) {
   cubes.computeCellsGradient();
   cubes.computeIntersectionAndNormals();
   cubes.extractSurface();
+  cubes.print();
+
   // return 1;
 
   for (int i = 1; i <= 100; i++) {

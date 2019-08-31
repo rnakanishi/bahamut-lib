@@ -51,6 +51,7 @@ void LevelSetFluid2::redistance() {
   std::vector<double> cellSignal(cellCount());
   std::vector<double> initialPhi(cellCount());
   std::vector<double> interfaceFactor(cellCount());
+  std::vector<bool> isInterface(cellCount(), false);
   std::vector<Eigen::Vector2d> direction(cellCount());
 
   for (int id = 0; id < cellCount(); id++) {
@@ -60,6 +61,7 @@ void LevelSetFluid2::redistance() {
     auto ij = idToij(id);
     int i = ij[0], j = ij[1];
     if (i > 0 && i < _gridSize[0] - 1 && j > 0 && j < _gridSize[1] - 1) {
+      isInterface[id] = true;
       interfaceFactor[id] = h[0] * 2 * phi[id];
       interfaceFactor[id] /=
           sqrt(pow(phi[ijToid(i + 1, j)] - phi[ijToid(i - 1, j)], 2) +
@@ -69,7 +71,7 @@ void LevelSetFluid2::redistance() {
     }
   }
   int t;
-  for (t = 0; t < 10; t++) {
+  for (t = 0; t < 1; t++) {
 #pragma omp parallel for
     for (int id = 0; id < cellCount(); id++) {
       auto ij = idToij(id);
@@ -104,7 +106,7 @@ void LevelSetFluid2::redistance() {
         b = std::max(0., dy[1]);
         gy = std::max(a * a, b * b);
       } else {
-        gx = gy = 1;
+        gx = gy = sqrt(2) / 2;
       }
       gradient[id] = std::sqrt(gx + gy) - 1;
     }
@@ -112,8 +114,19 @@ void LevelSetFluid2::redistance() {
     error = 0.;
 #pragma omp parallel for reduction(+ : error)
     for (int id = 0; id < cellCount(); id++) {
-      double newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
-      error += abs(phi[id] - newPhi);
+      auto ij = idToij(id);
+      int i = ij[0], j = ij[1];
+      double newPhi = 0.;
+
+      if (!isInterface[id]) {
+        newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
+        error += abs(phi[id] - newPhi);
+      } else {
+        newPhi =
+            phi[id] -
+            dt / h[0] * (cellSignal[id] * abs(phi[id]) - interfaceFactor[id]);
+      }
+
       phi[id] = newPhi;
     }
     if (error / cellCount() < dt * h[0] * h[0])

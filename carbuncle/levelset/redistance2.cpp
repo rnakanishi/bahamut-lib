@@ -52,14 +52,14 @@ int main(int argc, char const *argv[]) {
       Eigen::Array2i(32, 32),
       Ramuh::BoundingBox2(Eigen::Array2d(-2, -2), Eigen::Array2d(2, 2)));
 
-  cubes.initialize(Eigen::Array2d(0, 0), 1.0);
+  cubes.initialize(Eigen::Array2d(0, 0), 1.16425);
   cubes.defineVelocity();
 
   cubes.computeCellsGradient();
   cubes.print();
   // return 1;
 
-  for (int i = 1; i <= 100; i++) {
+  for (int i = 1; i <= 300; i++) {
     cubes.computeCellsGradient();
     cubes.redistance();
 

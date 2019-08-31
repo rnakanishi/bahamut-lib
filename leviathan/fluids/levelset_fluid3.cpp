@@ -249,8 +249,8 @@ void LevelSetFluid3::advectWeno() {
           // Each coordinate have to be treated separatedly due to cell-face
           // indexation
           switch (coord) {
-            // FIXME: for each cell in the stencil, use average velocity,
-            // instead of face velocity
+          // FIXME: for each cell in the stencil, use average velocity,
+          // instead of face velocity
           case 0:
             index = std::min(_gridSize[coord] - 1, std::max(1, i + inc));
             index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc - 1));
@@ -359,15 +359,31 @@ void LevelSetFluid3::redistance() {
   std::vector<double> initialPhi(cellCount());
   std::vector<double> cellSignal(cellCount());
   std::vector<double> gradient(cellCount());
+  std::vector<double> interfaceFactor(cellCount());
+  std::vector<bool> isInterface(cellCount(), false);
   std::vector<Eigen::Vector3d> direction(cellCount());
 
   int t;
   for (int id = 0; id < cellCount(); id++) {
     cellSignal[id] = phi[id] / sqrt(phi[id] * phi[id] + eps * eps);
     initialPhi[id] = phi[id];
+
+    auto ijk = idToijk(id);
+    int i = ijk[0], j = ijk[1], k = ijk[2];
+    if ((i > 0 && i < _gridSize[0] - 1) && (j > 0 && j < _gridSize[1] - 1) &&
+        (k > 0 && k < _gridSize[2] - 1)) {
+      isInterface[id] = true;
+      interfaceFactor[id] = 2 * h[0] * phi[id];
+      interfaceFactor[id] /=
+          sqrt(pow(phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i - 1, j, k)], 2) +
+               pow(phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j - 1, k)], 2) +
+               pow(phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k - 1)], 2));
+    } else {
+      interfaceFactor[id] = 0;
+    }
   }
   double error = 1;
-  for (t = 0; t < 20 || error / cellCount() < dt * h[0] * h[0]; t++) {
+  for (t = 0; t < 50 || error / cellCount() < dt * h[0] * h[0]; t++) {
     // #pragma omp parallel for
     for (int id = 0; id < cellCount(); id++) {
       auto ijk = idToijk(id);
@@ -415,7 +431,7 @@ void LevelSetFluid3::redistance() {
         b = std::max(0., dz[1]);
         gz = std::max(a * a, b * b);
       } else {
-        gx = gy = gz = 1;
+        gx = gy = gz = sqrt(3) / 3;
       }
       gradient[id] = std::sqrt(gx + gy + gz) - 1;
     }
@@ -424,7 +440,17 @@ void LevelSetFluid3::redistance() {
 // Time integration step. Euler method
 #pragma omp parallel for reduction(+ : error)
     for (int id = 0; id < cellCount(); id++) {
-      double newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
+      auto ijk = idToijk(id);
+      int i = ijk[0], j = ijk[1], k = ijk[2];
+      double newPhi = 0.;
+
+      if (!isInterface[id]) {
+        newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
+      } else {
+        newPhi =
+            phi[id] -
+            dt / h[0] * (cellSignal[i] * abs(phi[id]) - interfaceFactor[id]);
+      }
       error += abs(phi[id] - newPhi);
       phi[id] = newPhi;
     }
