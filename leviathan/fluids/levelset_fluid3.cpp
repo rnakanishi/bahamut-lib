@@ -431,7 +431,7 @@ void LevelSetFluid3::redistance() {
         b = std::max(0., dz[1]);
         gz = std::max(a * a, b * b);
       } else {
-        gx = gy = gz = sqrt(3) / 3;
+        gx = gy = gz = 1.0 / 3;
       }
       gradient[id] = std::sqrt(gx + gy + gz) - 1;
     }

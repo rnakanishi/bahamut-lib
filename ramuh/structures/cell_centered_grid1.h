@@ -7,7 +7,7 @@
 #include <geometry/bounding_box.h>
 
 namespace Ramuh {
-  
+
 class CellCenteredGrid1 {
 public:
   CellCenteredGrid1();
@@ -19,11 +19,13 @@ public:
 
   double getPosition(int i);
 
+  int cellCount();
+
   size_t newLabel(std::string label);
   size_t newLabel(std::string label, double value);
 
-  std::vector<double> &getLabelData(std::string label);
-  std::vector<double> &getLabelData(size_t id);
+  std::vector<double> &getScalarData(std::string label);
+  std::vector<double> &getScalarData(size_t id);
 
 protected:
   int _gridSize;

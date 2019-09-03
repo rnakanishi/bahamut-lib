@@ -16,6 +16,8 @@ double CellCenteredGrid1::getPosition(int i) {
   return _domain.min() + (i + 0.5) * h;
 }
 
+int CellCenteredGrid1::cellCount() { return _gridSize; }
+
 size_t CellCenteredGrid1::newLabel(std::string label) {
   return newLabel(label, 0);
 }
@@ -28,11 +30,11 @@ size_t CellCenteredGrid1::newLabel(std::string label, double value) {
   return _dataLabel[label];
 }
 
-std::vector<double> &CellCenteredGrid1::getLabelData(std::string label) {
+std::vector<double> &CellCenteredGrid1::getScalarData(std::string label) {
   return _scalarData[_dataLabel[label]];
 }
 
-std::vector<double> &CellCenteredGrid1::getLabelData(size_t id) {
+std::vector<double> &CellCenteredGrid1::getScalarData(size_t id) {
   return _scalarData[id];
 }
 

@@ -22,8 +22,8 @@ size_t CellCenteredGrid2::ijToid(size_t i, size_t j) {
 
 std::vector<size_t> CellCenteredGrid2::idToij(size_t id) {
   std::vector<size_t> index(2);
-  index[0] = id / (_gridSize[0]);
-  index[1] = id % _gridSize[0];
+  index[0] = id % (_gridSize[0]);
+  index[1] = id / _gridSize[0];
   return index;
 }
 
