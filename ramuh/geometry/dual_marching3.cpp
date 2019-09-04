@@ -38,6 +38,7 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> cellIndex,
   for (int i = 0; i < normals.size(); i++) {
     A.row(i) << normals[i][0], normals[i][1], normals[i][2];
     b[i] = normals[i].dot(normalLocation[i].matrix());
+    b[i] = 0;
     posAvg += normalLocation[i];
     normalAvg += normals[i];
   }
@@ -47,12 +48,12 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> cellIndex,
 
   // Bias
   // Adding more vectors so it enforces the new point to be inside the cube
-  A.row(nsize + 0) << 1e-4, 0., 0.;
-  A.row(nsize + 1) << 0., 1e-4, 0.;
-  A.row(nsize + 2) << 0., 0., 1e-4;
-  b[nsize + 0] = Eigen::Vector3d(1e-4, 0., 0.).dot(posAvg.matrix());
-  b[nsize + 1] = Eigen::Vector3d(0., 1e-4, 0.).dot(posAvg.matrix());
-  b[nsize + 2] = Eigen::Vector3d(0., 0., 1e-4).dot(posAvg.matrix());
+  A.row(nsize + 0) << 1e-1, 0., 0.;
+  A.row(nsize + 1) << 0., 1e-1, 0.;
+  A.row(nsize + 2) << 0., 0., 1e-1;
+  b[nsize + 0] = Eigen::Vector3d(1e-1, 0., 0.).dot(posAvg.matrix());
+  b[nsize + 1] = Eigen::Vector3d(0., 1e-1, 0.).dot(posAvg.matrix());
+  b[nsize + 2] = Eigen::Vector3d(0., 0., 1e-1).dot(posAvg.matrix());
 
   // Check boundaries so the point remains inside, even if the ouside result is
   // correct

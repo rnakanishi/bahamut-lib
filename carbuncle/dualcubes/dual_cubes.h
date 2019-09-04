@@ -37,7 +37,13 @@ protected:
 
 class DualCubes3 : public Leviathan::LevelSetFluid3 {
 public:
-  enum class ParametricSurface : int { SPHERE, CUBE, TORUS, DOUBLE_TORUS };
+  enum class ParametricSurface : int {
+    SPHERE,
+    CUBE,
+    TORUS,
+    DOUBLE_TORUS,
+    ELLIPSOID
+  };
 
   /**
    * @brief Construct a new Dual Cubes 3 object. This object has size and
@@ -69,12 +75,12 @@ public:
 
   void extractSurface();
 
-  void print() {
+  void print() override {
     auto &phi = getScalarData(_phiId);
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;
-    filename << "results/weno/3d/" << count++;
+    filename << "results/redistance/3d/" << count++;
     file.open(filename.str().c_str(), std::ofstream::out);
 
     for (size_t i = 0; i < cellCount(); i++) {

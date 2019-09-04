@@ -363,52 +363,65 @@ void LevelSetFluid3::redistance() {
   std::vector<bool> isInterface(cellCount(), false);
   std::vector<Eigen::Vector3d> direction(cellCount());
 
-  int t;
+#pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
-    cellSignal[id] = phi[id] / sqrt(phi[id] * phi[id] + eps * eps);
     initialPhi[id] = phi[id];
+    if (phi[id] > 0)
+      cellSignal[id] = 1;
+    else if (phi[id] < 0)
+      cellSignal[id] = -1;
+    else
+      cellSignal[id] = 0;
 
     auto ijk = idToijk(id);
     int i = ijk[0], j = ijk[1], k = ijk[2];
+    interfaceFactor[id] = 0;
     if ((i > 0 && i < _gridSize[0] - 1) && (j > 0 && j < _gridSize[1] - 1) &&
         (k > 0 && k < _gridSize[2] - 1)) {
-      isInterface[id] = true;
-      interfaceFactor[id] = 2 * h[0] * phi[id];
-      interfaceFactor[id] /=
-          sqrt(pow(phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i - 1, j, k)], 2) +
-               pow(phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j - 1, k)], 2) +
-               pow(phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k - 1)], 2));
-    } else {
-      interfaceFactor[id] = 0;
+      if (phi[id] * phi[ijkToid(i - 1, j, k)] <= 0 ||
+          phi[id] * phi[ijkToid(i + 1, j, k)] <= 0 ||
+          phi[id] * phi[ijkToid(i, j - 1, k)] <= 0 ||
+          phi[id] * phi[ijkToid(i, j + 1, k)] <= 0 ||
+          phi[id] * phi[ijkToid(i, j, k - 1)] <= 0 ||
+          phi[id] * phi[ijkToid(i, j, k + 1)] <= 0) {
+        isInterface[id] = true;
+        interfaceFactor[id] = 2 * h[0] * phi[id];
+        double dx, dy, dz;
+        dx = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i - 1, j, k)];
+        dy = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j - 1, k)];
+        dz = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k - 1)];
+        interfaceFactor[id] /= sqrt(dx * dx + dy * dy + dz * dz);
+      }
     }
   }
+  int t;
   double error = 1;
-  for (t = 0; t < 50 || error / cellCount() < dt * h[0] * h[0]; t++) {
-    // #pragma omp parallel for
+  for (t = 0; t < 500; t++) {
+#pragma omp parallel for
     for (int id = 0; id < cellCount(); id++) {
       auto ijk = idToijk(id);
       int i = ijk[0], j = ijk[1], k = ijk[2];
       double dx[2], dy[2], dz[2]; // Index 0: Dx-, Index 1: Dx+
       dx[0] = dx[1] = dy[0] = dy[1] = dz[0] = dz[1] = 0.;
-      if (i < _gridSize[0] - 1)
-        dx[1] = direction[id][0] = (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[0];
-      if (i > 0)
-        dx[0] = direction[id][0] = (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[0];
+      {
+        if (i > 0)
+          dx[0] = (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[0];
+        if (i < _gridSize[0] - 1)
+          dx[1] = (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[0];
 
-      if (j < _gridSize[1] - 1)
-        dy[1] = direction[id][1] = (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[1];
-      if (j > 0)
-        dy[0] = direction[id][1] = (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[1];
+        if (j > 0)
+          dy[0] = (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[1];
+        if (j < _gridSize[1] - 1)
+          dy[1] = (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[1];
 
-      if (k < _gridSize[2] - 1)
-        dz[1] = direction[id][2] = (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[2];
-      if (k > 0)
-        dz[0] = direction[id][2] = (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[2];
-      if (direction[id].hasNaN())
-        std::cerr << phi[id] << " " << phi[ijkToid(i, j, k - 1)] << std::endl;
+        if (k > 0)
+          dz[0] = (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[2];
+        if (k < _gridSize[2] - 1)
+          dz[1] = (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[2];
+      }
 
       double gx, gy, gz;
-      if (initialPhi[id] > 1e-8) {
+      if (initialPhi[id] > 0) {
         double a, b;
         a = std::max(0., dx[0]);
         b = std::min(0., dx[1]);
@@ -419,7 +432,7 @@ void LevelSetFluid3::redistance() {
         a = std::max(0., dz[0]);
         b = std::min(0., dz[1]);
         gz = std::max(a * a, b * b);
-      } else if (initialPhi[id] < -1e-8) {
+      } else if (initialPhi[id] < 0) {
         double a, b;
         a = std::min(0., dx[0]);
         b = std::max(0., dx[1]);
@@ -440,24 +453,22 @@ void LevelSetFluid3::redistance() {
 // Time integration step. Euler method
 #pragma omp parallel for reduction(+ : error)
     for (int id = 0; id < cellCount(); id++) {
-      auto ijk = idToijk(id);
-      int i = ijk[0], j = ijk[1], k = ijk[2];
       double newPhi = 0.;
 
       if (!isInterface[id]) {
         newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
       } else {
-        newPhi =
-            phi[id] -
-            dt / h[0] * (cellSignal[i] * abs(phi[id]) - interfaceFactor[id]);
+        newPhi = phi[id] - (dt / h[0]) * (cellSignal[id] * abs(phi[id]) -
+                                          interfaceFactor[id]);
       }
       error += abs(phi[id] - newPhi);
       phi[id] = newPhi;
     }
+    print();
     if (error / cellCount() < dt * h[0] * h[0])
       break;
   }
-  std::cerr << "Run redistance for " << t << " iterations\n";
+  std::cerr << "Run redistance for " << t + 1 << " iterations\n";
 }
 
 double LevelSetFluid3::__interpolateVelocityU(Eigen::Array3d position) {

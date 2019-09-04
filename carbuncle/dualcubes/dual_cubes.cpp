@@ -45,12 +45,20 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius,
         y2 = y * y;
         z2 = z * z;
 
+        double r2;
+        double r;
         // TODO: Fix this initialization method. Extends this class into an
         // application and create another method to initialize properly
         switch (surface) {
         // SPHERE
         case DualCubes3::ParametricSurface::SPHERE:
           distance = x2 + y2 + z2 - radius * radius;
+          break;
+        case DualCubes3::ParametricSurface::ELLIPSOID:
+          r2 = radius * radius;
+          r = r2 / 4;
+          distance = x2 / r2 + y2 / r + z2 / r - 1;
+          distance *= 0.5 + (x - 3) * (x - 3) + (y - 1.5) * (y - 1.5) + x2;
           break;
         case DualCubes3::ParametricSurface::TORUS:
           // TORUS

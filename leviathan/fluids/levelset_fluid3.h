@@ -2,6 +2,8 @@
 #define __LEVIATHAN_LEVELSET_FLUID_H__
 
 #include <structures/mac_grid3.h>
+#include <fstream>
+#include <sstream>
 
 namespace Leviathan {
 
@@ -39,6 +41,20 @@ protected:
                                 double &max);
   double __interpolatePhi(Eigen::Array3d position, double &_min, double &_max);
   double __interpolatePhi(Eigen::Array3d position);
+
+  virtual void print() {
+    auto &phi = getScalarData(_phiId);
+    static int count = 0;
+    std::ofstream file;
+    std::stringstream filename;
+    filename << "results/redistance/3d/" << count++;
+    file.open(filename.str().c_str(), std::ofstream::out);
+
+    for (size_t i = 0; i < cellCount(); i++) {
+      file << phi[i] << "\n";
+    }
+    file.close();
+  }
 
 protected:
   size_t _velocityId, _phiId;
