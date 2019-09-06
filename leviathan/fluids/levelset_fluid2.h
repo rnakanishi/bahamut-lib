@@ -16,11 +16,23 @@ public:
    *for the advection can be given. If no order is set, then semi Lagrangean
    *advection is used (first order accuracy)
    *
-   * @param [opt] order of advection accuracy. Default: 1
    **/
   void advect();
 
   void advectWeno();
+
+  /**
+   * @brief Perform Cubic Interpolated Propagation (CIP) advection for the
+   * levelset. The predicted (t+1) gradient is computed using shifted gradients
+   * method, and then phi(t+1) is computed. The gradient is corrected using the
+   * updated phi value for the first 10 iterations and then after every 50 time
+   * steps.
+   *
+   * Reference paper: "Cubic interpolated pseudo particle method for solving
+   * hyperbolic type equations", H. Takawaki, A. Nishiguchi, T. Yabe. JCP 1985
+   *
+   */
+  void advectCip();
 
   void computeCellsGradient();
 
@@ -37,7 +49,7 @@ protected:
                                 double &max);
 
   double _dt;
-  size_t _velocityId, _phiId;
+  size_t _velocityId, _phiId, _gradientId;
   bool _isPressure2nd;
   double _tolerance;
 };

@@ -17,7 +17,7 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
   _dt = 1. / 60;
   _tolerance = 1e-10;
 
-  newArrayLabel("cellGradient");
+  _gradientId = newArrayLabel("cellGradient");
 }
 
 void LevelSetFluid2::computeCellsGradient() {
@@ -39,6 +39,22 @@ void LevelSetFluid2::computeCellsGradient() {
       else
         gradient[id][1] = (phi[id] - phi[ijToid(i, j - 1)]) / h[1];
     }
+}
+
+void LevelSetFluid2::advectCip() {
+  auto h = getH();
+  auto &phi = getScalarData(_phiId);
+  auto &gradient = getScalarData(_gradientId);
+  auto &velocity = getScalarData(_velocityId);
+  double cdt, kappa, kappa2;
+  static int count = 0;
+  std::vector<double> a(cellCount()), b(cellCount());
+  std::vector<double> newGrad(cellCount()), integral(cellCount()),
+      Dft((cellCount()));
+
+  cdt = -velocity[0] * _dt;
+  kappa = -cdt / h[0];
+  kappa2 = kappa * kappa;
 }
 
 void LevelSetFluid2::print() {}
