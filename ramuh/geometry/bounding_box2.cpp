@@ -2,7 +2,12 @@
 
 namespace Ramuh {
 
-BoundingBox2::BoundingBox2() {}
+BoundingBox2::BoundingBox2() {
+  BoundingBox2(Eigen::Array2d(-1), Eigen::Array2d(1));
+}
+
+BoundingBox2::BoundingBox2(double min, double max)
+    : BoundingBox2(Eigen::Array2d(min), Eigen::Array2d(max)) {}
 
 BoundingBox2::BoundingBox2(Eigen::Array2d min, Eigen::Array2d max) {
   _min = min;

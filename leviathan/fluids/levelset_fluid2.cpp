@@ -2,6 +2,8 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <Eigen/Sparse>
+#include <Eigen/SparseLU>
 
 namespace Leviathan {
 
@@ -44,17 +46,73 @@ void LevelSetFluid2::computeCellsGradient() {
 void LevelSetFluid2::advectCip() {
   auto h = getH();
   auto &phi = getScalarData(_phiId);
-  auto &gradient = getScalarData(_gradientId);
-  auto &velocity = getScalarData(_velocityId);
-  double cdt, kappa, kappa2;
+  auto &gradient = getArrayData(_gradientId);
+  auto &uVelocity = getFaceScalarData(0, _velocityId);
+  auto &vVelocity = getFaceScalarData(1, _velocityId);
   static int count = 0;
   std::vector<double> a(cellCount()), b(cellCount());
-  std::vector<double> newGrad(cellCount()), integral(cellCount()),
-      Dft((cellCount()));
+  std::vector<double> newPhi(cellCount(), 0);
+  std::vector<Eigen::Array2d> newGrad(cellCount(), Eigen::Array2d(0));
 
-  cdt = -velocity[0] * _dt;
-  kappa = -cdt / h[0];
-  kappa2 = kappa * kappa;
+  // TODO: Max velocity for cfl
+
+  for (size_t id = 0; id < cellCount(); id++) {
+    auto ij = idToij(id);
+    int i = ij[0], j = ij[1];
+    if (i <= 0 || j <= 0 || i >= _gridSize[0] - 1 || j >= _gridSize[1])
+      continue;
+
+    double uCellVelocity = 0.5 * (uVelocity[faceijToid(0, i, j)] +
+                                  uVelocity[faceijToid(0, i + 1, j)]);
+    double vCellVelocity = 0.5 * (vVelocity[faceijToid(1, i, j)] +
+                                  vVelocity[faceijToid(1, i, j + 1)]);
+
+    double XX = -uCellVelocity * _dt;
+    double YY = -vCellVelocity * _dt;
+    int isgn = (uCellVelocity >= 0) ? 1 : -1;
+    int jsgn = (vCellVelocity >= 0) ? 1 : -1;
+    int im1 = i - isgn;
+    int jm1 = j - jsgn;
+    double A8 = phi[id] - phi[ijToid(im1, j)] - phi[ijToid(i, jm1)] +
+                phi[ijToid(im1, jm1)];
+    double tmp = gradient[ijToid(im1, j)][1] - gradient[id][1];
+    double A1 = ((gradient[ijToid(im1, j)][0] + gradient[id][0]) * h[0] * isgn -
+                 2 * (phi[id] - phi[ijToid(im1, j)])) /
+                (h[0] * h[0] * h[0] * isgn);
+    double A2 =
+        (-A8 - (gradient[ijToid(i, jm1)][0] - gradient[id][0]) * h[0] * isgn) /
+        (h[0] * h[0] * h[1] * jsgn);
+    double A3 =
+        (3 * (phi[ijToid(im1, j)] - phi[id]) +
+         (gradient[ijToid(im1, j)][0] + 2 * gradient[id][0]) * h[0] * isgn) /
+        (h[0] * h[0]);
+    double A4 = (A2 * h[0] * h[0] - tmp) / (h[0] * isgn);
+    double A5 =
+        (-2 * (phi[id] - phi[ijToid(i, jm1)]) +
+         (gradient[ijToid(i, jm1)][1] + gradient[id][1]) * h[1] * jsgn) /
+        (h[1] * h[1] * h[1] * jsgn);
+    double A6 = (-A8 - tmp * h[1] * jsgn) / (h[0] * h[1] * h[1] * isgn);
+    double A7 =
+        (3 * (phi[ijToid(i, jm1)] - phi[id]) +
+         (gradient[ijToid(i, jm1)][1] + 2 * gradient[id][1]) * h[1] * jsgn) /
+        (h[1] * h[1]);
+    newPhi[id] =
+        ((A1 * XX + A2 * YY + A3) * XX + A4 * YY + gradient[id][0]) * XX +
+        ((A5 * YY + A6 * XX + A7) * YY + gradient[id][1]) * YY + phi[id];
+    newGrad[id][0] = (3 * A1 * XX + 2 * (A2 * YY + A3)) * XX +
+                     (A4 + A6 * YY) * YY + gradient[id][0];
+    newGrad[id][1] = (3 * A5 * YY + 2 * (A6 * XX + A7)) * YY +
+                     (A4 + A2 * XX) * XX + gradient[id][1];
+
+    if (std::isnan(newPhi[id]) || std::isinf(newPhi[id]))
+      std::cerr << "Inf phi: " << id << std::endl;
+    if (newGrad[id].hasNaN())
+      std::cerr << "Inf grad: " << id << std::endl;
+  }
+  for (size_t id = 0; id < cellCount(); id++) {
+    phi[id] = newPhi[id];
+    gradient[id] = newGrad[id];
+  }
 }
 
 void LevelSetFluid2::print() {}

@@ -7,3 +7,6 @@ target_link_libraries(redistance1d Ramuh Leviathan)
 
 add_executable(cip1d cip.cpp)
 target_link_libraries(cip1d Ramuh Leviathan)
+
+add_executable(cip2d cip2d.cpp)
+target_link_libraries(cip2d Ramuh Leviathan)

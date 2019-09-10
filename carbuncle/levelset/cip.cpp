@@ -79,7 +79,7 @@ public:
     {
       for (size_t i = 0; i < cellCount() - 1; i++) {
         // Integral of f and Dfi
-        integral[i] = phi[i]; //(phi[i - 1] + 2 * phi[i] + phi[i + 1]) / 4 * h;
+        integral[i] = phi[i];
 
         Dft[i] = (-kappa / 8 + kappa2 / 8 + kappa * kappa2 / 6 -
                   kappa2 * kappa2 / 4) *

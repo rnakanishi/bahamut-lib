@@ -46,6 +46,8 @@ public:
 
   BoundingBox2(Eigen::Array2d min, Eigen::Array2d max);
 
+  BoundingBox2(double min, double max);
+
   /**
    * @brief creates a new instance of a bounding box with min coordinates at
    *origin and unit side.
