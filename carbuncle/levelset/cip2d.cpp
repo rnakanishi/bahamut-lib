@@ -16,7 +16,9 @@ public:
   Cip2() : Cip2(Eigen::Array2i(32, 32), Ramuh::BoundingBox2::unitBox()) {}
 
   Cip2(Eigen::Array2i gridSize, Ramuh::BoundingBox2 domain)
-      : Leviathan::LevelSetFluid2(gridSize, domain) {}
+      : Leviathan::LevelSetFluid2(gridSize, domain) {
+    _dt = 2 * M_PI / 628;
+  }
 
   void initialize(Eigen::Array2d center, double radius) {
     auto &phi = getScalarData(_phiId);
@@ -24,9 +26,10 @@ public:
     auto h = getH();
     for (size_t i = 0; i < cellCount(); i++) {
       auto p = getPosition(i);
-      // phi[i] = 0.;
+      phi[i] = 0.;
       // if (p[0] >= -4. && p[0] <= -3. && p[1] >= -4. && p[1] <= -3.)
-      //   phi[i] = 2;
+      // if (pow(p[0] - center[0], 2) + pow(p[1] - center[1], 2) < radius *
+      // radius) phi[i] = 5;
 
       // double A = 2;
       // double sigma[2] = {0.5, 0.5};
@@ -56,9 +59,14 @@ public:
   void defineVelocity() {
     auto &uVelocity = getFaceScalarData(0, _velocityId);
     auto &vVelocity = getFaceScalarData(1, _velocityId);
-    for (size_t i = 0; i < cellCount(); i++) {
-      uVelocity[i] = 1.;
-      vVelocity[i] = 1.;
+    for (size_t id = 0; id < faceCount(0); id++) {
+      auto p = facePosition(0, id);
+      uVelocity[id] = -p[1];
+    }
+
+    for (size_t id = 0; id < faceCount(1); id++) {
+      auto p = facePosition(1, id);
+      vVelocity[id] = p[0];
     }
   }
 
@@ -83,12 +91,22 @@ protected:
 int main(int argc, char const *argv[]) {
   Cip2 cubes(Eigen::Array2i(100), Ramuh::BoundingBox2(-5, 5));
 
-  cubes.initialize(Eigen::Array2d(0, 0), 1);
+  cubes.initialize(Eigen::Array2d(0, 2), 1);
+  cubes.computeCellsGradient();
+
+  // cubes.redistance();
 
   cubes.print();
 
-  for (int i = 1; i <= 100; i++) {
+  for (int i = 1; i <= 1256; i++) {
     cubes.advectCip();
+
+    // cubes.advectWeno();
+    // if (i % 10 == 0)
+    //   cubes.redistance();
+
+    // if (i % 10 == 0)
+    //   cubes.redistance();
 
     cubes.print();
   }

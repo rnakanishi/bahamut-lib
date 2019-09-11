@@ -4,6 +4,7 @@
 #include <iostream>
 #include <Eigen/Sparse>
 #include <Eigen/SparseLU>
+#include <blas/weno.h>
 
 namespace Leviathan {
 
@@ -43,6 +44,127 @@ void LevelSetFluid2::computeCellsGradient() {
     }
 }
 
+void LevelSetFluid2::advectWeno() {
+  auto h = getH();
+  auto &phi = getScalarData(_phiId);
+  std::vector<double> newPhi(cellCount());
+
+  // Weno computation
+  for (int id = 0; id < cellCount(); id++) {
+    auto p = getPosition(id);
+    auto ij = idToij(id);
+    int i = ij[0], j = ij[1];
+    newPhi[id] = 0;
+    std::vector<double> values(6);
+
+    for (size_t coord = 0; coord < 2; coord++) {
+      auto &uv = getFaceScalarData(coord, _velocityId);
+      auto faceij = ij;
+      auto faceid = faceijToid(coord, i, j);
+      int facei = faceij[0], facej = faceij[1];
+      double velocity;
+      int cellij = ij[coord];
+
+      switch (coord) {
+      case 0:
+        velocity = (uv[faceijToid(coord, facei, facej)] +
+                    uv[faceijToid(coord, facei + 1, facej)]) /
+                   2;
+        break;
+      case 1:
+        velocity = (uv[faceijToid(coord, facei, facej)] +
+                    uv[faceijToid(coord, facei, facej + 1)]) /
+                   2;
+        break;
+      }
+
+      if (velocity <= 0) {
+        for (int ival = 0, inc = 3; ival < 7; ival++, inc--) {
+          int index, index1, faceindex;
+          switch (coord) {
+          case 0:
+            index = std::min(_gridSize[coord] - 1, std::max(1, i + inc));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc - 1));
+            faceindex =
+                std::min(_gridSize[coord] - 1, std::max(0, facei + inc));
+            velocity = .5 * (uv[faceijToid(coord, faceindex, facej)] +
+                             uv[faceijToid(coord, faceindex + 1, facej)]);
+            values[ival] = velocity *
+                           (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) /
+                           h[coord];
+            break;
+          case 1:
+            index = std::min(_gridSize[coord] - 1, std::max(1, j + inc));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc - 1));
+            faceindex =
+                std::min(_gridSize[coord] - 1, std::max(0, facej + inc));
+            velocity = .5 * (uv[faceijToid(coord, facei, faceindex)] +
+                             uv[faceijToid(coord, facei, faceindex + 1)]);
+            values[ival] = velocity *
+                           (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) /
+                           h[coord];
+          default:
+            break;
+          }
+        }
+        // Boundary conditions. This ensure weno doesnt use outside values
+        if (cellij <= 1)
+          values[5] = 1e4;
+        if (cellij <= 0)
+          values[4] = 1e4;
+        if (cellij >= _gridSize[coord] - 2)
+          values[0] = 1e4;
+        if (cellij >= _gridSize[coord] - 1)
+          values[1] = 1e4;
+      } else {
+        for (int ival = 0, inc = -3; ival < 7; ival++, inc++) {
+          int index, index1, faceIndex;
+          // Each coordinate have to be treated separatedly due to cell-face
+          // indexation
+          switch (coord) {
+          case 0:
+            index = std::min(_gridSize[coord] - 1, std::max(1, i + inc + 1));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc));
+            faceIndex =
+                std::min(_gridSize[coord] - 1, std::max(0, facei + inc + 1));
+            velocity = .5 * (uv[faceijToid(coord, faceIndex, facej)] +
+                             uv[faceijToid(coord, faceIndex + 1, facej)]);
+            values[ival] = velocity *
+                           (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) /
+                           h[coord];
+            break;
+          case 1:
+            index = std::min(_gridSize[coord] - 1, std::max(1, j + inc + 1));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc));
+            faceIndex =
+                std::min(_gridSize[coord] - 1, std::max(0, facej + inc + 1));
+            velocity = .5 * (uv[faceijToid(coord, facei, faceIndex)] +
+                             uv[faceijToid(coord, facei, faceIndex + 1)]);
+            values[ival] = velocity *
+                           (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) /
+                           h[coord];
+            break;
+          }
+        }
+        if (cellij <= 1)
+          values[0] = 1e4;
+        if (cellij <= 0)
+          values[1] = 1e4;
+        if (cellij >= _gridSize[coord] - 2)
+          values[5] = 1e4;
+        if (cellij >= _gridSize[coord] - 1)
+          values[4] = 1e4;
+      }
+      double dPhi = Ramuh::Weno::evaluate(values, h[coord], false);
+      newPhi[id] += dPhi;
+    }
+  }
+
+  for (int id = 0; id < cellCount(); id++) {
+    phi[id] = phi[id] - newPhi[id] * _dt;
+  }
+}
+
 void LevelSetFluid2::advectCip() {
   auto h = getH();
   auto &phi = getScalarData(_phiId);
@@ -59,8 +181,6 @@ void LevelSetFluid2::advectCip() {
   for (size_t id = 0; id < cellCount(); id++) {
     auto ij = idToij(id);
     int i = ij[0], j = ij[1];
-    if (i <= 0 || j <= 0 || i >= _gridSize[0] - 1 || j >= _gridSize[1])
-      continue;
 
     double uCellVelocity = 0.5 * (uVelocity[faceijToid(0, i, j)] +
                                   uVelocity[faceijToid(0, i + 1, j)]);
@@ -71,8 +191,10 @@ void LevelSetFluid2::advectCip() {
     double YY = -vCellVelocity * _dt;
     int isgn = (uCellVelocity >= 0) ? 1 : -1;
     int jsgn = (vCellVelocity >= 0) ? 1 : -1;
-    int im1 = i - isgn;
-    int jm1 = j - jsgn;
+    int im1 = std::max(0, std::min(_gridSize[0] - 1, i - isgn));
+    int jm1 = std::max(0, std::min(_gridSize[1] - 1, j - jsgn));
+    // double gx[3], gy[3]; // 0: g[i,j]   1: g[i-sgn,j]   2: g[i,j-sgn]
+
     double A8 = phi[id] - phi[ijToid(im1, j)] - phi[ijToid(i, jm1)] +
                 phi[ijToid(im1, jm1)];
     double tmp = gradient[ijToid(im1, j)][1] - gradient[id][1];
@@ -103,16 +225,12 @@ void LevelSetFluid2::advectCip() {
                      (A4 + A6 * YY) * YY + gradient[id][0];
     newGrad[id][1] = (3 * A5 * YY + 2 * (A6 * XX + A7)) * YY +
                      (A4 + A2 * XX) * XX + gradient[id][1];
-
-    if (std::isnan(newPhi[id]) || std::isinf(newPhi[id]))
-      std::cerr << "Inf phi: " << id << std::endl;
-    if (newGrad[id].hasNaN())
-      std::cerr << "Inf grad: " << id << std::endl;
   }
   for (size_t id = 0; id < cellCount(); id++) {
     phi[id] = newPhi[id];
     gradient[id] = newGrad[id];
   }
+  // computeCellsGradient();
 }
 
 void LevelSetFluid2::print() {}
@@ -215,7 +333,7 @@ void LevelSetFluid2::redistance() {
 
       phi[id] = newPhi;
     }
-    print();
+
     if (error / cellCount() < dt * h[0] * h[0])
       break;
   }

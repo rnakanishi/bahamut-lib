@@ -11,7 +11,7 @@ public:
   DiffGrid()
       : Ramuh::MacGrid2(
             Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)),
-            Eigen::Array2i(50, 50)) {
+            Eigen::Array2i(100, 100)) {
     _dt = 1 / 100.;
     _dt = 2 * M_PI / 628;
 
@@ -31,12 +31,16 @@ public:
       auto p = getPosition(i);
 
       function[i] = 0;
-      if (pow(p[0], 2) + pow(p[1] - 2, 2) < 1)
-        function[i] = 5;
-      //   if (p.maxCoeff() <= 1)
-      // function[i] = analytic[i] = p.maxCoeff() - 1;
-      //   else
-      //     function[i] = analytic[i] = 0;
+      // if (pow(p[0], 2) + pow(p[1] - 2, 2) < 1)
+      //   function[i] = 5;
+
+      function[i] = pow(p[0], 2) + pow(p[1] - 2, 2) - 1;
+
+      // p = p.abs();
+      // if (p.maxCoeff() <= 1)
+      //   function[i] = analytic[i] = p.maxCoeff() - 1;
+      // else
+      // function[i] = analytic[i] = 0;
     }
 
     auto &u = getFaceScalarData(0, _velocityId);
