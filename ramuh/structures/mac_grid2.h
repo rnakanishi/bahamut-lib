@@ -34,6 +34,7 @@ public:
    * @return Eigen::Array2d position in domain
    */
   Eigen::Array2d facePosition(size_t face, int faceId);
+  Eigen::Array2d facePosition(size_t face, int i, int j);
 
   /**
    * @brief Return the total amount of faces over a single dimension, based on
@@ -44,7 +45,7 @@ public:
   int faceCount(int face);
 
   int faceijToid(int face, int i, int j);
-  std::pair<int, int> faceIdToij(int face, int id);
+  std::vector<int> faceIdToij(int face, int id);
 
   /**
    * @brief Get a reference for the vector containing data for a given face.

@@ -69,8 +69,12 @@ int MacGrid2::faceCount(int face) {
     return _gridSize[0] * (_gridSize[1] + 1);
 }
 
+Eigen::Array2d MacGrid2::facePosition(size_t face, int i, int j) {
+  return facePosition(face, faceijToid(face, i, j));
+}
+
 Eigen::Array2d MacGrid2::facePosition(size_t face, int faceId) {
-  auto ij = idToij(faceId);
+  auto ij = faceIdToij(face, faceId);
   auto h = getH();
   int i = ij[0], j = ij[1];
   if (face == 0)
@@ -85,14 +89,14 @@ int MacGrid2::faceijToid(int face, int i, int j) {
     return j * _gridSize[0] + i;
 }
 
-std::pair<int, int> MacGrid2::faceIdToij(int face, int id) {
-  std::pair<size_t, size_t> index;
+std::vector<int> MacGrid2::faceIdToij(int face, int id) {
+  std::vector<int> index(2);
   if (face == 0) {
-    index.second = id / (_gridSize[0] + 1);
-    index.first = id % (_gridSize[0] + 1);
+    index[1] = id / (_gridSize[0] + 1);
+    index[0] = id % (_gridSize[0] + 1);
   } else {
-    index.second = id / (_gridSize[0]);
-    index.first = id % (_gridSize[0]);
+    index[1] = id / (_gridSize[0]);
+    index[0] = id % (_gridSize[0]);
   }
   return index;
 }
