@@ -351,6 +351,8 @@ void LevelSetFluid3::advectWeno() {
   }
 }
 
+void LevelSetFluid3::advectCip() {}
+
 void LevelSetFluid3::redistance() {
   auto h = getH();
   auto &phi = getScalarData(_phiId);

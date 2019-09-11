@@ -38,6 +38,10 @@ public:
 
   void redistance();
 
+  bool advanceTime();
+
+  void applyCfl();
+
   virtual void print();
 
 protected:
@@ -48,7 +52,7 @@ protected:
   double __interpolateVelocityV(Eigen::Array3d position, double &min,
                                 double &max);
 
-  double _dt;
+  double _dt, _ellapsedDt, _originalDt;
   size_t _velocityId, _phiId, _gradientId;
   bool _isPressure2nd;
   double _tolerance;

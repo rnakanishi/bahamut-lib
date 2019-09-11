@@ -23,6 +23,8 @@ public:
 
   void advectWeno();
 
+  void advectCip();
+
   void advectUpwind();
 
   void computeCellsGradient();

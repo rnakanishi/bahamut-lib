@@ -16,8 +16,8 @@ figure('position', [100, 100, 1200, 600]);
 % figure/
 hold on;
 
-for t = 0:5:1000
-% for t = [0:34:1256 1256]
+for t = 0:30:630
+    % for t = [0:34:1256 1256]
     clf, hold on;
     % view(az, el);
     levelset = dlmread([folder num2str(t)]);
@@ -41,8 +41,8 @@ for t = 0:5:1000
 
     % subplot(122);
     hold on;
-    contour(X, Y, values, -1:0.2:1);
-    contour(X, Y, values, [0, 0], 'k', 'linewidth', 2);
+    % contour(X, Y, values, -0.2:0.2:0.2);
+    contour(X, Y, values, [0, 0], 'b-.','linewidth',2);
     set(gca, 'xtick', -5:dx:5);
     set(gca, 'ytick', -5:dx:5);
     axis equal;
@@ -51,11 +51,15 @@ for t = 0:5:1000
     title(num2str(t));
 
     % if (t==0)
-    pause
+    % pause
     % else
-    % pause(0.05);
+    pause(0.001);
     % end
 
     % pause;
     [az, el] = view();
 end
+
+levelsetzero = dlmread([folder num2str(0)]);
+values = reshape(levelsetzero, N, N)';
+contour(X, Y, values, [0 0 ], 'k', 'linewidth', 1.5);

@@ -17,7 +17,7 @@ public:
 
   Cip2(Eigen::Array2i gridSize, Ramuh::BoundingBox2 domain)
       : Leviathan::LevelSetFluid2(gridSize, domain) {
-    _dt = 2 * M_PI / 628;
+    _originalDt = _dt = 2 * M_PI / 628;
   }
 
   void initialize(Eigen::Array2d center, double radius) {
@@ -26,10 +26,14 @@ public:
     auto h = getH();
     for (size_t i = 0; i < cellCount(); i++) {
       auto p = getPosition(i);
-      phi[i] = 0.;
+      phi[i] = -2;
       // if (p[0] >= -4. && p[0] <= -3. && p[1] >= -4. && p[1] <= -3.)
-      // if (pow(p[0] - center[0], 2) + pow(p[1] - center[1], 2) < radius *
-      // radius) phi[i] = 5;
+      if (pow(p[0] - center[0], 2) + pow(p[1] - center[1], 2) < radius * radius)
+        phi[i] = 5;
+      double s = radius / 4.;
+      if (p[0] >= center[0] - s && p[0] <= center[0] + s &&
+          p[1] < center[1] + 2 * s && p[1] > center[1] - radius - s)
+        phi[i] = -2;
 
       // double A = 2;
       // double sigma[2] = {0.5, 0.5};
@@ -42,9 +46,9 @@ public:
       // if (phi[i] < 1e-16)
       //   phi[i] = 0;
 
-      phi[i] = std::sqrt(std::pow(p[0] - center[0], 2) +
-                         std::pow(p[1] - center[1], 2)) -
-               radius;
+      // phi[i] = std::sqrt(std::pow(p[0] - center[0], 2) +
+      //                    std::pow(p[1] - center[1], 2)) -
+      //          radius;
     }
     for (size_t id = 1; id < cellCount(); id++) {
       auto ij = idToij(id);
@@ -91,33 +95,26 @@ protected:
 int main(int argc, char const *argv[]) {
   Cip2 cubes(Eigen::Array2i(100), Ramuh::BoundingBox2(-5, 5));
 
-  cubes.initialize(Eigen::Array2d(0, 2), 1);
+  cubes.initialize(Eigen::Array2d(0, 2), 1.5);
   cubes.computeCellsGradient();
-
+  cubes.print();
   // cubes.redistance();
 
-  cubes.print();
+  for (int i = 1; i <= 630; i++) {
+    cubes.applyCfl();
+    do {
+      cubes.advectCip();
 
-  for (int i = 1; i <= 1256; i++) {
-    cubes.advectCip();
+      // cubes.advectWeno();
+      // if (i % 10 == 0)
+      //   cubes.redistance();
 
-    // cubes.advectWeno();
-    // if (i % 10 == 0)
-    //   cubes.redistance();
-
+    } while (!cubes.advanceTime());
     // if (i % 10 == 0)
     //   cubes.redistance();
 
     cubes.print();
   }
 
-  //   auto surface = cubes.marc hingTetrahedra();
-  //   Ramuh::FileWriter writer;
-  //   std::ostringstream objname;
-  //   objname << "results/marching/tetra_" << std::setfill('0') << std::setw(4)
-  //   << 0
-  //   << ".obj";
-  //   writer.writeMeshModel(surface, objname.str());
-  // }
   return 0;
 }

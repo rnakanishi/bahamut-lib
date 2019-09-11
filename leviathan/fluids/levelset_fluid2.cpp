@@ -17,7 +17,9 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
   _velocityId = newFaceScalarLabel("velocity");
   //  --> Even though velocities are vector, MAC grid split them into scalar
   //  pieces for each coordinate
-  _dt = 1. / 60;
+  _originalDt = _dt = 1. / 60;
+  _ellapsedDt = 0.;
+
   _tolerance = 1e-10;
 
   _gradientId = newArrayLabel("cellGradient");
@@ -88,7 +90,7 @@ void LevelSetFluid2::advectWeno() {
             faceindex =
                 std::min(_gridSize[coord] - 1, std::max(0, facei + inc));
             velocity = .5 * (uv[faceijToid(coord, faceindex, facej)] +
-                             uv[faceijToid(coord, faceindex + 1, facej)]);
+                             uv[faceijToid(coord, faceindex - 1, facej)]);
             values[ival] = velocity *
                            (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) /
                            h[coord];
@@ -99,7 +101,7 @@ void LevelSetFluid2::advectWeno() {
             faceindex =
                 std::min(_gridSize[coord] - 1, std::max(0, facej + inc));
             velocity = .5 * (uv[faceijToid(coord, facei, faceindex)] +
-                             uv[faceijToid(coord, facei, faceindex + 1)]);
+                             uv[faceijToid(coord, facei, faceindex - 1)]);
             values[ival] = velocity *
                            (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) /
                            h[coord];
@@ -128,7 +130,7 @@ void LevelSetFluid2::advectWeno() {
             faceIndex =
                 std::min(_gridSize[coord] - 1, std::max(0, facei + inc + 1));
             velocity = .5 * (uv[faceijToid(coord, faceIndex, facej)] +
-                             uv[faceijToid(coord, faceIndex + 1, facej)]);
+                             uv[faceijToid(coord, faceIndex - 1, facej)]);
             values[ival] = velocity *
                            (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) /
                            h[coord];
@@ -139,7 +141,7 @@ void LevelSetFluid2::advectWeno() {
             faceIndex =
                 std::min(_gridSize[coord] - 1, std::max(0, facej + inc + 1));
             velocity = .5 * (uv[faceijToid(coord, facei, faceIndex)] +
-                             uv[faceijToid(coord, facei, faceIndex + 1)]);
+                             uv[faceijToid(coord, facei, faceIndex - 1)]);
             values[ival] = velocity *
                            (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) /
                            h[coord];
@@ -336,6 +338,43 @@ void LevelSetFluid2::redistance() {
 
     if (error / cellCount() < dt * h[0] * h[0])
       break;
+  }
+}
+
+bool LevelSetFluid2::advanceTime() {
+  _ellapsedDt += _dt;
+  if (_ellapsedDt < _originalDt)
+    return false;
+  _ellapsedDt = 0.0;
+  _dt = _originalDt;
+  return true;
+}
+
+void LevelSetFluid2::applyCfl() {
+  Eigen::Vector2d maxVel = Eigen::Vector2d(0.0, 0.0);
+  auto &u = getFaceScalarData(0, _velocityId);
+  auto &v = getFaceScalarData(1, _velocityId);
+  auto h = getH();
+
+  for (int id = 0; id < cellCount(); id++) {
+    auto ijk = idToij(id);
+    int i, j;
+    i = ijk[0];
+    j = ijk[1];
+
+    Eigen::Vector2d vel;
+    vel[0] = (u[id] + u[faceijToid(0, i + 1, j)]) / 2.0;
+    vel[1] = (v[id] + v[faceijToid(1, i, j + 1)]) / 2.0;
+
+    if (maxVel.norm() < vel.norm() * 1.05)
+      maxVel = vel;
+  }
+
+  // Check if cfl condition applies
+  // Half timestep if so
+  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 0.8 * h[0]) {
+    int pieces = maxVel.norm() * _dt / (0.9 * h[0]) + 1;
+    _dt = _dt / pieces;
   }
 }
 
