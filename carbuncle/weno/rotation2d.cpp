@@ -9,10 +9,12 @@
 class DiffGrid : public Ramuh::MacGrid2 {
 public:
   DiffGrid()
-      : Ramuh::MacGrid2(Ramuh::BoundingBox2(Eigen::Array2d(-M_PI, -M_PI),
-                                            Eigen::Array2d(M_PI, M_PI)),
-                        Eigen::Array2i(50, 50)) {
+      : Ramuh::MacGrid2(
+            Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)),
+            Eigen::Array2i(50, 50)) {
     _dt = 1 / 100.;
+    _dt = 2 * M_PI / 628;
+
     _ellapsedTime = 0.;
   }
 
@@ -26,10 +28,13 @@ public:
     auto &function = getScalarData(_functionId);
     auto &analytic = getScalarData(_analyticId);
     for (size_t i = 0; i < cellCount(); i++) {
-      auto p = getPosition(i).abs();
+      auto p = getPosition(i);
 
+      function[i] = 0;
+      if (pow(p[0], 2) + pow(p[1] - 2, 2) < 1)
+        function[i] = 5;
       //   if (p.maxCoeff() <= 1)
-      function[i] = analytic[i] = p.maxCoeff() - 1;
+      // function[i] = analytic[i] = p.maxCoeff() - 1;
       //   else
       //     function[i] = analytic[i] = 0;
     }
@@ -38,7 +43,7 @@ public:
     for (size_t i = 0; i < faceCount(0); i++) {
       auto ij = faceIdToij(0, i);
       auto p = facePosition(0, i);
-      if (ij.first > 0 && ij.first < _gridSize[0])
+      if (ij[0] > 0 && ij[0] < _gridSize[0])
         u[i] = -p[1];
       //   else
       //     u[i] = 0;
@@ -47,7 +52,7 @@ public:
     for (size_t i = 0; i < faceCount(1); i++) {
       auto ij = faceIdToij(1, i);
       auto p = facePosition(1, i);
-      if (ij.second > 0 && ij.second < _gridSize[1])
+      if (ij[1] > 0 && ij[1] < _gridSize[1])
         v[i] = p[0];
       //   else
       //     v[i] = 0;
@@ -65,7 +70,7 @@ public:
       std::vector<double> values(6);
       auto p = getPosition(id);
       auto ij = idToij(id);
-      int i = ij.first, j = ij.second;
+      int i = ij[0], j = ij[1];
       weno[id] = 0;
 
       Eigen::Matrix2d rotation;
@@ -79,7 +84,7 @@ public:
       for (size_t coord = 0; coord < 2; coord++) {
         auto &u = getFaceScalarData(coord, _velocityId);
         auto faceij = ij;
-        int facei = faceij.first, facej = faceij.second;
+        int facei = faceij[0], facej = faceij[1];
 
         double velocity;
         // Each coordinate has its own velocity
@@ -103,7 +108,7 @@ public:
               // X
               index = std::min(_gridSize[coord] - 1, std::max(1, i + inc));
               index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc - 1));
-              faceIndex = std::min(_gridSize[coord], std::max(0, i + inc));
+              faceIndex = std::min(_gridSize[coord], std::max(0, facei + inc));
               values[ival] = u[faceijToid(coord, faceIndex, facej)] *
                              (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) /
                              h[coord];
@@ -121,7 +126,7 @@ public:
               // Y
               index = std::min(_gridSize[coord] - 1, std::max(1, j + inc));
               index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc - 1));
-              faceIndex = std::min(_gridSize[coord], std::max(0, j + inc));
+              faceIndex = std::min(_gridSize[coord], std::max(0, facej + inc));
               values[ival] = u[faceijToid(coord, facei, faceIndex)] *
                              (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) /
                              h[coord];
@@ -143,7 +148,8 @@ public:
               // X
               index = std::min(_gridSize[coord] - 1, std::max(1, i + inc + 1));
               index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc));
-              faceIndex = std::min(_gridSize[coord], std::max(0, i + inc + 1));
+              faceIndex =
+                  std::min(_gridSize[coord], std::max(0, facei + inc + 1));
               values[ival] = u[faceijToid(coord, faceIndex, facej)] *
                              (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) /
                              h[coord];
@@ -160,7 +166,8 @@ public:
               // Y
               index = std::min(_gridSize[coord] - 1, std::max(1, j + inc + 1));
               index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc));
-              faceIndex = std::min(_gridSize[coord], std::max(0, j + inc + 1));
+              faceIndex =
+                  std::min(_gridSize[coord], std::max(0, facej + inc + 1));
               values[ival] = u[faceijToid(coord, facei, faceIndex)] *
                              (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) /
                              h[coord];
@@ -200,7 +207,7 @@ public:
     file.open(filename.str().c_str(), std::ofstream::out);
 
     for (size_t i = 0; i < cellCount(); i++) {
-      file << analytic[i] << " " << phi[i] << ";\n ";
+      file << phi[i] << "  ";
     }
     file.close();
   }
@@ -217,7 +224,7 @@ private:
 int main(int argc, char const *argv[]) {
   DiffGrid grid;
   grid.initialize();
-  for (size_t i = 0; i < 500; i++) {
+  for (size_t i = 0; i < 1260; i++) {
     grid.solveTimestep();
     grid.print();
   }

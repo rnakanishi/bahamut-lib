@@ -61,7 +61,7 @@ public:
       std::cout << analytic[i] << " " << weno[i] << "; ";
     }
     std::cout << std::endl;
-    }
+  }
 
 private:
   size_t _functionId;
