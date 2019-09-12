@@ -31,6 +31,10 @@ public:
 
   void redistance();
 
+  bool advanceTime();
+
+  void applyCfl();
+
 protected:
   double __interpolateVelocityU(Eigen::Array3d position);
   double __interpolateVelocityV(Eigen::Array3d position);
@@ -59,9 +63,10 @@ protected:
   }
 
 protected:
-  size_t _velocityId, _phiId;
+  size_t _velocityId, _phiId, _gradientId;
   bool _isPressure2nd;
-  double _dt, _tolerance;
+  double _dt, _originalDt, _ellapsedDt;
+  double _tolerance;
 };
 
 } // namespace Leviathan

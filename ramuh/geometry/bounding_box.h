@@ -10,6 +10,8 @@ public:
 
   BoundingBox3(Eigen::Array3d min, Eigen::Array3d max);
 
+  BoundingBox3(double min, double max);
+
   /**
    * @brief creates a new instance of a bounding box with min coordinates at
    *origin and unit side.

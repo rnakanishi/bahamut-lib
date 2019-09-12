@@ -18,10 +18,11 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
   _velocityId = newFaceScalarLabel("velocity");
   //  --> Even though velocities are vector, MAC grid split them into scalar
   //  pieces for each coordinate
-  _dt = 1. / 60;
+  _originalDt = _dt = 1. / 60;
+  _ellapsedDt = 0;
   _tolerance = 1e-10;
 
-  newArrayLabel("cellGradient");
+  _gradientId = newArrayLabel("cellGradient");
   newScalarLabel("newPhi");
 }
 
@@ -351,7 +352,106 @@ void LevelSetFluid3::advectWeno() {
   }
 }
 
-void LevelSetFluid3::advectCip() {}
+void LevelSetFluid3::advectCip() {
+  auto h = getH();
+  auto &phi = getScalarData(_phiId);
+  auto &G = getArrayData(_gradientId);
+  auto &uVelocity = getFaceScalarData(0, _velocityId);
+  auto &vVelocity = getFaceScalarData(1, _velocityId);
+  auto &wVelocity = getFaceScalarData(2, _velocityId);
+  static int count = 0;
+  std::vector<double> newPhi(cellCount(), 0);
+  std::vector<Eigen::Array3d> newGrad(cellCount(), Eigen::Array3d(0));
+
+  // #pragma omp parallel for
+  for (size_t id = 0; id < cellCount(); id++) {
+    auto ijk = idToijk(id);
+    int i = ijk[0], j = ijk[1], k = ijk[2];
+
+    double uCellVelocity = 0.5 * (uVelocity[faceijkToid(0, i, j, k)] +
+                                  uVelocity[faceijkToid(0, i + 1, j, k)]);
+    double vCellVelocity = 0.5 * (vVelocity[faceijkToid(1, i, j, k)] +
+                                  vVelocity[faceijkToid(1, i, j + 1, k)]);
+    double wCellVelocity = 0.5 * (wVelocity[faceijkToid(2, i, j, k)] +
+                                  wVelocity[faceijkToid(2, i, j, k + 1)]);
+
+    double XX = -uCellVelocity * _dt;
+    double YY = -vCellVelocity * _dt;
+    double ZZ = -wCellVelocity * _dt;
+    int isgn = (uCellVelocity >= 0) ? 1 : -1;
+    int jsgn = (vCellVelocity >= 0) ? 1 : -1;
+    int ksgn = (wCellVelocity >= 0) ? 1 : -1;
+    double dx = h[0] * isgn;
+    double dy = h[1] * jsgn;
+    double dz = h[2] * ksgn;
+    int im1 = std::max(0, std::min(_gridSize[0] - 1, i - isgn));
+    int jm1 = std::max(0, std::min(_gridSize[1] - 1, j - jsgn));
+    int km1 = std::max(0, std::min(_gridSize[2] - 1, k - ksgn));
+    int idim1 = ijkToid(im1, j, k);
+    int idjm1 = ijkToid(i, jm1, k);
+    int idkm1 = ijkToid(i, j, km1);
+
+    double B[19];
+    B[16] = -phi[id] + phi[idim1] + phi[idjm1] - phi[ijkToid(im1, jm1, k)];
+    B[17] = -phi[id] + phi[idim1] + phi[idkm1] - phi[ijkToid(im1, j, km1)];
+    B[18] = -phi[id] + phi[idjm1] + phi[idkm1] - phi[ijkToid(i, jm1, km1)];
+    B[0] = (-2 * (phi[idim1] - phi[id]) + (G[idim1][0] + G[id][0]) * dx) /
+           (pow(dx, 3));
+    B[1] = -(B[16] + (G[idjm1][0] - G[id][0]) * dx) / (dx * dx * dy);
+    B[2] = -(B[17] + (G[idkm1][0] - G[id][0]) * dx) / (dx * dx * dz);
+    B[3] = (3 * (phi[idim1] - phi[id]) - (G[idim1][0] + 2 * G[id][0]) * dx) /
+           (dx * dx);
+    B[4] = (B[16] + (G[idjm1][0] - G[id][0]) * dx +
+            (G[idim1][1] - G[id][1]) * dy) /
+           (dx * dy);
+    B[5] = (-2 * (phi[idjm1] - phi[id]) + (G[idjm1][1] + G[id][1]) * dy) /
+           (dy * dy * dy);
+    B[6] = -(B[18] + (G[idkm1][1] - G[id][1]) * dy) / (dy * dy * dz);
+    B[7] = -(B[16] + (G[idim1][1] - G[id][1]) * dy) / (dx * dy * dy);
+    B[8] = (3 * (phi[idjm1] - phi[id]) - (G[idim1][1] + 2 * G[id][1]) * dy) /
+           (dy * dy);
+    B[9] = (B[18] + (G[idkm1][1] - G[id][1]) * dy +
+            (G[idjm1][2] - G[id][2]) * dz) /
+           (dy * dz);
+    B[10] = (-2 * (phi[idkm1] - phi[id]) + (G[idkm1][2] + G[id][2]) * dz) /
+            (dz * dz * dz);
+    B[11] = -(B[17] + (G[idim1][2] - G[id][2]) * dz) / (dx * dz * dz);
+    B[12] = -(B[18] + (G[idjm1][2] - G[id][2]) * dz) / (dy * dz * dz);
+    B[13] = (3 * (phi[idkm1] - phi[id]) - (G[idkm1][2] + 2 * G[id][2]) * dz) /
+            (dz * dz);
+    B[14] = (B[17] + (G[idim1][2] - G[id][2]) * dz +
+             (G[idkm1][0] - G[id][0]) * dx) /
+            (dx * dz);
+    B[15] = (B[16] + phi[idkm1] - phi[ijkToid(i, jm1, km1)] -
+             phi[ijkToid(im1, j, km1)] + phi[ijkToid(im1, jm1, km1)]) /
+            (dx * dy * dz);
+
+    newPhi[id] = 0;
+    newPhi[id] += XX * ((B[0] * XX + B[1] * YY + B[2] * ZZ + B[3]) * XX +
+                        B[4] * YY + G[id][0]);
+    newPhi[id] += YY * ((B[5] * YY + B[6] * ZZ + B[7] * XX + B[8]) * YY +
+                        B[9] * ZZ + G[id][1]);
+    newPhi[id] += ZZ * ((B[10] * ZZ + B[11] * XX + B[12] * YY + B[13]) * ZZ +
+                        B[14] * XX + G[id][2]);
+    newPhi[id] += B[15] * XX * YY * ZZ + phi[id];
+    newGrad[id][0] =
+        XX * (3 * XX * B[0] + 2 * YY * B[1] + 2 * ZZ * B[2] + 2 * B[3]) +
+        YY * (B[4] + YY * B[7]) + ZZ * (ZZ * B[11] + B[14]) + YY * ZZ * B[15] +
+        G[id][0];
+    newGrad[id][1] =
+        XX * (3 * YY * B[5] + 2 * ZZ * B[6] + 2 * XX * B[7] + 2 * B[8]) +
+        XX * (B[4] + XX * B[1]) + ZZ * (ZZ * B[12] + B[9]) + XX * ZZ * B[15] +
+        G[id][1];
+    newGrad[id][2] =
+        ZZ * (3 * ZZ * B[10] + 2 * XX * B[11] + 2 * YY * B[12] + 2 * B[13]) +
+        XX * (B[14] + XX * B[2]) + YY * (YY * B[6] + B[9]) + XX * ZZ * B[15] +
+        G[id][2];
+  }
+  for (size_t id = 0; id < cellCount(); id++) {
+    phi[id] = newPhi[id];
+    G[id] = newGrad[id];
+  }
+}
 
 void LevelSetFluid3::redistance() {
   auto h = getH();
@@ -466,7 +566,6 @@ void LevelSetFluid3::redistance() {
       error += abs(phi[id] - newPhi);
       phi[id] = newPhi;
     }
-    print();
     if (error / cellCount() < dt * h[0] * h[0])
       break;
   }
@@ -714,6 +813,39 @@ double LevelSetFluid3::__interpolatePhi(Eigen::Array3d position, double &_min,
   double phi = Ramuh::Interpolator::tricubic(position, points, values);
   return std::min(_max, std::max(_min, phi));
   // return phi;
+}
+
+bool LevelSetFluid3::advanceTime() {
+  _ellapsedDt += _dt;
+  if (_ellapsedDt < _originalDt)
+    return false;
+  _ellapsedDt = 0.0;
+  _dt = _originalDt;
+  return true;
+}
+
+void LevelSetFluid3::applyCfl() {
+  Eigen::Vector2d maxVel = Eigen::Vector2d(0.0, 0.0);
+  auto &u = getFaceScalarData(0, _velocityId);
+  auto &v = getFaceScalarData(1, _velocityId);
+  auto &w = getFaceScalarData(2, _velocityId);
+  auto h = getH();
+
+  for (int id = 0; id < cellCount(); id++) {
+    auto ijk = idToijk(id);
+    int i, j, k;
+    i = ijk[0];
+    j = ijk[1];
+    k = ijk[2];
+
+    Eigen::Vector2d vel;
+    vel[0] = (u[id] + u[faceijkToid(0, i + 1, j, k)]) / 2.0;
+    vel[1] = (v[id] + v[faceijkToid(1, i, j + 1, k)]) / 2.0;
+    vel[1] = (w[id] + w[faceijkToid(2, i, j, k + 1)]) / 2.0;
+
+    if (maxVel.norm() < vel.norm() * 1.05)
+      maxVel = vel;
+  }
 }
 
 } // namespace Leviathan

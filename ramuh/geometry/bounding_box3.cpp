@@ -4,6 +4,9 @@ namespace Ramuh {
 
 BoundingBox3::BoundingBox3() {}
 
+BoundingBox3::BoundingBox3(double min, double max)
+    : BoundingBox3(Eigen::Array3d(min), Eigen::Array3d(max)) {}
+
 BoundingBox3::BoundingBox3(Eigen::Array3d min, Eigen::Array3d max) {
   _min = min;
   _max = max;
