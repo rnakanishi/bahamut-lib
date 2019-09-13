@@ -1,7 +1,7 @@
 include(ExternalProject)
-find_package(GLM QUIET)
+find_package(glm QUIET)
 
-if(GLM_FOUND)
+if(glm_FOUND)
     message(STATUS "Found GLM")
 else()
     message(STATUS "GLM not found - will build from source")

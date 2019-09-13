@@ -11,7 +11,6 @@
 #include <iostream>
 #include <shader/shader.hpp>
 #include <utils/callbacks.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 class MyGui : public Garuda::GUI {
 

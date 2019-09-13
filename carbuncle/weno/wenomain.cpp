@@ -17,7 +17,7 @@ public:
   }
 
   void setInitialValues() {
-    auto &values = getLabelData(_functionId);
+    auto &values = getScalarData(_functionId);
     auto h = getH();
     for (int i = 0; i < _gridSize; i++) {
       double position = getPosition(i);
@@ -26,9 +26,9 @@ public:
   }
 
   void compareSolution() {
-    auto &phi = getLabelData(_functionId);
-    auto &analytic = getLabelData(_analyticId);
-    auto &weno = getLabelData(_discreteId);
+    auto &phi = getScalarData(_functionId);
+    auto &analytic = getScalarData(_analyticId);
+    auto &weno = getScalarData(_discreteId);
     auto h = getH();
     std::vector<double> values(6);
 
@@ -60,7 +60,7 @@ public:
       }
     }
     int newWenoId = newLabel("newWeno");
-    auto &newWeno = getLabelData(newWenoId);
+    auto &newWeno = getScalarData(newWenoId);
 
     double alpha = 0;
     for (size_t i = 0; i < _gridSize; i++) {

@@ -1,6 +1,7 @@
 #ifndef __RAMUH_GEOMETRY_UTILS_H__
 #define __RAMUH_GEOMETRY_UTILS_H__
 #include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
 
 namespace Ramuh {
 
