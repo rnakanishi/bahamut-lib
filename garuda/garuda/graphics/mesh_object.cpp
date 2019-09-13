@@ -168,8 +168,6 @@ void MeshObject::removeAllVertices() {
   std::cout << "Removed " << nVertices << " vertices\n";
 }
 
-uint MeshObject::removeDoubles() {}
-
 void MeshObject::addVertexNormal(uint id, glm::vec3 normal) {
   if (id >= _vertices.size()) {
     std::cerr << "MeshObject::addVertexNormal: vertexId out of range.\n";

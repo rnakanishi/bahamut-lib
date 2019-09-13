@@ -47,8 +47,6 @@ public:
 
   void removeAllVertices();
 
-  uint removeDoubles() override;
-
   void addVertexNormal(uint vertexId, glm::vec3 normal) override;
 
   Texture &getTexture();
