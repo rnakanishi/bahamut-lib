@@ -46,12 +46,16 @@ public:
 
   void trackSurface();
 
+  double interpolateCellScalarData(int dataId, Eigen::Array2d position);
+
+  Eigen::Array2d interpolateCellArrayData(int dataId, Eigen::Array2d position);
+
 protected:
-  double __interpolateVelocityU(Eigen::Array3d position);
-  double __interpolateVelocityV(Eigen::Array3d position);
-  double __interpolateVelocityU(Eigen::Array3d position, double &min,
+  double __interpolateVelocityU(Eigen::Array2d position);
+  double __interpolateVelocityV(Eigen::Array2d position);
+  double __interpolateVelocityU(Eigen::Array2d position, double &min,
                                 double &max);
-  double __interpolateVelocityV(Eigen::Array3d position, double &min,
+  double __interpolateVelocityV(Eigen::Array2d position, double &min,
                                 double &max);
 
   double _dt, _ellapsedDt, _originalDt;

@@ -1,5 +1,6 @@
 #include <structures/particle_system2.h>
 #include <cstdlib>
+#include <iostream>
 
 namespace Ramuh {
 
@@ -54,7 +55,10 @@ Eigen::Array2d ParticleSystem2::particlePosition(int pid) {
   return _arrayData[_positionsId][pid];
 }
 
+bool ParticleSystem2::isActive(int pid) { return _active[pid]; }
+
 void ParticleSystem2::removeParticle(int pid) {
+  std::cerr << "Removing particle " << pid << std::endl;
   if (_active[pid]) {
     _idQueue.push(pid);
     _active[pid] = false;

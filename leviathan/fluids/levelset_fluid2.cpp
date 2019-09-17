@@ -5,6 +5,7 @@
 #include <Eigen/Sparse>
 #include <Eigen/SparseLU>
 #include <blas/weno.h>
+#include <blas/interpolator.h>
 
 namespace Leviathan {
 
@@ -401,4 +402,80 @@ void LevelSetFluid2::trackSurface() {
   }
 }
 
+double LevelSetFluid2::interpolateCellScalarData(int dataId,
+                                                 Eigen::Array2d position) {
+  auto &data = getCellScalarData(dataId);
+  auto h = getH();
+
+  // Find which cell-id data belongs
+  Eigen::Array2i cellId =
+      (position - _domain.min()).cwiseQuotient(h).floor().cast<int>();
+
+  // Assemble bilinear stencil interpolation for velocities
+  auto cellPos = cellPosition(cellId[0], cellId[1]);
+  int xinc, yinc;
+  xinc = yinc = 1;
+  if (position[0] < cellPos[0])
+    xinc = -1;
+  if (position[1] < cellPos[1])
+    yinc = -1;
+
+  std::vector<Eigen::Array2d> points;
+  std::vector<double> values(4);
+  double target[2];
+  target[0] = position[0];
+  target[1] = position[1];
+
+  // cell Stencil for linear interpolation
+  points.emplace_back(cellPosition(cellId[0] + 0, cellId[1] + 0));
+  points.emplace_back(cellPosition(cellId[0] + 1, cellId[1] + 0));
+  points.emplace_back(cellPosition(cellId[0] + 0, cellId[1] + yinc));
+  points.emplace_back(cellPosition(cellId[0] + 1, cellId[1] + yinc));
+  values[0] = data[ijToid(cellId[0] + 0, cellId[1] + 0)];
+  values[1] = data[ijToid(cellId[0] + 1, cellId[1] + 0)];
+  values[2] = data[ijToid(cellId[0] + 0, cellId[1] + yinc)];
+  values[3] = data[ijToid(cellId[0] + 1, cellId[1] + yinc)];
+
+  return Ramuh::Interpolator::bilinear(target, points, values);
+}
+
+Eigen::Array2d
+LevelSetFluid2::interpolateCellArrayData(int dataId, Eigen::Array2d position) {
+  auto &data = getCellArrayData(dataId);
+  auto h = getH();
+
+  // Find which cell-id data belongs
+  Eigen::Array2i cellId =
+      (position - _domain.min()).cwiseQuotient(h).floor().cast<int>();
+
+  // Assemble bilinear stencil interpolation for velocities
+  auto cellPos = cellPosition(cellId[0], cellId[1]);
+  int xinc, yinc;
+  xinc = yinc = 1;
+  if (position[0] < cellPos[0])
+    xinc = -1;
+  if (position[1] < cellPos[1])
+    yinc = -1;
+
+  std::vector<Eigen::Array2d> points;
+  std::vector<double> values(4);
+  double target[2];
+  target[0] = position[0];
+  target[1] = position[1];
+
+  Eigen::Array2d interpData;
+  // cell Stencil for linear interpolation
+  points.emplace_back(cellPosition(cellId[0] + 0, cellId[1] + 0));
+  points.emplace_back(cellPosition(cellId[0] + 1, cellId[1] + 0));
+  points.emplace_back(cellPosition(cellId[0] + 0, cellId[1] + yinc));
+  points.emplace_back(cellPosition(cellId[0] + 1, cellId[1] + yinc));
+  for (size_t d = 0; d < 2; d++) {
+    values[0] = data[ijToid(cellId[0] + 0, cellId[1] + 0)][d];
+    values[1] = data[ijToid(cellId[0] + 1, cellId[1] + 0)][d];
+    values[2] = data[ijToid(cellId[0] + 0, cellId[1] + yinc)][d];
+    values[3] = data[ijToid(cellId[0] + 1, cellId[1] + yinc)][d];
+    interpData[d] = Ramuh::Interpolator::bilinear(target, points, values);
+  }
+  return interpData;
+}
 } // namespace Leviathan

@@ -46,10 +46,12 @@ public:
     auto &signal = getParticleScalarData(_particleSignalId);
 
     for (size_t i = 0; i < particleCount(); i++) {
-      auto pos = particlePosition(i);
-      file << pos[0] << " " << pos[1] << " ";
-      file << vel[i][0] << " " << vel[i][1] << " ";
-      file << signal[i] << "\n";
+      if (isActive(i)) {
+        auto pos = particlePosition(i);
+        file << pos[0] << " " << pos[1] << " ";
+        file << vel[i][0] << " " << vel[i][1] << " ";
+        file << signal[i] << "\n";
+      }
     }
     std::cout << "File written: " << filename.str() << std::endl;
     file.close();
@@ -77,10 +79,16 @@ int main(int argc, char const *argv[]) {
   PLevelSet system(Eigen::Array2i(64), Ramuh::BoundingBox2(-5, 5));
 
   system.initializeLevelSet(Eigen::Array2d(0, 1), 1.2);
+  system.computeCellsGradient();
   system.redistance();
   system.initializeGridVelocity();
   system.trackSurface();
   system.seedParticlesNearSurface();
+  system.printParticles();
+  system.attractParticles();
+  system.printParticles();
+  return 1;
+
   for (size_t i = 0; i < 10; i++) {
     system.interpolateVelocityToParticles();
     system.advectWeno();

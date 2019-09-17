@@ -41,6 +41,15 @@ public:
   Eigen::Array2d particlePosition(int pid);
 
   /**
+   * @brief Return either a particle is active or not.
+   *
+   * @param pid particle id
+   * @return true if particle is active
+   * @return false if particle was removed from the structure
+   */
+  bool isActive(int pid);
+
+  /**
    * @brief Remove particles from the particle system. Parameter can be eigher a
    * single id, or a vector with id bundle. Instead of actually removing them
    * from the data vector, only  mark them as inactive and theur ids are queued

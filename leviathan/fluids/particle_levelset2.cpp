@@ -3,6 +3,7 @@
 #include <geometry/vector2.h>
 #include <cmath>
 #include <set>
+#include <cstdlib>
 
 namespace Leviathan {
 
@@ -142,16 +143,51 @@ void ParticleLevelSet2::seedParticlesNearSurface() {
 }
 
 void ParticleLevelSet2::attractParticles() {
-  std::vector<double> goal(_totalIds, 0);
+  auto psignal = getParticleScalarData(_particleSignalId);
+  auto &position = getParticleArrayData(_positionsId);
+  auto radius = getParticleScalarData(_particleRadiusId);
+
+  // std::vector<double> goal(_totalIds, 0);
   double band[2];
-  band[0] = 0;
-  band[1] = 3 * getH().maxCoeff();
 
+  double goal;
   // Set a goal levelset for each particle
+  for (size_t pid = 0; pid < _totalIds; pid++) {
+    band[0] = psignal[pid] * 0.1 * getH().maxCoeff();
+    band[1] = psignal[pid] * 3.0 * getH().maxCoeff();
+    goal = std::abs(std::rand() % 1000000);
+    goal = band[0] + goal * (band[1] - band[0]) / 1000000;
 
-  // Proceed to attraction phase
-  // xnew = xp + lambda(goal - phi(xp)) * N(p)
-  // N(p): - levelset gradient
+    // Proceed to attraction phase
+    auto &p = position[pid];
+    double lambda = 1.;
+    double particleLevelSet = interpolateCellScalarData(_phiId, p);
+    size_t maxIt = 15;
+
+    for (size_t it = 0; it < maxIt; it++) {
+      // Interpolate levelset
+      Eigen::Array2d gradient = interpolateCellArrayData(_gradientId, p);
+
+      // xnew = xp + lambda(goal - phi(xp)) * N(p)
+      // N(p): - levelset gradient
+      Eigen::Array2d newp = p + lambda * (goal - particleLevelSet) * gradient;
+
+      if (!LevelSetFluid2::_domain.contains(newp)) {
+        lambda /= 2;
+        continue;
+      }
+      p = newp;
+
+      // Verify if near goal
+      particleLevelSet = interpolateCellScalarData(_phiId, p);
+      if ((band[0] <= particleLevelSet && particleLevelSet <= band[1]) ||
+          (band[0] >= particleLevelSet && particleLevelSet >= band[1]))
+        break;
+
+      if (it + 1 == maxIt)
+        removeParticle(pid);
+    }
+  }
 }
 
 } // namespace Leviathan
