@@ -44,6 +44,8 @@ public:
 
   virtual void print();
 
+  void trackSurface();
+
 protected:
   double __interpolateVelocityU(Eigen::Array3d position);
   double __interpolateVelocityV(Eigen::Array3d position);
@@ -56,6 +58,7 @@ protected:
   size_t _velocityId, _phiId, _gradientId;
   bool _isPressure2nd;
   double _tolerance;
+  std::vector<int> _surfaceCells;
 };
 
 } // namespace Leviathan

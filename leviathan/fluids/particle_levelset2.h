@@ -16,8 +16,11 @@ public:
 
   void interpolateVelocityToParticles();
 
+  void seedParticlesNearSurface();
+
 protected:
   int _particleRadiusId, _particleVelocityId;
+  int _particleSignalId;
 };
 
 } // namespace Leviathan

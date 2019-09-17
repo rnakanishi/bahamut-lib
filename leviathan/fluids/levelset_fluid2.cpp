@@ -379,4 +379,26 @@ void LevelSetFluid2::applyCfl() {
   }
 }
 
+void LevelSetFluid2::trackSurface() {
+  auto h = getH();
+  auto &phi = getCellScalarData(_phiId);
+  double eps = h[0], error = 1e8, dt = 0.5 * h[0];
+  std::vector<double> cellSignal(cellCount());
+  std::vector<bool> isInterface(cellCount(), false);
+
+  _surfaceCells.empty();
+  for (int id = 0; id < cellCount(); id++) {
+    auto ij = idToij(id);
+    int i = ij[0], j = ij[1];
+    if (i > 0 && i < _gridSize[0] - 1 && j > 0 && j < _gridSize[1] - 1) {
+      if (phi[id] * phi[ijToid(i - 1, j)] <= 0 ||
+          phi[id] * phi[ijToid(i + 1, j)] <= 0 ||
+          phi[id] * phi[ijToid(i, j - 1)] <= 0 ||
+          phi[id] * phi[ijToid(i, j + 1)] <= 0) {
+        _surfaceCells.emplace_back(id);
+      }
+    }
+  }
+}
+
 } // namespace Leviathan

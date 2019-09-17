@@ -48,6 +48,9 @@ public:
   Eigen::Array2d cellPosition(int i, int j);
   Eigen::Array2d cellPosition(int id);
 
+  BoundingBox2 cellBoundingBox(int i, int j);
+  BoundingBox2 cellBoundingBox(int id);
+
   int cellCount();
 
   /**

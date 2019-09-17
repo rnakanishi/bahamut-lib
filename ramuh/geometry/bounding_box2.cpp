@@ -22,6 +22,10 @@ Eigen::Array2d BoundingBox2::center() { return (_max + _min) / 2.0; }
 
 Eigen::Array2d BoundingBox2::size() { return _max - _min; }
 
+void BoundingBox2::setMin(Eigen::Array2d newMin) { _min = newMin; }
+
+void BoundingBox2::setMax(Eigen::Array2d newMax) { _max = newMax; }
+
 Eigen::Array2d BoundingBox2::clamp(Eigen::Array2d point) {
   point[0] = std::min(_max[0], std::max(_min[0], point[0]));
   point[1] = std::min(_max[1], std::max(_min[1], point[1]));

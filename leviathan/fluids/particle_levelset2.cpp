@@ -2,6 +2,7 @@
 #include <blas/interpolator.h>
 #include <geometry/vector2.h>
 #include <cmath>
+#include <set>
 
 namespace Leviathan {
 
@@ -14,6 +15,7 @@ ParticleLevelSet2::ParticleLevelSet2(Eigen::Array2i gridSize,
                                                                 domain) {
   _particleRadiusId = newParticleScalarLabel("radius");
   _particleVelocityId = newParticleArrayLabel("velocity");
+  _particleSignalId = newParticleScalarLabel("particleSignal");
 }
 
 void ParticleLevelSet2::advectParticles() {
@@ -83,5 +85,60 @@ void ParticleLevelSet2::interpolateVelocityToParticles() {
     velocity[pid][1] = Ramuh::Interpolator::bilinear(target, points, values);
   }
 }
+
+void ParticleLevelSet2::seedParticlesNearSurface() {
+  std::vector<int> distanceToSurface(cellCount(), 1e8);
+  std::vector<int> visited(cellCount(), false);
+  std::set<int> toSeed;
+
+  std::queue<int> cellQueue;
+  for (auto cell : _surfaceCells) {
+    distanceToSurface[cell] = 0;
+    cellQueue.push(cell);
+  }
+
+  // For every cell surface tracked before, compute bfs and mark those cells
+  // that are at most 3 cells away from surface
+  while (!cellQueue.empty()) {
+    int cell = cellQueue.front();
+    cellQueue.pop();
+    if (!visited[cell]) {
+      visited[cell] = true;
+      auto ij = idToij(cell);
+      int i = ij[0], j = ij[1];
+      int distance = distanceToSurface[cell];
+
+      // All neighbors
+      int neighbors[4];
+      neighbors[0] = ijToid(std::max(0, i - 1), j);
+      neighbors[1] = ijToid(std::min(_gridSize[0] - 1, i + 1), j);
+      neighbors[2] = ijToid(i, std::max(0, j - 1));
+      neighbors[3] = ijToid(i, std::min(_gridSize[1] - 1, j + 1));
+      for (auto neighbor : neighbors) {
+        if (!visited[neighbor]) {
+          cellQueue.push(neighbor);
+        }
+        distanceToSurface[neighbor] =
+            std::min(distanceToSurface[neighbor], distance + 1);
+        if (distanceToSurface[neighbor] < 3)
+          toSeed.insert(neighbor);
+      }
+    }
+  }
+
+  // For marked cells, fill them with particles
+  auto &particleSignal = getParticleScalarData(_particleSignalId);
+  int maxParticles = 64;
+  for (auto cell : toSeed) {
+    auto box = cellBoundingBox(cell);
+    auto seeded = seedParticles(box, maxParticles);
+    for (size_t i = 0; i < maxParticles / 2; i++) {
+      particleSignal[seeded[i]] = -1;
+    }
+    for (size_t i = maxParticles / 2; i < maxParticles; i++) {
+      particleSignal[seeded[i]] = +1;
+    }
+  }
+} // namespace Leviathan
 
 } // namespace Leviathan

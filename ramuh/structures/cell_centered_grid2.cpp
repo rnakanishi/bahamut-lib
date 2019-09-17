@@ -43,6 +43,20 @@ Eigen::Array2d CellCenteredGrid2::cellPosition(int id) {
   return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
 }
 
+BoundingBox2 CellCenteredGrid2::cellBoundingBox(int i, int j) {
+  auto position = cellPosition(i, j);
+  BoundingBox2 box;
+  Eigen::Array2d h = getH();
+  box.setMin(position - h / 2);
+  box.setMax(position + h / 2);
+  return box;
+}
+
+BoundingBox2 CellCenteredGrid2::cellBoundingBox(int id) {
+  auto ij = idToij(id);
+  return cellBoundingBox(ij[0], ij[1]);
+}
+
 int CellCenteredGrid2::cellCount() { return _gridSize.prod(); }
 
 size_t CellCenteredGrid2::newCellScalarLabel(std::string label) {
