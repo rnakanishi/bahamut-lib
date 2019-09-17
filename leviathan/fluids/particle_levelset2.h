@@ -6,12 +6,18 @@
 
 namespace Leviathan {
 
-class ParticleLevelSet2 : public Ramuh::ParticleSystem2, LevelSetFluid2 {
+class ParticleLevelSet2 : public Ramuh::ParticleSystem2, public LevelSetFluid2 {
 public:
   ParticleLevelSet2();
 
+  ParticleLevelSet2(Eigen::Array2i gridSize, Ramuh::BoundingBox2 domain);
+
+  void advectParticles();
+
+  void interpolateVelocityToParticles();
+
 protected:
-  int _radiusDataId;
+  int _particleRadiusId, _particleVelocityId;
 };
 
 } // namespace Leviathan

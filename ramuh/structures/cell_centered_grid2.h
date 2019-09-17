@@ -45,8 +45,8 @@ public:
 
   Eigen::Array2d getH();
 
-  Eigen::Array2d getPosition(int i, int j);
-  Eigen::Array2d getPosition(int id);
+  Eigen::Array2d cellPosition(int i, int j);
+  Eigen::Array2d cellPosition(int id);
 
   int cellCount();
 
@@ -60,11 +60,11 @@ public:
    *instance
    * @return size_t return internal position of the label.
    **/
-  size_t newScalarLabel(std::string label);
-  size_t newScalarLabel(std::string label, double initialValue);
+  size_t newCellScalarLabel(std::string label);
+  size_t newCellScalarLabel(std::string label, double initialValue);
 
-  size_t newArrayLabel(std::string label);
-  size_t newArrayLabel(std::string label, Eigen::Array2d initialValue);
+  size_t newCellArrayLabel(std::string label);
+  size_t newCellArrayLabel(std::string label, Eigen::Array2d initialValue);
 
   /**
    * @brief Get the vector object for a given label. This vector contains whole
@@ -73,11 +73,11 @@ public:
    * @param label string value. Must have been created
    * @return std::vector<double>& vector containing the data for that label
    **/
-  std::vector<double> &getScalarData(std::string label);
-  std::vector<double> &getScalarData(size_t id);
+  std::vector<double> &getCellScalarData(std::string label);
+  std::vector<double> &getCellScalarData(size_t id);
 
-  std::vector<Eigen::Array2d> &getArrayData(std::string label);
-  std::vector<Eigen::Array2d> &getArrayData(int id);
+  std::vector<Eigen::Array2d> &getCellArrayData(std::string label);
+  std::vector<Eigen::Array2d> &getCellArrayData(int id);
 
 protected:
   Eigen::Array2i _gridSize;

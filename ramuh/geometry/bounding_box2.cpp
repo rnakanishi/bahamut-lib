@@ -35,6 +35,15 @@ bool BoundingBox2::contains(Eigen::Array2d point) {
   return false;
 }
 
+bool BoundingBox2::contains(BoundingBox2 box) {
+  auto bmin = box.min();
+  auto bmax = box.max();
+  if ((bmin[0] < _min[0] || bmin[1] < _min[1]) ||
+      (bmax[0] > _max[0] || bmax[1] > _max[1]))
+    return false;
+  return true;
+}
+
 BoundingBox2 BoundingBox2::unitBox() {
   return BoundingBox2(Eigen::Array2d(0, 0), Eigen::Array2d(1, 1));
 }

@@ -106,6 +106,12 @@ public:
     _y = y;
   }
 
+  Vector2<int> floor() {
+    _x = std::floor(_x);
+    _y = std::floor(_y);
+    return Vector2<int>(_x, _y);
+  }
+
   friend std::ostream &operator<<(std::ostream &os, const Vector2<T> &v) {
     os << "[" << v.x() << ", " << v.y() << "]";
     return os;

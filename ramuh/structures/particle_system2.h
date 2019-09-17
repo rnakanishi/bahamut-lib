@@ -14,6 +14,8 @@ class ParticleSystem2 {
 public:
   ParticleSystem2();
 
+  ParticleSystem2(BoundingBox2 domain);
+
   int particleCount();
 
   /**
@@ -36,7 +38,7 @@ public:
    * @return std::vector<Eigen::Array2d> Either a vector containing all particle
    * positions; or a single position
    */
-  Eigen::Array2d getPosition(int pid);
+  Eigen::Array2d particlePosition(int pid);
 
   /**
    * @brief Remove particles from the particle system. Parameter can be eigher a
@@ -49,25 +51,27 @@ public:
   void removeParticle(int pid);
   void removeParticle(std::vector<int> pids);
 
-  int newScalarLabel(std::string label);
+  int newParticleScalarLabel(std::string label);
 
-  int newArrayLabel(std::string label);
+  int newParticleArrayLabel(std::string label);
 
-  std::vector<double> &getScalarData(std::string label);
-  std::vector<double> &getScalarData(int id);
+  std::vector<double> &getParticleScalarData(std::string label);
+  std::vector<double> &getParticleScalarData(int id);
 
-  std::vector<Eigen::Array2d> &getArrayData(std::string label);
-  std::vector<Eigen::Array2d> &getArrayData(int id);
+  std::vector<Eigen::Array2d> &getParticleArrayData(std::string label);
+  std::vector<Eigen::Array2d> &getParticleArrayData(int id);
 
 protected:
   std::vector<bool> _active;
   std::queue<int> _idQueue;
-  std::vector<Eigen::Array2d> _positions;
+  int _positionsId;
 
   std::vector<std::vector<double>> _scalarData;
   std::vector<std::vector<Eigen::Array2d>> _arrayData;
   std::map<std::string, int> _arrayMap, _scalarMap;
-  int _count;
+
+  BoundingBox2 _domain;
+  int _count, _totalIds;
 };
 
 } // namespace Ramuh

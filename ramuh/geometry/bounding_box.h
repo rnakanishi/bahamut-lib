@@ -76,6 +76,8 @@ public:
 
   bool contains(Eigen::Array2d);
 
+  bool contains(BoundingBox2 box);
+
 private:
   Eigen::Array2d _min, _max;
 };

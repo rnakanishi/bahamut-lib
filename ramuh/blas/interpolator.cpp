@@ -10,14 +10,16 @@ Interpolator::Interpolator() {}
 
 double Interpolator::linear(double target, std::vector<double> points,
                             std::vector<double> values) {
-  // TODO: This function assumes that only two points are passed as parameter
+  if (points[1] == points[0])
+    return values[0];
+
   double theta =
       (target - points[0]) * (values[1] - values[0]) / (points[1] - points[0]);
   return theta + values[0];
 }
 
 double Interpolator::bilinear(double position[2],
-                              std::vector<Eigen::Array2d> samples,
+                              std::vector<Eigen::Array2d> &samples,
                               std::vector<double> sampleValues) {
   double intermediateValues[2];
   for (int it = 0; it < 2; it++) {
@@ -44,7 +46,7 @@ double Interpolator::bilinear(double position[2],
 }
 
 double Interpolator::trilinear(Eigen::Array3d position,
-                               std::vector<Eigen::Array3d> samples,
+                               std::vector<Eigen::Array3d> &samples,
                                std::vector<double> sampleValues) {
   double intermediateValues[4];
   for (int it = 0; it < 4; it++) {
@@ -159,7 +161,7 @@ double Interpolator::cubic(const double position,
 }
 
 double Interpolator::bicubic(double position[2],
-                             std::vector<Eigen::Array2d> points,
+                             std::vector<Eigen::Array2d> &points,
                              std::vector<double> values) {
   double intermediateValues[4];
   std::vector<double> samples;
@@ -185,7 +187,7 @@ double Interpolator::bicubic(double position[2],
 }
 
 double Interpolator::tricubic(Eigen::Array3d position,
-                              std::vector<Eigen::Array3d> samples,
+                              std::vector<Eigen::Array3d> &samples,
                               std::vector<double> values) {
   double intermediateValues[4];
   std::vector<Eigen::Array2d> points;
@@ -218,7 +220,7 @@ double Interpolator::tricubic(Eigen::Array3d position,
 }
 
 double Interpolator::shepard(Eigen::Array3d position,
-                             std::vector<Eigen::Array3d> samples,
+                             std::vector<Eigen::Array3d> &samples,
                              std::vector<double> values) {
   double distance, dSum = 0.0;
   double result = 0.0;
@@ -239,7 +241,7 @@ double Interpolator::shepard(Eigen::Array3d position,
 }
 
 double Interpolator::rbf(Eigen::Array3d position,
-                         std::vector<Eigen::Array3d> samples,
+                         std::vector<Eigen::Array3d> &samples,
                          std::vector<double> values) {
   // Quintic kernel
   // TODO: Change kernel to be parameter as well

@@ -10,10 +10,11 @@ namespace Leviathan {
 
 LevelSetFluid2::LevelSetFluid2()
     : LevelSetFluid2(Eigen::Array2i(32, 32), Ramuh::BoundingBox2::unitBox()) {}
+
 LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
                                Ramuh::BoundingBox2 domain)
     : MacGrid2(domain, gridSize) {
-  _phiId = newScalarLabel("phi", 1e8);
+  _phiId = newCellScalarLabel("phi", 1e8);
   _velocityId = newFaceScalarLabel("velocity");
   //  --> Even though velocities are vector, MAC grid split them into scalar
   //  pieces for each coordinate
@@ -22,12 +23,12 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
 
   _tolerance = 1e-10;
 
-  _gradientId = newArrayLabel("cellGradient");
+  _gradientId = newCellArrayLabel("cellGradient");
 }
 
 void LevelSetFluid2::computeCellsGradient() {
-  auto &phi = getScalarData("phi");
-  auto &gradient = getArrayData("cellGradient");
+  auto &phi = getCellScalarData("phi");
+  auto &gradient = getCellArrayData("cellGradient");
   auto h = getH();
 
 #pragma omp parallel for
@@ -48,12 +49,12 @@ void LevelSetFluid2::computeCellsGradient() {
 
 void LevelSetFluid2::advectWeno() {
   auto h = getH();
-  auto &phi = getScalarData(_phiId);
+  auto &phi = getCellScalarData(_phiId);
   std::vector<double> newPhi(cellCount());
 
   // Weno computation
   for (int id = 0; id < cellCount(); id++) {
-    auto p = getPosition(id);
+    auto p = cellPosition(id);
     auto ij = idToij(id);
     int i = ij[0], j = ij[1];
     newPhi[id] = 0;
@@ -169,8 +170,8 @@ void LevelSetFluid2::advectWeno() {
 
 void LevelSetFluid2::advectCip() {
   auto h = getH();
-  auto &phi = getScalarData(_phiId);
-  auto &gradient = getArrayData(_gradientId);
+  auto &phi = getCellScalarData(_phiId);
+  auto &gradient = getCellArrayData(_gradientId);
   auto &uVelocity = getFaceScalarData(0, _velocityId);
   auto &vVelocity = getFaceScalarData(1, _velocityId);
   static int count = 0;
@@ -239,7 +240,7 @@ void LevelSetFluid2::print() {}
 
 void LevelSetFluid2::redistance() {
   auto h = getH();
-  auto &phi = getScalarData(_phiId);
+  auto &phi = getCellScalarData(_phiId);
   double eps = h[0], error = 1e8, dt = 0.5 * h[0];
   std::vector<double> gradient(cellCount());
   std::vector<double> cellSignal(cellCount());
