@@ -128,7 +128,7 @@ void ParticleLevelSet2::seedParticlesNearSurface() {
 
   // For marked cells, fill them with particles
   auto &particleSignal = getParticleScalarData(_particleSignalId);
-  int maxParticles = 64;
+  int maxParticles = 128;
   for (auto cell : toSeed) {
     auto box = cellBoundingBox(cell);
     auto seeded = seedParticles(box, maxParticles);
@@ -139,6 +139,19 @@ void ParticleLevelSet2::seedParticlesNearSurface() {
       particleSignal[seeded[i]] = +1;
     }
   }
-} // namespace Leviathan
+}
+
+void ParticleLevelSet2::attractParticles() {
+  std::vector<double> goal(_totalIds, 0);
+  double band[2];
+  band[0] = 0;
+  band[1] = 3 * getH().maxCoeff();
+
+  // Set a goal levelset for each particle
+
+  // Proceed to attraction phase
+  // xnew = xp + lambda(goal - phi(xp)) * N(p)
+  // N(p): - levelset gradient
+}
 
 } // namespace Leviathan
