@@ -61,8 +61,8 @@ void ParticleSystem2::removeParticle(int pid) {
   std::cerr << "Removing particle " << pid << std::endl;
   if (_active[pid]) {
     _idQueue.push(pid);
-    _active[pid] = false;
   }
+  _active[pid] = false;
 }
 
 void ParticleSystem2::removeParticle(std::vector<int> pids) {

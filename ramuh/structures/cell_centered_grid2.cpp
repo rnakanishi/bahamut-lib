@@ -31,12 +31,12 @@ Eigen::Array2d CellCenteredGrid2::getH() {
   return _domain.size().cwiseQuotient(_gridSize.cast<double>());
 }
 
-Eigen::Array2d CellCenteredGrid2::cellPosition(int i, int j) {
+Eigen::Array2d CellCenteredGrid2::getCellPosition(int i, int j) {
   auto h = getH();
   return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
 }
 
-Eigen::Array2d CellCenteredGrid2::cellPosition(int id) {
+Eigen::Array2d CellCenteredGrid2::getCellPosition(int id) {
   auto ij = idToij(id);
   auto h = getH();
   int i = ij[0], j = ij[1];
@@ -44,7 +44,7 @@ Eigen::Array2d CellCenteredGrid2::cellPosition(int id) {
 }
 
 BoundingBox2 CellCenteredGrid2::cellBoundingBox(int i, int j) {
-  auto position = cellPosition(i, j);
+  auto position = getCellPosition(i, j);
   BoundingBox2 box;
   Eigen::Array2d h = getH();
   box.setMin(position - h / 2);

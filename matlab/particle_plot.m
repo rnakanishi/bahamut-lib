@@ -6,8 +6,8 @@ first = dlmread([folder 'ls' num2str(0)]);
 N = sqrt(length(first));
 
 x = linspace(-5, 5, N);
-[X, Y] = meshgrid(x, x);
 dx = x(2) - x(1);
+[X, Y] = meshgrid(x, x);
 
 az = 0;
 el = 0;
@@ -16,7 +16,7 @@ figure('position', [100, 100, 1200, 1200]);
 % figure/
 hold on;
 
-for t = 0:10
+for t = 0:30
     % for t = [0:34:1256 1256]
     clf, hold on;
     % view(az, el);
@@ -33,7 +33,12 @@ for t = 0:10
     scatter(negatives(:, 1), negatives(:, 2), 'r', '.');
     % quiver(particles(:, 1), particles(:, 2), particles(:, 2), -particles(:, 1));
 
-    contour(X, Y, values, [0, 0], 'k-', 'linewidth', 2);
+    contour(X, Y, values, -3*dx:dx:3*dx, 'linewidth', 2);
+    contour(X, Y, values, [0, 0], 'k-', 'linewidth', 3);
+
+    set(gca, 'xtick', -5:dx:5);
+    set(gca, 'ytick', -5:dx:5);
+    % axis([-5 5 -5 5]);
     title(t);
     pause;
 

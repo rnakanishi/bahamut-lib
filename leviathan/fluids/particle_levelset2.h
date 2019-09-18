@@ -44,9 +44,12 @@ public:
    */
   void attractParticles();
 
+  void correctLevelSetWithParticles();
+
 protected:
   int _particleRadiusId, _particleVelocityId;
   int _particleSignalId;
+  int _particleLevelSetId;
 };
 
 } // namespace Leviathan

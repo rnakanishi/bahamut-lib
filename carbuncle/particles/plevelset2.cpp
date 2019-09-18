@@ -14,10 +14,16 @@ public:
   void initializeLevelSet(Eigen::Array2d center, double radius) {
     auto &function = getCellScalarData(_phiId);
     for (size_t i = 0; i < cellCount(); i++) {
-      auto p = cellPosition(i);
+      auto p = getCellPosition(i);
 
       p -= center;
+      // function[i] = -2;
+      // if (sqrt(pow(p[0] - center[0], 2) + pow(p[1] - center[1], 2)) < radius)
       function[i] = sqrt(p[0] * p[0] + p[1] * p[1]) - radius;
+      // function[i] = 5;
+      double s = radius / 4.;
+      if ((p[0] >= -s && p[0] <= s) && (p[1] <= s && p[1] >= -radius))
+        function[i] = 1;
     }
   }
 
@@ -28,11 +34,11 @@ public:
     // u velocities
     for (size_t i = 0; i < faceCount(0); i++) {
       auto p = facePosition(0, i);
-      u[i] = p[1];
+      u[i] = -p[1];
 
       // v velocities
       p = facePosition(1, i);
-      v[i] = -p[0];
+      v[i] = p[0];
     }
   }
 
@@ -76,23 +82,36 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet system(Eigen::Array2i(64), Ramuh::BoundingBox2(-5, 5));
+  PLevelSet system(Eigen::Array2i(80), Ramuh::BoundingBox2(-5, 5));
 
-  system.initializeLevelSet(Eigen::Array2d(0, 1), 1.2);
-  system.computeCellsGradient();
+  system.initializeLevelSet(Eigen::Array2d(0, 2), 1.75);
   system.redistance();
+  system.computeCellsGradient();
   system.initializeGridVelocity();
   system.trackSurface();
   system.seedParticlesNearSurface();
   system.printParticles();
+  system.printLevelSet();
   system.attractParticles();
   system.printParticles();
-  return 1;
+  system.printLevelSet();
 
-  for (size_t i = 0; i < 10; i++) {
+  for (size_t i = 0; i < 30; i++) {
     system.interpolateVelocityToParticles();
     system.advectWeno();
     system.advectParticles();
+    system.printParticles();
+    system.printLevelSet();
+
+    system.correctLevelSetWithParticles();
+    system.printParticles();
+    system.printLevelSet();
+
+    system.redistance();
+    system.printParticles();
+    system.printLevelSet();
+
+    // system.correctLevelSetWithParticles();
     system.printParticles();
     system.printLevelSet();
   }
