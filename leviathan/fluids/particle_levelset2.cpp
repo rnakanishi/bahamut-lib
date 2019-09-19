@@ -237,7 +237,7 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
 
     if (lsignal != psignal) {
       // Check if radius tolerance applies
-      if (std::abs(particleLevelSet[pid] - levelSet) > radiuses[pid]) {
+      if (std::abs(levelSet) > radiuses[pid]) {
         scapedParticles.emplace_back(pid);
         Eigen::Array2i cellIj =
             (positions[pid] - ParticleSystem2::_domain.min())
@@ -259,22 +259,32 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
 
     phiplus = phiminus = phi[cellId];
     // For all particles in the scapped cell
+    double distance[2] = {3 * h[0], 3 * h[1]}; // plus, minus
+    double pradius[2] = {h[0], 0};             // plus, minus
+    double finalphi[2];                        // plus, minus
     for (auto particle : particles) {
       Eigen::Array2d pPosition = particlePosition(particle);
       double pLevelset = interpolateCellScalarData(_phiId, pPosition);
-      double distance = (pPosition - cellCenter).matrix().norm();
-      // Compute levelset difference
+      // Compute particle with least distance to center
       if (signals[particle] > 0) {
-        phiplus = std::max(phiplus, distance - pLevelset);
+        distance[0] =
+            std::min(distance[0], (pPosition - cellCenter).matrix().norm());
+        pradius[0] = radiuses[particle];
       } else {
-        phiminus = std::min(phiminus, -distance - pLevelset);
+        distance[1] =
+            -std::min(distance[1], (pPosition - cellCenter).matrix().norm());
+        pradius[1] = radiuses[particle];
       }
     }
+    // Candidate levelset
+    finalphi[0] = std::max(phi[cellId], distance[0] - pradius[0]);
+    finalphi[1] = std::min(phi[cellId], distance[1] - std::abs(pradius[1]));
+
     // Fix phi from particles phi
-    if (std::abs(phiminus) < std::abs(phiplus))
-      phi[cellId] = phiminus;
+    if (std::abs(finalphi[1]) < std::abs(finalphi[0]))
+      phi[cellId] = finalphi[1];
     else
-      phi[cellId] = phiplus;
+      phi[cellId] = finalphi[0];
   }
 } // namespace Leviathan
 
