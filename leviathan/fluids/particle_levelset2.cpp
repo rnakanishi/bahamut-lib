@@ -220,7 +220,7 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
   auto &positions = getParticleArrayData(_positionsId);
   auto &signals = getParticleScalarData(_particleSignalId);
   auto &radiuses = getParticleScalarData(_particleRadiusId);
-  auto &particleLevelSet = getParticleScalarData(_particleLevelSetId);
+  auto &particlesLevelSet = getParticleScalarData(_particleLevelSetId);
   auto &phi = getCellScalarData(_phiId);
   auto h = getH();
 
@@ -256,35 +256,47 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
     int cellId = cell.first;
     auto particles = cell.second;
     Eigen::Array2d cellCenter = getCellPosition(cellId);
+    Ramuh::BoundingBox2 cellBox = cellBoundingBox(cellId);
+    std::vector<Eigen::Array2d> cornersPosition;
+    cornersPosition.emplace_back(cellBox.min()[0], cellBox.min()[1]);
+    cornersPosition.emplace_back(cellBox.max()[0], cellBox.min()[1]);
+    cornersPosition.emplace_back(cellBox.min()[0], cellBox.max()[1]);
+    cornersPosition.emplace_back(cellBox.max()[0], cellBox.max()[1]);
 
     phiplus = phiminus = phi[cellId];
     // For all particles in the scapped cell
     double distance[2] = {3 * h[0], 3 * h[1]}; // plus, minus
     double pradius[2] = {h[0], 0};             // plus, minus
     double finalphi[2];                        // plus, minus
+
+    finalphi[0] = finalphi[1] = phi[cellId];
     for (auto particle : particles) {
       Eigen::Array2d pPosition = particlePosition(particle);
-      double pLevelset = interpolateCellScalarData(_phiId, pPosition);
-      // Compute particle with least distance to center
-      if (signals[particle] > 0) {
-        distance[0] =
-            std::min(distance[0], (pPosition - cellCenter).matrix().norm());
-        pradius[0] = radiuses[particle];
-      } else {
-        distance[1] =
-            -std::min(distance[1], (pPosition - cellCenter).matrix().norm());
-        pradius[1] = radiuses[particle];
+      // Compute level set values on the corners of the cell using particle
+      // local level set
+      // double pLevelset = interpolateCellScalarData(_phiId, pPosition);
+      double pLevelset = radiuses[particle];
+      // finalphi[0] = std::max(finalphi[0], pLevelset);
+      // finalphi[1] = std::min(finalphi[1], pLevelset);
+
+      std::vector<double> cornersLevelset;
+      for (size_t corner = 0; corner < 4; corner++) {
+        double cornerDistance =
+            (cornersPosition[corner] - pPosition).matrix().norm();
+        double cornerLevelset =
+            signals[particle] * (radiuses[particle] - cornerDistance);
+        if (signals[particle] > 0) {
+          finalphi[0] = std::max(finalphi[0], cornerLevelset);
+        } else {
+          finalphi[1] = std::min(finalphi[1], cornerLevelset);
+        }
       }
     }
-    // Candidate levelset
-    finalphi[0] = std::max(phi[cellId], distance[0] - pradius[0]);
-    finalphi[1] = std::min(phi[cellId], distance[1] - std::abs(pradius[1]));
-
     // Fix phi from particles phi
-    if (std::abs(finalphi[1]) < std::abs(finalphi[0]))
-      phi[cellId] = finalphi[1];
-    else
+    if (std::abs(finalphi[0]) <= std::abs(finalphi[1]))
       phi[cellId] = finalphi[0];
+    else
+      phi[cellId] = finalphi[1];
   }
 } // namespace Leviathan
 
