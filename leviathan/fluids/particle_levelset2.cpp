@@ -269,7 +269,6 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
     double pradius[2] = {h[0], 0};             // plus, minus
     double finalphi[2];                        // plus, minus
 
-    finalphi[0] = finalphi[1] = phi[cellId];
     for (auto particle : particles) {
       Eigen::Array2d pPosition = particlePosition(particle);
       // Compute level set values on the corners of the cell using particle
@@ -283,20 +282,39 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
       for (size_t corner = 0; corner < 4; corner++) {
         double cornerDistance =
             (cornersPosition[corner] - pPosition).matrix().norm();
-        double cornerLevelset =
-            signals[particle] * (radiuses[particle] - cornerDistance);
-        if (signals[particle] > 0) {
-          finalphi[0] = std::max(finalphi[0], cornerLevelset);
-        } else {
-          finalphi[1] = std::min(finalphi[1], cornerLevelset);
+        cornersLevelset.emplace_back(signals[particle] *
+                                     (radiuses[particle] - cornerDistance));
+      }
+      // for all neighbors
+      auto ij = idToij(cellId);
+      int i = ij[0], j = ij[1];
+      std::vector<int> neighbors;
+      neighbors.emplace_back(ijToid(i, j));
+      neighbors.emplace_back(ijToid(i + 1, j));
+      neighbors.emplace_back(ijToid(i - 1, j));
+      neighbors.emplace_back(ijToid(i, j + 1));
+      neighbors.emplace_back(ijToid(i, j - 1));
+      for (auto neighbor : neighbors) {
+        finalphi[0] = finalphi[1] = phi[cellId];
+        double neighLevelset = phi[neighbor];
+        int partSignal = (signals[particle] > 0) ? 1 : -1;
+        int cellSignal = (neighLevelset > 0) ? 1 : -1;
+        for (auto cornerLevelset : cornersLevelset) {
+          if (signals[particle] > 0 && neighLevelset > 0) {
+            finalphi[0] = std::max(finalphi[0], cornerLevelset);
+          } else if (signals[particle] <= 0 && neighLevelset <= 0) {
+            finalphi[1] = std::min(finalphi[1], cornerLevelset);
+          }
+        }
+        // Fix phi from particles phi
+        if (cellSignal == partSignal) {
+          if (std::abs(finalphi[0]) <= std::abs(finalphi[1]))
+            phi[neighbor] = finalphi[0];
+          else
+            phi[neighbor] = finalphi[1];
         }
       }
     }
-    // Fix phi from particles phi
-    if (std::abs(finalphi[0]) <= std::abs(finalphi[1]))
-      phi[cellId] = finalphi[0];
-    else
-      phi[cellId] = finalphi[1];
   }
 } // namespace Leviathan
 
