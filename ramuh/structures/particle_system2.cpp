@@ -25,6 +25,7 @@ int ParticleSystem2::seedParticles(BoundingBox2 region) {
       _scalarData[dataFieldId.second].emplace_back(0);
     for (auto &arrayFieldId : _arrayMap)
       _arrayData[arrayFieldId.second].emplace_back(Eigen::Array2d(0));
+    _totalIds++;
   } else {
     id = _idQueue.front();
     _idQueue.pop();
@@ -38,7 +39,6 @@ int ParticleSystem2::seedParticles(BoundingBox2 region) {
   position = region.min() + position.cwiseProduct(region.size()) / 100000;
   _positions[id] = position;
   _count++;
-  _totalIds++;
   return id;
 }
 
@@ -64,6 +64,7 @@ void ParticleSystem2::removeParticle(int pid) {
     _idQueue.push(pid);
   }
   _active[pid] = false;
+  _count--;
 }
 
 void ParticleSystem2::removeParticle(std::vector<int> pids) {

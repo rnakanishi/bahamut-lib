@@ -34,11 +34,13 @@ public:
     // u velocities
     for (size_t i = 0; i < faceCount(0); i++) {
       auto p = facePosition(0, i);
-      u[i] = -p[1];
+      // u[i] = -p[1];
+      u[i] = 0;
 
       // v velocities
       p = facePosition(1, i);
-      v[i] = p[0];
+      // v[i] = p[0];
+      v[i] = -1;
     }
   }
 
@@ -84,7 +86,7 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet system(Eigen::Array2i(60), Ramuh::BoundingBox2(-5, 5));
+  PLevelSet system(Eigen::Array2i(128), Ramuh::BoundingBox2(-5, 5));
 
   system.initializeLevelSet(Eigen::Array2d(0, 2), 1.4);
   system.redistance();
@@ -92,11 +94,11 @@ int main(int argc, char const *argv[]) {
   system.initializeGridVelocity();
   system.trackSurface();
   system.seedParticlesNearSurface();
-  system.attractParticles();
+  // system.attractParticles();
   system.printParticles();
   system.printLevelSet();
 
-  for (size_t i = 0; i < 30; i++) {
+  for (size_t i = 0; i < 630; i++) {
     system.interpolateVelocityToParticles();
     system.advectWeno();
     system.advectParticles();
@@ -108,12 +110,14 @@ int main(int argc, char const *argv[]) {
     // system.printLevelSet();
 
     system.redistance();
+
     // system.printParticles();
     // system.printLevelSet();
 
     // system.correctLevelSetWithParticles();
     system.printParticles();
     system.printLevelSet();
+    system.adjustParticleRadius();
   }
 
   return 0;

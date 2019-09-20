@@ -16,7 +16,9 @@ figure('position', [350, 150, 1500, 1500]);
 % figure/
 hold on;
 
-for t = 0:30
+vis = [-5 5 -5 5];
+
+for t = 0:100
     % for t = [0:34:1256 1256]
     clf, hold on;
     % view(az, el);
@@ -33,12 +35,13 @@ for t = 0:30
     positives = particles(row, :);
 
     hold on;
-    scatter(positives(:, 1), positives(:, 2), 'b', '.');
-    scatter(negatives(:, 1), negatives(:, 2), 'r', '.');
 
     if (length(escaped) > 0)
-        scatter(escaped(:, 1), escaped(:, 2), 'g', '*');
+        scatter(escaped(:, 1), escaped(:, 2), 50, 'g', '*');
     end
+
+    scatter(positives(:, 1), positives(:, 2), 'b', '.');
+    scatter(negatives(:, 1), negatives(:, 2), 'r', '.');
 
     % quiver(particles(:, 1), particles(:, 2), particles(:, 2), -particles(:, 1));
 
@@ -48,10 +51,12 @@ for t = 0:30
 
     set(gca, 'xtick', levelx(1, :));
     set(gca, 'ytick', levely(:, 1));
+    grid on;
+    axis(vis);
     % axis([-5 5 -5 5]);
     title(t);
     pause;
-
+    vis = axis();
     % pause;
     [az, el] = view();
 end

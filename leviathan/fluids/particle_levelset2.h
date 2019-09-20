@@ -49,9 +49,13 @@ public:
   void correctLevelSetWithParticles();
 
 protected:
+  bool _hasEscaped(int pid);
+
   int _particleRadiusId, _particleVelocityId;
   int _particleSignalId;
   int _particleLevelSetId;
+
+  std::vector<int> _escapedParticles;
 };
 
 } // namespace Leviathan
