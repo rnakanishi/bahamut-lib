@@ -50,13 +50,14 @@ public:
     file.open(filename.str().c_str(), std::ofstream::out);
     auto &vel = getParticleArrayData(_particleVelocityId);
     auto &signal = getParticleScalarData(_particleSignalId);
+    auto &radius = getParticleScalarData(_particleRadiusId);
 
     for (size_t i = 0; i < particleCount(); i++) {
       if (isActive(i)) {
         auto pos = particlePosition(i);
         file << pos[0] << " " << pos[1] << " ";
         file << vel[i][0] << " " << vel[i][1] << " ";
-        file << signal[i] << "\n";
+        file << signal[i] << " " << radius[i] << "\n";
       }
     }
     std::cout << "File written: " << filename.str() << std::endl;
@@ -72,7 +73,8 @@ public:
     file.open(filename.str().c_str(), std::ofstream::out);
 
     for (size_t i = 0; i < cellCount(); i++) {
-      file << phi[i] << " ";
+      Eigen::Array2d pos = getCellPosition(i);
+      file << pos[0] << " " << pos[1] << " " << phi[i] << "\n";
     }
     std::cout << "File written: " << filename.str() << std::endl;
     file.close();
@@ -82,16 +84,14 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet system(Eigen::Array2i(80), Ramuh::BoundingBox2(-5, 5));
+  PLevelSet system(Eigen::Array2i(60), Ramuh::BoundingBox2(-5, 5));
 
-  system.initializeLevelSet(Eigen::Array2d(0, 2), 1.75);
+  system.initializeLevelSet(Eigen::Array2d(0, 2), 1.4);
   system.redistance();
   system.computeCellsGradient();
   system.initializeGridVelocity();
   system.trackSurface();
   system.seedParticlesNearSurface();
-  system.printParticles();
-  system.printLevelSet();
   system.attractParticles();
   system.printParticles();
   system.printLevelSet();
@@ -100,16 +100,16 @@ int main(int argc, char const *argv[]) {
     system.interpolateVelocityToParticles();
     system.advectWeno();
     system.advectParticles();
-    system.printParticles();
-    system.printLevelSet();
+    // system.printParticles();
+    // system.printLevelSet();
 
     system.correctLevelSetWithParticles();
-    system.printParticles();
-    system.printLevelSet();
+    // system.printParticles();
+    // system.printLevelSet();
 
     system.redistance();
-    system.printParticles();
-    system.printLevelSet();
+    // system.printParticles();
+    // system.printLevelSet();
 
     // system.correctLevelSetWithParticles();
     system.printParticles();

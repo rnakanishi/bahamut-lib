@@ -3,6 +3,10 @@
 #include <geometry/vector2.h>
 #include <cmath>
 #include <set>
+#include <sstream>
+#include <fstream>
+#include <iostream>
+#include <iomanip>
 #include <cstdlib>
 
 namespace Leviathan {
@@ -162,9 +166,9 @@ void ParticleLevelSet2::attractParticles() {
 // Set a goal levelset for each particle
 #pragma omp parallel for
   for (size_t pid = 0; pid < _totalIds; pid++) {
-    double goal;
     if (!isActive(pid))
       continue;
+    double goal;
     goal = std::abs(std::rand() % 1000000);
     goal = band[0] + goal * (band[1] - band[0]) / 1000000;
     goal = goal * psignal[pid];
@@ -190,10 +194,8 @@ void ParticleLevelSet2::attractParticles() {
 
       // Verify if near goal
       particleLevelSet = interpolateCellScalarData(_phiId, newp);
-      if ((psignal[pid] * band[0] <= particleLevelSet &&
-           particleLevelSet <= psignal[pid] * band[1]) ||
-          (psignal[pid] * band[0] >= particleLevelSet &&
-           particleLevelSet >= psignal[pid] * band[1])) {
+      if ((band[0] <= psignal[pid] * particleLevelSet &&
+           psignal[pid] * particleLevelSet <= band[1])) {
         p = newp;
         break;
       }
@@ -203,7 +205,21 @@ void ParticleLevelSet2::attractParticles() {
 #pragma omp critical
       { removeParticle(pid); }
     }
+  }
+  adjustParticleRadius();
+} // namespace Leviathan
+
+void ParticleLevelSet2::adjustParticleRadius() {
+  auto &particlesLevelSet = getParticleScalarData(_particleLevelSetId);
+  auto &position = getParticleArrayData(_positionsId);
+  auto &radius = getParticleScalarData(_particleRadiusId);
+  double radiusLimits[2];
+  radiusLimits[0] = 0.1 * getH().maxCoeff();
+  radiusLimits[1] = 0.5 * getH().maxCoeff();
+  for (size_t pid = 0; pid < _totalIds; pid++) {
     if (isActive(pid)) {
+      double particleLevelSet =
+          interpolateCellScalarData(_phiId, position[pid]);
       particlesLevelSet[pid] = particleLevelSet;
       // Set radius of each active particle
       if (particleLevelSet < radiusLimits[0])
@@ -214,7 +230,7 @@ void ParticleLevelSet2::attractParticles() {
         radius[pid] = std::abs(particleLevelSet);
     }
   }
-} // namespace Leviathan
+}
 
 void ParticleLevelSet2::correctLevelSetWithParticles() {
   auto &positions = getParticleArrayData(_positionsId);
@@ -249,7 +265,27 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
       }
     }
   }
+  {
+    static int count = 0;
+    std::ofstream file;
+    std::stringstream filename;
+    filename << "results/particles/2d/es" << count++;
+    file.open(filename.str().c_str(), std::ofstream::out);
+    auto &vel = getParticleArrayData(_particleVelocityId);
+    auto &signal = getParticleScalarData(_particleSignalId);
 
+    // for (size_t i = 0; i < particleCount(); i++) {
+    for (auto i : scapedParticles) {
+      if (isActive(i)) {
+        auto pos = particlePosition(i);
+        file << pos[0] << " " << pos[1] << " ";
+        file << vel[i][0] << " " << vel[i][1] << " ";
+        file << signal[i] << "\n";
+      }
+    }
+    std::cout << "File written: " << filename.str() << std::endl;
+    file.close();
+  }
   // Measure error and fix levelset for all scaped particles
   double phiplus, phiminus;
   for (auto cell : scappedCells) {
@@ -272,13 +308,13 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
         pradius[0] = radiuses[particle];
       } else {
         distance[1] =
-            -std::min(distance[1], (pPosition - cellCenter).matrix().norm());
+            std::min(distance[1], (pPosition - cellCenter).matrix().norm());
         pradius[1] = radiuses[particle];
       }
     }
     // Candidate levelset
-    finalphi[0] = std::max(phi[cellId], distance[0] - pradius[0]);
-    finalphi[1] = std::min(phi[cellId], distance[1] - std::abs(pradius[1]));
+    finalphi[0] = std::max(phi[cellId], (distance[0] - pradius[0]));
+    finalphi[1] = std::min(phi[cellId], (-distance[1] - pradius[1]));
 
     // Fix phi from particles phi
     if (std::abs(finalphi[1]) < std::abs(finalphi[0]))
@@ -286,6 +322,8 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
     else
       phi[cellId] = finalphi[0];
   }
+  adjustParticleRadius();
+
 } // namespace Leviathan
 
 } // namespace Leviathan

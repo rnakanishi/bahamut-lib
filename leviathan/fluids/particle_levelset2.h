@@ -44,6 +44,8 @@ public:
    */
   void attractParticles();
 
+  void adjustParticleRadius();
+
   void correctLevelSetWithParticles();
 
 protected:

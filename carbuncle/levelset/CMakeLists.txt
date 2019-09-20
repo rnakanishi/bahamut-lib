@@ -13,3 +13,6 @@ target_link_libraries(cip2d Ramuh Leviathan)
 
 add_executable(cip3d cip3d.cpp)
 target_link_libraries(cip3d Ramuh Leviathan)
+
+add_executable(data_interp data_interp.cpp)
+target_link_libraries(data_interp Ramuh Leviathan)

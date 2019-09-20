@@ -10,6 +10,8 @@ ParticleSystem2::ParticleSystem2(BoundingBox2 domain) : _domain(domain) {
   _count = 0;
   _totalIds = 0;
   _positionsId = newParticleArrayLabel("positions");
+
+  std::srand(0);
 }
 
 int ParticleSystem2::particleCount() { return _count; }
@@ -58,7 +60,6 @@ Eigen::Array2d ParticleSystem2::particlePosition(int pid) {
 bool ParticleSystem2::isActive(int pid) { return _active[pid]; }
 
 void ParticleSystem2::removeParticle(int pid) {
-  std::cerr << "Removing particle " << pid << std::endl;
   if (_active[pid]) {
     _idQueue.push(pid);
   }
