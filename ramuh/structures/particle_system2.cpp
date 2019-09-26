@@ -19,13 +19,12 @@ int ParticleSystem2::particleCount() { return _count; }
 int ParticleSystem2::seedParticles(BoundingBox2 region) {
   int id;
   if (_idQueue.empty()) {
-    id = _active.size();
+    id = _totalIds++;
     _active.emplace_back(true);
     for (auto &dataFieldId : _scalarMap)
       _scalarData[dataFieldId.second].emplace_back(0);
     for (auto &arrayFieldId : _arrayMap)
       _arrayData[arrayFieldId.second].emplace_back(Eigen::Array2d(0));
-    _totalIds++;
   } else {
     id = _idQueue.front();
     _idQueue.pop();
@@ -51,7 +50,7 @@ std::vector<int> ParticleSystem2::seedParticles(BoundingBox2 region, int n) {
   return ids;
 }
 
-Eigen::Array2d ParticleSystem2::particlePosition(int pid) {
+Eigen::Array2d ParticleSystem2::getParticlePosition(int pid) {
   if (!_active[pid])
     return Eigen::Array2d(0);
   return _arrayData[_positionsId][pid];
@@ -105,6 +104,19 @@ ParticleSystem2::getParticleArrayData(std::string label) {
 
 std::vector<Eigen::Array2d> &ParticleSystem2::getParticleArrayData(int id) {
   return _arrayData[id];
+}
+
+std::vector<int> ParticleSystem2::searchParticles(Ramuh::BoundingBox2 region) {
+  std::vector<int> particleInCell;
+
+  for (size_t i = 0; i < _totalIds; i++) {
+    if (!isActive(i))
+      continue;
+    Eigen::Array2d particlePosition = getParticlePosition(i);
+    if (region.contains(particlePosition))
+      particleInCell.emplace_back(i);
+  }
+  return particleInCell;
 }
 
 } // namespace Ramuh

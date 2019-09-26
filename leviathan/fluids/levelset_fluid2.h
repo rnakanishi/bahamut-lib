@@ -17,7 +17,9 @@ public:
    *advection is used (first order accuracy)
    *
    **/
-  void advect();
+  void advectUpwind();
+
+  void advectRungeKutta3();
 
   void advectWeno();
 
@@ -38,6 +40,13 @@ public:
 
   void redistance();
 
+  /**
+   * @brief Evaluates if timestep moved forward, accorgindly to cfl condition.
+   * If all cfl pieces arec ompleted, then return true.
+   *
+   * @return true If time step evolved
+   * @return false If more substeps are needed
+   */
   bool advanceTime();
 
   void applyCfl();

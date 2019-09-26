@@ -3,6 +3,7 @@
 
 #include <structures/particle_system2.h>
 #include <fluids/levelset_fluid2.h>
+#include <set>
 
 namespace Leviathan {
 
@@ -19,6 +20,8 @@ public:
    *
    */
   void advectParticles();
+
+  void advectEuler();
 
   /**
    * @brief Interpolate grid face velocities to the particles using bilinear
@@ -44,13 +47,27 @@ public:
    */
   void attractParticles();
 
+  void reseedParticles();
+
+  int findCellIdByCoordinate(Eigen::Array2d position);
+
   void adjustParticleRadius();
 
-  void correctLevelSetWithParticles();
+  bool correctLevelSetWithParticles();
 
 protected:
   bool _hasEscaped(int pid);
 
+  std::vector<int> _findSurfaceCells(int distacenToSurface);
+  std::vector<int> _findSurfaceCells();
+
+  void _seedCells(std::vector<int> &toSeed, std::vector<int> &n);
+  void _seedCells(std::vector<int> &toSeed);
+  void _seedCells(std::set<int> &toSeed);
+
+  int _maxParticles;
+
+  // Arrays ids
   int _particleRadiusId, _particleVelocityId;
   int _particleSignalId;
   int _particleLevelSetId;
