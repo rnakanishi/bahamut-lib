@@ -21,14 +21,18 @@ public:
 
   void advectRungeKutta3();
 
+  void computeCentralGradient();
+
+  void computeWenoGradient();
+
   void advectWeno();
 
   /**
    * @brief Perform Cubic Interpolated Propagation (CIP) advection for the
-   * levelset. The predicted (t+1) gradient is computed using shifted gradients
-   * method, and then phi(t+1) is computed. The gradient is corrected using the
-   * updated phi value for the first 10 iterations and then after every 50 time
-   * steps.
+   * levelset. The predicted (t+1) gradient is computed using shifted
+   * gradients method, and then phi(t+1) is computed. The gradient is
+   * corrected using the updated phi value for the first 10 iterations and
+   * then after every 50 time steps.
    *
    * Reference paper: "Cubic interpolated pseudo particle method for solving
    * hyperbolic type equations", H. Takawaki, A. Nishiguchi, T. Yabe. JCP 1985
@@ -37,6 +41,8 @@ public:
   void advectCip();
 
   void computeCellsGradient();
+
+  void computeCellVelocity();
 
   void redistance();
 
@@ -69,6 +75,7 @@ protected:
 
   double _dt, _ellapsedDt, _originalDt;
   size_t _velocityId, _phiId, _gradientId;
+  size_t _cellVelocityId;
   bool _isPressure2nd;
   double _tolerance;
   std::vector<int> _surfaceCells;

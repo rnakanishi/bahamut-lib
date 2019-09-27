@@ -66,6 +66,11 @@ public:
     std::stringstream filename;
     filename << "results/particles/2d/" << count++;
     file.open(filename.str().c_str(), std::ofstream::out);
+    if (!file.is_open()) {
+      std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
+                << std::endl;
+      return;
+    }
     auto &vel = getParticleArrayData(_particleVelocityId);
     auto &signal = getParticleScalarData(_particleSignalId);
     auto &radius = getParticleScalarData(_particleRadiusId);
@@ -89,10 +94,57 @@ public:
     std::stringstream filename;
     filename << "results/particles/2d/ls" << count++;
     file.open(filename.str().c_str(), std::ofstream::out);
+    if (!file.is_open()) {
+      std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
+                << std::endl;
+      return;
+    }
 
     for (size_t i = 0; i < cellCount(); i++) {
       Eigen::Array2d pos = getCellPosition(i);
       file << pos[0] << " " << pos[1] << " " << phi[i] << "\n";
+    }
+    std::cout << "File written: " << filename.str() << std::endl;
+    file.close();
+  }
+
+  void printGradients() {
+    auto &gradient = getCellArrayData(_gradientId);
+    static int count = 0;
+    std::ofstream file;
+    std::stringstream filename;
+    filename << "results/particles/2d/g" << count++;
+    file.open(filename.str().c_str(), std::ofstream::out);
+    if (!file.is_open()) {
+      std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
+                << std::endl;
+      return;
+    }
+    for (size_t i = 0; i < cellCount(); i++) {
+      Eigen::Array2d pos = getCellPosition(i);
+      file << pos[0] << " " << pos[1] << " " << gradient[i][0] << " "
+           << gradient[i][1] << "\n";
+    }
+    std::cout << "File written: " << filename.str() << std::endl;
+    file.close();
+  }
+
+  void printVelocities() {
+    auto &velocity = getCellArrayData(_cellVelocityId);
+    static int count = 0;
+    std::ofstream file;
+    std::stringstream filename;
+    filename << "results/particles/2d/v" << count++;
+    file.open(filename.str().c_str(), std::ofstream::out);
+    if (!file.is_open()) {
+      std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
+                << std::endl;
+      return;
+    }
+    for (size_t i = 0; i < cellCount(); i++) {
+      Eigen::Array2d pos = getCellPosition(i);
+      file << pos[0] << " " << pos[1] << " " << velocity[i][0] << " "
+           << velocity[i][1] << "\n";
     }
     std::cout << "File written: " << filename.str() << std::endl;
     file.close();
@@ -140,6 +192,8 @@ int main(int argc, char const *argv[]) {
   // system.attractParticles();
   system.printParticles();
   system.printLevelSet();
+  system.printGradients();
+  system.printVelocities();
 
   Ramuh::Timer timer;
 
@@ -181,13 +235,15 @@ int main(int argc, char const *argv[]) {
 
     system.printParticles();
     system.printLevelSet();
+    system.printGradients();
+    system.printVelocities();
     timer.registerTime("print");
 
-    system.reseedParticles();
-    timer.registerTime("reseed");
+    // system.reseedParticles();
+    // timer.registerTime("reseed");
 
-    system.adjustParticleRadius();
-    timer.registerTime("radiusAdjust");
+    // system.adjustParticleRadius();
+    // timer.registerTime("radiusAdjust");
 
     std::cerr << system.particleCount() << " particles\n";
     timer.evaluateComponentsTime();

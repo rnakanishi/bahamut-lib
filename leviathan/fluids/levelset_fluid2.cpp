@@ -25,6 +25,7 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
   _tolerance = 1e-10;
 
   _gradientId = newCellArrayLabel("cellGradient");
+  _cellVelocityId = newCellArrayLabel("cellVelocity");
 }
 
 void LevelSetFluid2::computeCellsGradient() {
@@ -133,8 +134,84 @@ void LevelSetFluid2::advectUpwind() {
 }
 
 void LevelSetFluid2::advectWeno() {
+  auto &gradient = getCellArrayData(_gradientId);
+  auto &cellVelocity = getCellArrayData(_cellVelocityId);
+  auto &phi = getCellScalarData(_phiId);
+
+  std::vector<double> phiN(phi.size());
+  for (size_t i = 0; i < phi.size(); i++) {
+    phiN[i] = phi[i];
+  }
+
+  // computeCentralGradient();
+  computeWenoGradient();
+  for (int id = 0; id < cellCount(); id++) {
+    phi[id] =
+        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
+  }
+
+  // computeCentralGradient();
+  computeWenoGradient();
+  for (int id = 0; id < cellCount(); id++) {
+    phi[id] =
+        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
+  }
+
+  for (size_t i = 0; i < phi.size(); i++) {
+    phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
+  }
+
+  // computeCentralGradient();
+  computeWenoGradient();
+  for (int id = 0; id < cellCount(); id++) {
+    phi[id] =
+        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
+  }
+
+  for (size_t i = 0; i < phi.size(); i++) {
+    phi[i] = phiN[i] / 3 + 2 * phi[i] / 3;
+  }
+}
+
+void LevelSetFluid2::computeCentralGradient() {
+  auto &gradient = getCellArrayData(_gradientId);
+  auto &cellVelocity = getCellArrayData(_cellVelocityId);
+  auto &phi = getCellScalarData(_phiId);
+  auto h = getH();
+
+  computeCellVelocity();
+  for (int id = 0; id < cellCount(); id++) {
+    auto ij = idToij(id);
+    int i = ij[0], j = ij[1];
+    Eigen::Array2d velocity = cellVelocity[id];
+
+    for (size_t coord = 0; coord < 2; coord++) {
+      switch (coord) {
+      case 0:
+        int leftId, rightId;
+        leftId = std::max(0, i - 1);
+        rightId = std::min(_gridSize[0] - 1, i + 1);
+        gradient[id][0] = (phi[ijToid(rightId, j)] - phi[ijToid(leftId, j)]) /
+                          ((rightId - leftId) * h[0]);
+        break;
+      case 1:
+        int bottomId, topId;
+        bottomId = std::max(0, j - 1);
+        topId = std::min(_gridSize[1] - 1, j + 1);
+        gradient[id][1] = (phi[ijToid(i, topId)] - phi[ijToid(i, bottomId)]) /
+                          ((topId - bottomId) * h[1]);
+        break;
+      }
+    }
+  }
+}
+
+void LevelSetFluid2::computeWenoGradient() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
+  auto &gradient = getCellArrayData(_gradientId);
+  auto &cellVelocity = getCellArrayData(_cellVelocityId);
+
   std::vector<double> newPhi(cellCount());
 
   // Weno computation
@@ -143,6 +220,7 @@ void LevelSetFluid2::advectWeno() {
     auto ij = idToij(id);
     int i = ij[0], j = ij[1];
     newPhi[id] = 0;
+    gradient[id] = 0;
     std::vector<double> values(6);
 
     for (size_t coord = 0; coord < 2; coord++) {
@@ -158,11 +236,13 @@ void LevelSetFluid2::advectWeno() {
         velocity = (uv[faceijToid(coord, facei, facej)] +
                     uv[faceijToid(coord, facei + 1, facej)]) /
                    2;
+        cellVelocity[id][0] = velocity;
         break;
       case 1:
         velocity = (uv[faceijToid(coord, facei, facej)] +
                     uv[faceijToid(coord, facei, facej + 1)]) /
                    2;
+        cellVelocity[id][1] = velocity;
         break;
       }
 
@@ -245,11 +325,8 @@ void LevelSetFluid2::advectWeno() {
       }
       double dPhi = Ramuh::Weno::evaluate(values, h[coord], false);
       newPhi[id] += velocity * dPhi;
+      gradient[id][coord] = dPhi;
     }
-  }
-
-  for (int id = 0; id < cellCount(); id++) {
-    phi[id] = phi[id] - newPhi[id] * _dt;
   }
 }
 
@@ -319,6 +396,33 @@ void LevelSetFluid2::advectCip() {
     gradient[id] = newGrad[id];
   }
   // computeCellsGradient();
+}
+
+void LevelSetFluid2::computeCellVelocity() {
+  auto &cellVelocity = getCellArrayData(_cellVelocityId);
+
+  for (int id = 0; id < cellCount(); id++) {
+    auto p = getCellPosition(id);
+    auto ij = idToij(id);
+    int i = ij[0], j = ij[1];
+
+    for (size_t coord = 0; coord < 2; coord++) {
+      auto &uv = getFaceScalarData(coord, _velocityId);
+      double velocity;
+      switch (coord) {
+      case 0:
+        velocity =
+            (uv[faceijToid(coord, i, j)] + uv[faceijToid(coord, i + 1, j)]) / 2;
+        cellVelocity[id][0] = velocity;
+        break;
+      case 1:
+        velocity =
+            (uv[faceijToid(coord, i, j)] + uv[faceijToid(coord, i, j + 1)]) / 2;
+        cellVelocity[id][1] = velocity;
+        break;
+      }
+    }
+  }
 }
 
 void LevelSetFluid2::print() {}

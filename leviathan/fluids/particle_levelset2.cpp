@@ -412,16 +412,16 @@ bool ParticleLevelSet2::correctLevelSetWithParticles() {
       Eigen::Array2d pPosition = getParticlePosition(particle);
       double pLevelset = interpolateCellScalarData(_phiId, pPosition);
       // Compute particle with least distance to center
-      if (signals[particle] > 0 && phi[cellId] > 0) {
-        // if (signals[particle] > 0) {
+      // if (signals[particle] > 0 && phi[cellId] > 0) {
+      if (signals[particle] > 0) {
         update = true;
         if (distance[0] > (pPosition - cellCenter).matrix().norm()) {
           distance[0] = (pPosition - cellCenter).matrix().norm();
           pradius[0] = radiuses[particle];
           finalphi[0] = std::max(phi[cellId], (distance[0] - pradius[0]));
         }
-      } else if (signals[particle] <= 0 && phi[cellId] <= 0) {
-        // } else {
+        // } else if (signals[particle] <= 0 && phi[cellId] <= 0) {
+      } else {
         update = true;
         if (distance[1] > (pPosition - cellCenter).matrix().norm()) {
           distance[1] = (pPosition - cellCenter).matrix().norm();
