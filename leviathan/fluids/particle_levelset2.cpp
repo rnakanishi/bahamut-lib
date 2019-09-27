@@ -350,9 +350,16 @@ bool ParticleLevelSet2::correctLevelSetWithParticles() {
   std::map<int, std::vector<int>> escapedCells; // contains scaped part. ids
   _escapedParticles.clear();
 
+  // Build phi+ and phi- fields
+  std::vector<double> phiPositive(phi.size()), phiNegative(phi.size());
+  for (size_t i = 0; i < phi.size(); i++) {
+    phiPositive[i] = phiNegative[i] = phi[i];
+  }
+
   // FInd escaped particles
   for (size_t pid = 0; pid < _totalIds; pid++) {
     if (_hasEscaped(pid)) {
+      hasCorrection = true;
       _escapedParticles.emplace_back(pid);
       Eigen::Array2i cellIj = (positions[pid] - ParticleSystem2::_domain.min())
                                   .cwiseQuotient(h)
@@ -360,8 +367,41 @@ bool ParticleLevelSet2::correctLevelSetWithParticles() {
                                   .cast<int>();
       int cellId = ijToid(cellIj[0], cellIj[1]);
       escapedCells[cellId].emplace_back(pid);
+
+      // Find which cells centers enclosure the particle
+      auto particlePosition = getParticlePosition(pid);
+      auto cellPosition = getCellPosition(cellId);
+      if (particlePosition[0] < cellPosition[0])
+        cellIj[0]--;
+      if (particlePosition[1] < cellPosition[1])
+        cellIj[1]--;
+
+      std::vector<int> neighborCells;
+      for (size_t dx = 0; dx < 2; dx++) {
+        for (size_t dy = 0; dy < 2; dy++) {
+          neighborCells.emplace_back(ijToid(cellIj[0] + dx, cellIj[1] + dy));
+        }
+      }
+
+      for (auto neighborId : neighborCells) {
+        // Compute local levelset from particle
+        double localPhi =
+            signals[pid] *
+            (radiuses[pid] - (cellPosition - particlePosition).matrix().norm());
+
+        // Evaluate value accordign to particle sign
+        if (signals[pid] > 0)
+          phiPositive[cellId] = std::max(phiPositive[cellId], localPhi);
+        else
+          phiNegative[cellId] = std::min(phiNegative[cellId], localPhi);
+      }
     }
   }
+  if (hasCorrection)
+    for (size_t cellId = 0; cellId < cellCount(); cellId++) {
+      phi[cellId] = std::min(phiPositive[cellId], phiNegative[cellId]);
+    }
+
   { // print escaped particles
     static int count = 0;
     count++;
@@ -386,60 +426,7 @@ bool ParticleLevelSet2::correctLevelSetWithParticles() {
       file.close();
     }
   }
-  // Measure error and fix levelset for all scaped particles
-  for (auto cell : escapedCells) {
-    auto particles = cell.second;
-    // // for all neighbors
-    // auto ij = idToij(cell.first);
-    // int i = ij[0], j = ij[1];
-    // std::vector<int> neighbors;
-    // neighbors.emplace_back(ijToid(i, j));
-    // neighbors.emplace_back(ijToid(i + 1, j));
-    // neighbors.emplace_back(ijToid(i - 1, j));
-    // neighbors.emplace_back(ijToid(i, j + 1));
-    // neighbors.emplace_back(ijToid(i, j - 1));
-    // for (auto cellId : neighbors) {
 
-    int cellId = cell.first;
-    Eigen::Array2d cellCenter = getCellPosition(cellId);
-
-    // For all particles in the scapped cell
-    double distance[2] = {3 * h[0], 3 * h[1]}; // plus, minus
-    double pradius[2] = {h[0], 0};             // plus, minus
-    double finalphi[2] = {1, 1};               // plus, minus
-    bool update = false;
-    for (auto particle : particles) {
-      Eigen::Array2d pPosition = getParticlePosition(particle);
-      double pLevelset = interpolateCellScalarData(_phiId, pPosition);
-      // Compute particle with least distance to center
-      // if (signals[particle] > 0 && phi[cellId] > 0) {
-      if (signals[particle] > 0) {
-        update = true;
-        if (distance[0] > (pPosition - cellCenter).matrix().norm()) {
-          distance[0] = (pPosition - cellCenter).matrix().norm();
-          pradius[0] = radiuses[particle];
-          finalphi[0] = std::max(phi[cellId], (distance[0] - pradius[0]));
-        }
-        // } else if (signals[particle] <= 0 && phi[cellId] <= 0) {
-      } else {
-        update = true;
-        if (distance[1] > (pPosition - cellCenter).matrix().norm()) {
-          distance[1] = (pPosition - cellCenter).matrix().norm();
-          pradius[1] = radiuses[particle];
-          finalphi[1] = std::min(phi[cellId], -distance[1] - pradius[1]);
-        }
-      }
-    }
-    // Fix phi from particles phi
-    if (update) {
-      hasCorrection = true;
-      if (std::abs(finalphi[1]) < std::abs(finalphi[0]))
-        phi[cellId] = finalphi[1];
-      else
-        phi[cellId] = finalphi[0];
-    }
-  }
-  // }
   return hasCorrection;
 }
 

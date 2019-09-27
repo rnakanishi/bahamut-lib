@@ -180,7 +180,7 @@ protected:
 
 int main(int argc, char const *argv[]) {
   // PLevelSet system(Eigen::Array2i(50), Ramuh::BoundingBox2(0, 1));
-  PLevelSet system(Eigen::Array2i(50), Ramuh::BoundingBox2(-5, 5));
+  PLevelSet system(Eigen::Array2i(100), Ramuh::BoundingBox2(-5, 5));
 
   // system.initializeLevelSet(Eigen::Array2d(.5, .75), 0.15);
   system.initializeLevelSet(Eigen::Array2d(0, 2), 1.5);
@@ -239,11 +239,11 @@ int main(int argc, char const *argv[]) {
     system.printVelocities();
     timer.registerTime("print");
 
-    // system.reseedParticles();
-    // timer.registerTime("reseed");
+    system.reseedParticles();
+    timer.registerTime("reseed");
 
-    // system.adjustParticleRadius();
-    // timer.registerTime("radiusAdjust");
+    system.adjustParticleRadius();
+    timer.registerTime("radiusAdjust");
 
     std::cerr << system.particleCount() << " particles\n";
     timer.evaluateComponentsTime();
