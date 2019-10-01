@@ -2,6 +2,7 @@
 #define __RAMUH_MAC_GRID_2_H__
 
 #include <structures/cell_centered_grid2.h>
+#include <geometry/vector2.h>
 
 namespace Ramuh {
 class MacGrid2 : public CellCenteredGrid2 {

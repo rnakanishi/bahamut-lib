@@ -10,7 +10,6 @@
 #include <shader/shader.hpp>
 #include <GLFW/glfw3.h>
 #include <utils/callbacks.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 class MyGui : public Garuda::GUI {
 

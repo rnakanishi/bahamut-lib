@@ -72,9 +72,15 @@ public:
 
   Eigen::Array2d center();
 
+  void setMin(Eigen::Array2d newMin);
+
+  void setMax(Eigen::Array2d newMax);
+
   Eigen::Array2d clamp(Eigen::Array2d point);
 
   bool contains(Eigen::Array2d);
+
+  bool contains(BoundingBox2 box);
 
 private:
   Eigen::Array2d _min, _max;

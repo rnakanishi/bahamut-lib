@@ -17,16 +17,24 @@ public:
    *advection is used (first order accuracy)
    *
    **/
-  void advect();
+  void advectUpwind();
+
+  void advectSemiLagrangian();
+
+  void advectRungeKutta3();
+
+  void computeCentralGradient();
+
+  void computeWenoGradient();
 
   void advectWeno();
 
   /**
    * @brief Perform Cubic Interpolated Propagation (CIP) advection for the
-   * levelset. The predicted (t+1) gradient is computed using shifted gradients
-   * method, and then phi(t+1) is computed. The gradient is corrected using the
-   * updated phi value for the first 10 iterations and then after every 50 time
-   * steps.
+   * levelset. The predicted (t+1) gradient is computed using shifted
+   * gradients method, and then phi(t+1) is computed. The gradient is
+   * corrected using the updated phi value for the first 10 iterations and
+   * then after every 50 time steps.
    *
    * Reference paper: "Cubic interpolated pseudo particle method for solving
    * hyperbolic type equations", H. Takawaki, A. Nishiguchi, T. Yabe. JCP 1985
@@ -36,26 +44,45 @@ public:
 
   void computeCellsGradient();
 
+  void computeCellVelocity();
+
+  void redistanceSimple();
+
   void redistance();
 
+  /**
+   * @brief Evaluates if timestep moved forward, accorgindly to cfl condition.
+   * If all cfl pieces arec ompleted, then return true.
+   *
+   * @return true If time step evolved
+   * @return false If more substeps are needed
+   */
   bool advanceTime();
 
   void applyCfl();
 
   virtual void print();
 
+  void trackSurface();
+
+  double interpolateCellScalarData(int dataId, Eigen::Array2d position);
+
+  Eigen::Array2d interpolateCellArrayData(int dataId, Eigen::Array2d position);
+
 protected:
-  double __interpolateVelocityU(Eigen::Array3d position);
-  double __interpolateVelocityV(Eigen::Array3d position);
-  double __interpolateVelocityU(Eigen::Array3d position, double &min,
+  double __interpolateVelocityU(Eigen::Array2d position);
+  double __interpolateVelocityV(Eigen::Array2d position);
+  double __interpolateVelocityU(Eigen::Array2d position, double &min,
                                 double &max);
-  double __interpolateVelocityV(Eigen::Array3d position, double &min,
+  double __interpolateVelocityV(Eigen::Array2d position, double &min,
                                 double &max);
 
   double _dt, _ellapsedDt, _originalDt;
   size_t _velocityId, _phiId, _gradientId;
+  size_t _cellVelocityId;
   bool _isPressure2nd;
   double _tolerance;
+  std::vector<int> _surfaceCells;
 };
 
 } // namespace Leviathan

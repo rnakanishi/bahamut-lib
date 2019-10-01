@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <Eigen/Dense>
+#include <Eigen/StdVector>
+#include <geometry/vector2.h>
 
 namespace Ramuh {
 class Interpolator {
@@ -12,11 +14,12 @@ public:
   static double linear(double position, std::vector<double> points,
                        std::vector<double> values);
 
-  static double bilinear(double position[2], std::vector<Eigen::Array2d> points,
+  static double bilinear(double position[2],
+                         std::vector<Eigen::Array2d> &points,
                          std::vector<double> values);
 
   static double trilinear(Eigen::Array3d position,
-                          std::vector<Eigen::Array3d> points,
+                          std::vector<Eigen::Array3d> &points,
                           std::vector<double> values);
 
   /**
@@ -33,34 +36,33 @@ public:
   static double cubic(const double position, const std::vector<double> &points,
                       const std::vector<double> &values);
 
-  static double bicubic(double position[2], std::vector<Eigen::Array2d> points,
+  static double bicubic(double position[2], std::vector<Eigen::Array2d> &points,
                         std::vector<double> values);
 
   static double tricubic(Eigen::Array3d position,
-                         std::vector<Eigen::Array3d> points,
+                         std::vector<Eigen::Array3d> &points,
                          std::vector<double> values);
 
   static double shepard(double position, std::vector<double> samples,
                         std::vector<double> values);
 
   static double shepard(Eigen::Array3d position,
-                        std::vector<Eigen::Array3d> samples,
+                        std::vector<Eigen::Array3d> &samples,
                         std::vector<double> values);
 
-static double rbf(Eigen::Array3d position,
-                        std::vector<Eigen::Array3d> samples,
-                        std::vector<double> values);
-
+  static double rbf(Eigen::Array3d position,
+                    std::vector<Eigen::Array3d> &samples,
+                    std::vector<double> values);
 
   static double catmullRom(double position, std::vector<double> points,
                            std::vector<double> values);
 
   static double camullRom2(Eigen::Array2d position,
-                           std::vector<Eigen::Array2d> points,
+                           std::vector<Eigen::Array2d> &points,
                            std::vector<double> values);
 
   static double camullRom2(Eigen::Array3d position,
-                           std::vector<Eigen::Array3d> points,
+                           std::vector<Eigen::Array3d> &points,
                            std::vector<double> values);
 };
 } // namespace Ramuh

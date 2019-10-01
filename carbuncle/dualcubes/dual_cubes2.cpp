@@ -1,8 +1,10 @@
-#include <structures/dual_cubes.h>
 #include <geometry/dual_marching.h>
 #include <iostream>
+#include "dual_cubes.h"
 
-namespace Ramuh {
+namespace Carbuncle {
+
+// TODO: DualCubes2 massive tests!
 
 DualCubes2::DualCubes2() {}
 
@@ -116,7 +118,7 @@ void DualCubes2::printCells() {
 }
 
 void DualCubes2::extractSurface() {
-  DualMarching2 surface(_resolution);
+  Ramuh::DualMarching2 surface(_resolution);
   std::cout << "======\n";
 
   for (int j = 0; j < _resolution - 1; j++) {
@@ -161,4 +163,4 @@ bool DualCubes2::signChange(double valueA, double valueB) {
   int signB = (valueB < 0) ? -1 : 1;
   return signA != signB;
 }
-} // namespace Ramuh
+} // namespace Carbuncle

@@ -31,25 +31,39 @@ Eigen::Array2d CellCenteredGrid2::getH() {
   return _domain.size().cwiseQuotient(_gridSize.cast<double>());
 }
 
-Eigen::Array2d CellCenteredGrid2::getPosition(int i, int j) {
+Eigen::Array2d CellCenteredGrid2::getCellPosition(int i, int j) {
   auto h = getH();
   return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
 }
 
-Eigen::Array2d CellCenteredGrid2::getPosition(int id) {
+Eigen::Array2d CellCenteredGrid2::getCellPosition(int id) {
   auto ij = idToij(id);
   auto h = getH();
   int i = ij[0], j = ij[1];
   return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
 }
 
-int CellCenteredGrid2::cellCount() { return _gridSize.prod(); }
-
-size_t CellCenteredGrid2::newScalarLabel(std::string label) {
-  return newScalarLabel(label, 0);
+BoundingBox2 CellCenteredGrid2::getCellBoundingBox(int i, int j) {
+  auto position = getCellPosition(i, j);
+  BoundingBox2 box;
+  Eigen::Array2d h = getH();
+  box.setMin(position - h / 2);
+  box.setMax(position + h / 2);
+  return box;
 }
 
-size_t CellCenteredGrid2::newScalarLabel(std::string label, double value) {
+BoundingBox2 CellCenteredGrid2::getCellBoundingBox(int id) {
+  auto ij = idToij(id);
+  return getCellBoundingBox(ij[0], ij[1]);
+}
+
+int CellCenteredGrid2::cellCount() { return _gridSize.prod(); }
+
+size_t CellCenteredGrid2::newCellScalarLabel(std::string label) {
+  return newCellScalarLabel(label, 0);
+}
+
+size_t CellCenteredGrid2::newCellScalarLabel(std::string label, double value) {
   if (_dataLabel.find(label) == _dataLabel.end()) {
     _scalarData.emplace_back(std::vector<double>(_gridSize.prod(), value));
     _dataLabel[label] = _scalarData.size() - 1;
@@ -57,20 +71,20 @@ size_t CellCenteredGrid2::newScalarLabel(std::string label, double value) {
   return _dataLabel[label];
 }
 
-std::vector<double> &CellCenteredGrid2::getScalarData(std::string label) {
+std::vector<double> &CellCenteredGrid2::getCellScalarData(std::string label) {
   return _scalarData[_dataLabel[label]];
 }
 
-std::vector<double> &CellCenteredGrid2::getScalarData(size_t id) {
+std::vector<double> &CellCenteredGrid2::getCellScalarData(size_t id) {
   return _scalarData[id];
 }
 
-size_t CellCenteredGrid2::newArrayLabel(std::string label) {
-  return newArrayLabel(label, Eigen::Array2d(0., 0.));
+size_t CellCenteredGrid2::newCellArrayLabel(std::string label) {
+  return newCellArrayLabel(label, Eigen::Array2d(0., 0.));
 }
 
-size_t CellCenteredGrid2::newArrayLabel(std::string label,
-                                        Eigen::Array2d value) {
+size_t CellCenteredGrid2::newCellArrayLabel(std::string label,
+                                            Eigen::Array2d value) {
   if (_dataLabel.find(label) == _dataLabel.end()) {
     _arrayData.emplace_back(
         std::vector<Eigen::Array2d>(_gridSize.prod(), value));
@@ -80,11 +94,11 @@ size_t CellCenteredGrid2::newArrayLabel(std::string label,
 }
 
 std::vector<Eigen::Array2d> &
-CellCenteredGrid2::getArrayData(std::string label) {
+CellCenteredGrid2::getCellArrayData(std::string label) {
   return _arrayData[_dataLabel[label]];
 }
 
-std::vector<Eigen::Array2d> &CellCenteredGrid2::getArrayData(int id) {
+std::vector<Eigen::Array2d> &CellCenteredGrid2::getCellArrayData(int id) {
   return _arrayData[id];
 }
 

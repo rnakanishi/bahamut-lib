@@ -1,7 +1,6 @@
 #include <graphics/camera.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/string_cast.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/vec4.hpp>
 #include <GLFW/glfw3.h>

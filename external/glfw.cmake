@@ -1,7 +1,7 @@
 include(ExternalProject)
-find_package(GLFW 3.2 QUIET)
+find_package(glfw3 3.2 REQUIRED)
 
-if(GLFW_FOUND)
+if(glfw3_FOUND)
     message(STATUS "Found GLFW")
 else()
     message(STATUS "GLFW not found - will build from source")

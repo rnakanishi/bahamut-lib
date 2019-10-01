@@ -1,3 +1,3 @@
 
-add_executable(dualCubes main.cpp dual_cubes.cpp)
-target_link_libraries(dualCubes Ramuh Leviathan)
+add_executable(dualCubes3 main.cpp dual_cubes3.cpp)
+target_link_libraries(dualCubes3 Ramuh Leviathan)

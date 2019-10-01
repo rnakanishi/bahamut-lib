@@ -18,32 +18,32 @@ public:
 
     _velocityId = newFaceArrayLabel("velocity");
 
-    auto &function = getScalarLabel(_functionId);
-    auto &analytic = getScalarLabel(_analyticId);
+    auto &function = getScalarData(_functionId);
+    auto &analytic = getScalarData(_analyticId);
     for (size_t i = 0; i < cellCount(); i++) {
       auto p = getPosition(i);
       function[i] = sin(p[0]) * cos(p[1]);
       analytic[i] = (cos(p[0]) * cos(p[1]));
     }
 
-    auto &velocity = getFaceArrayLabel(0, _velocityId);
-    for (size_t i = 0; i < uFaceCount(); i++) {
+    auto &velocity = getFaceArrayData(0, _velocityId);
+    for (size_t i = 0; i < faceCount(0); i++) {
       velocity[i] = 1.0;
     }
   }
 
   void solveODE() {
     auto h = getH();
-    auto &phi = getScalarLabel(_functionId);
-    auto &analytic = getScalarLabel(_analyticId);
-    auto &weno = getScalarLabel(_wenoId);
+    auto &phi = getScalarData(_functionId);
+    auto &analytic = getScalarData(_analyticId);
+    auto &weno = getScalarData(_wenoId);
 
     // Weno computation
     std::vector<double> values(6);
     for (int id = 0; id < cellCount(); id++) {
       auto p = getPosition(id);
       auto ij = idToij(id);
-      int i = ij.first, j = ij.second;
+      int i = ij[0], j = ij[1];
 
       for (int ival = 0, ii = 3; ival < 7; ival++, ii--) {
         int index = std::min(_gridSize[0] - 1, std::max(1, i + ii));

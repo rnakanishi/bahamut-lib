@@ -23,31 +23,31 @@ public:
 
     _velocityId = newFaceArrayLabel("velocity");
 
-    auto &function = getScalarLabel(_functionId);
-    auto &analytic = getScalarLabel(_analyticId);
+    auto &function = getScalarData(_functionId);
+    auto &analytic = getScalarData(_analyticId);
     for (size_t i = 0; i < cellCount(); i++) {
       auto p = getPosition(i);
       function[i] = analytic[i] = sin(p[1]);
     }
 
-    auto &velocity = getFaceArrayLabel(1, _velocityId);
-    for (size_t i = 0; i < uFaceCount(); i++) {
+    auto &velocity = getFaceArrayData(1, _velocityId);
+    for (size_t i = 0; i < faceCount(0); i++) {
       velocity[i] = 1.0;
     }
   }
 
   void solveTimestep() {
     auto h = getH();
-    auto &phi = getScalarLabel(_functionId);
-    auto &analytic = getScalarLabel(_analyticId);
-    auto &weno = getScalarLabel(_wenoId);
+    auto &phi = getScalarData(_functionId);
+    auto &analytic = getScalarData(_analyticId);
+    auto &weno = getScalarData(_wenoId);
 
     // Weno computation
     std::vector<double> values(6);
     for (int id = 0; id < cellCount(); id++) {
       auto p = getPosition(id);
       auto ij = idToij(id);
-      int i = ij.first, j = ij.second;
+      int i = ij[0], j = ij[1];
 
       analytic[id] = sin(p[1] - _ellapsed);
 
@@ -71,8 +71,8 @@ public:
   }
 
   void print() {
-    auto &analytic = getScalarLabel(_analyticId);
-    auto &phi = getScalarLabel(_functionId);
+    auto &analytic = getScalarData(_analyticId);
+    auto &phi = getScalarData(_functionId);
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;

@@ -16,9 +16,10 @@ file(GLOB SOURCES
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_library(Garuda STATIC ${SOURCES} ${HEADERS})
+add_dependencies(Garuda glfw)
 add_dependencies(Garuda tinyobjloader)
 add_dependencies(Garuda Ramuh)
-target_link_libraries(Garuda PUBLIC ${GLFW_LIBRARIES} glad Ramuh tinyobjloader)
+target_link_libraries(Garuda PUBLIC ${GLFW_LIBRARIES} glad Ramuh tinyobjloader glfw)
 set_target_properties(Garuda PROPERTIES
         OUTPUT_NAME "Garuda"
         FOLDER "GARUDA")
