@@ -19,6 +19,8 @@ public:
    **/
   void advectUpwind();
 
+  void advectSemiLagrangian();
+
   void advectRungeKutta3();
 
   void computeCentralGradient();
@@ -43,6 +45,8 @@ public:
   void computeCellsGradient();
 
   void computeCellVelocity();
+
+  void redistanceSimple();
 
   void redistance();
 

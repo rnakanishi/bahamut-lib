@@ -23,7 +23,7 @@ ParticleLevelSet2::ParticleLevelSet2(Eigen::Array2i gridSize,
   _particleSignalId = newParticleScalarLabel("particleSignal");
   _particleLevelSetId = newParticleScalarLabel("particleLevelSet");
 
-  _maxParticles = 64;
+  _maxParticles = 80;
 }
 
 void ParticleLevelSet2::advectEuler() {
@@ -46,11 +46,13 @@ void ParticleLevelSet2::advectParticles() {
     lastPosition[i] = position[i];
   }
   advectEuler();
+  interpolateVelocityToParticles();
   advectEuler();
 #pragma omp parallel for
   for (size_t i = 0; i < position.size(); i++) {
     position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
   }
+  interpolateVelocityToParticles();
   advectEuler();
 #pragma omp parallel for
   for (size_t i = 0; i < position.size(); i++) {
@@ -65,6 +67,7 @@ void ParticleLevelSet2::interpolateVelocityToParticles() {
   auto &position = getParticleArrayData(_positionsId);
   auto h = getH();
 
+#pragma omp parallel for
   for (size_t pid = 0; pid < _totalIds; pid++) {
     if (!isActive(pid))
       continue;
@@ -310,12 +313,6 @@ void ParticleLevelSet2::adjustParticleRadius() {
   radiusLimits[1] = 0.5 * getH().maxCoeff();
   double limit = 3.0 * getH().maxCoeff();
 
-  for (int pid : _escapedParticles) {
-    if (_hasEscaped(pid)) {
-      signals[pid] = -signals[pid];
-      removeParticle(pid);
-    }
-  }
   for (size_t pid = 0; pid < _totalIds; pid++) {
     if (isActive(pid)) {
       double particleLevelSet =
@@ -324,7 +321,6 @@ void ParticleLevelSet2::adjustParticleRadius() {
         removeParticle(pid);
       } else {
         particlesLevelSet[pid] = particleLevelSet;
-        // signals[pid] = (particleLevelSet > 0) ? 1 : -1;
         // Set radius of each active particle
         if (particleLevelSet < radiusLimits[0])
           radius[pid] = radiusLimits[0];
@@ -399,7 +395,10 @@ bool ParticleLevelSet2::correctLevelSetWithParticles() {
   }
   if (hasCorrection)
     for (size_t cellId = 0; cellId < cellCount(); cellId++) {
-      phi[cellId] = std::min(phiPositive[cellId], phiNegative[cellId]);
+      if (std::abs(phiPositive[cellId]) < std::abs(phiNegative[cellId]))
+        phi[cellId] = phiPositive[cellId];
+      else
+        phi[cellId] = phiNegative[cellId];
     }
 
   { // print escaped particles
@@ -440,8 +439,18 @@ int ParticleLevelSet2::findCellIdByCoordinate(Eigen::Array2d position) {
 }
 
 void ParticleLevelSet2::reseedParticles() {
+  auto &signals = getParticleScalarData(_particleSignalId);
   std::vector<int> cells = _findSurfaceCells(4);
   std::vector<int> nParticles, seedingCells;
+
+  trackSurface();
+  // for (int pid : _escapedParticles) {
+  //   if (_hasEscaped(pid)) {
+  //     // signals[pid] = -signals[pid];
+  //     // removeParticle(pid);
+  //   }
+  // }
+  _escapedParticles.clear();
 
 // For all surface near cells
 #pragma omp parallel for
@@ -449,14 +458,15 @@ void ParticleLevelSet2::reseedParticles() {
     Ramuh::BoundingBox2 box = getCellBoundingBox(cells[icell]);
     auto particles = searchParticles(box);
     int pCount = particles.size();
-    if (pCount < 60) {
+    if (pCount < _maxParticles - 0.1 * _maxParticles && _surfaceCells[icell]) {
 #pragma omp critical
       {
         nParticles.emplace_back(_maxParticles - pCount);
         seedingCells.emplace_back(cells[icell]);
       }
     }
-    if (pCount > 80) {
+    if (pCount > _maxParticles + 0.25 * _maxParticles &&
+        !_surfaceCells[icell]) {
 #pragma omp critical
       {
         removeParticle(std::vector<int>(particles.begin() + _maxParticles,

@@ -11,7 +11,7 @@ public:
 
   PLevelSet(Eigen::Array2i gridSize, Ramuh::BoundingBox2 domain)
       : ParticleLevelSet2(gridSize, domain) {
-    _dt = 1 / 30.;
+    // _dt = 1 / 30.;
   }
 
   void initializeLevelSet(Eigen::Array2d center, double radius) {
@@ -47,7 +47,7 @@ public:
     // u velocities
     for (size_t i = 0; i < faceCount(0); i++) {
       auto p = facePosition(0, i);
-      u[i] = -p[1];
+      u[i] = p[1];
 
       // u[i] = 0;
     }
@@ -55,7 +55,7 @@ public:
     // v velocities
     for (size_t j = 0; j < faceCount(1); j++) {
       auto p = facePosition(1, j);
-      v[j] = p[0];
+      v[j] = -p[0];
       // v[i] = -1;
     }
   }
@@ -158,7 +158,7 @@ public:
     // u velocities
     for (size_t i = 0; i < faceCount(0); i++) {
       auto p = facePosition(0, i);
-      u[i] = -p[1];
+      u[i] = p[1];
       u[i] = pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]);
       u[i] *= cos(M_PI * time / 1.5);
 
@@ -168,7 +168,7 @@ public:
     // v velocities
     for (size_t j = 0; j < faceCount(1); j++) {
       auto p = facePosition(1, j);
-      v[j] = p[0];
+      v[j] = -p[0];
       v[j] = -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]);
       v[j] *= cos(M_PI * time / 1.5);
       // v[i] = -1;
@@ -180,7 +180,7 @@ protected:
 
 int main(int argc, char const *argv[]) {
   // PLevelSet system(Eigen::Array2i(50), Ramuh::BoundingBox2(0, 1));
-  PLevelSet system(Eigen::Array2i(100), Ramuh::BoundingBox2(-5, 5));
+  PLevelSet system(Eigen::Array2i(128), Ramuh::BoundingBox2(-5, 5));
 
   // system.initializeLevelSet(Eigen::Array2d(.5, .75), 0.15);
   system.initializeLevelSet(Eigen::Array2d(0, 2), 1.5);
@@ -198,7 +198,7 @@ int main(int argc, char const *argv[]) {
   Ramuh::Timer timer;
 
   int lastRedistance = 0;
-  for (size_t i = 0; i <= 314; i++) {
+  for (size_t i = 0; i <= 500; i++) {
     // system.defineVelocity(i);
     system.applyCfl();
 
@@ -208,42 +208,43 @@ int main(int argc, char const *argv[]) {
 
       system.interpolateVelocityToParticles();
       timer.registerTime("interpolation");
+      // system.advectSemiLagrangian();
       system.advectWeno();
-      timer.registerTime("weno");
+      timer.registerTime("cellAdvection");
       system.advectParticles();
       timer.registerTime("particleAdvect");
+
+      if (system.correctLevelSetWithParticles()) {
+        std::cerr << "......................................... CORRECTED\n";
+        timer.registerTime("correction");
+
+        lastRedistance = 0;
+        system.redistanceSimple();
+        timer.registerTime("redistance");
+
+        system.correctLevelSetWithParticles();
+        timer.registerTime("correction2");
+      } else
+        timer.registerTime("correction");
+
+      if (lastRedistance >= 5) {
+        lastRedistance = 0;
+        std::cerr << "Redistance iteration\n";
+        system.redistanceSimple();
+      }
+      lastRedistance++;
+
+      system.reseedParticles();
+      timer.registerTime("reseed");
+
+      system.adjustParticleRadius();
+      timer.registerTime("radiusAdjust");
     } while (!system.advanceTime());
-
-    if (system.correctLevelSetWithParticles()) {
-      std::cerr << "......................................... CORRECTED\n";
-      timer.registerTime("correction");
-
-      lastRedistance = 0;
-      system.redistance();
-      timer.registerTime("redistance");
-
-      system.correctLevelSetWithParticles();
-      timer.registerTime("correction2");
-    } else
-      timer.registerTime("correction");
-
-    if (lastRedistance >= 5) {
-      lastRedistance = 0;
-      system.redistance();
-    }
-    lastRedistance++;
-
     system.printParticles();
     system.printLevelSet();
     system.printGradients();
     system.printVelocities();
     timer.registerTime("print");
-
-    system.reseedParticles();
-    timer.registerTime("reseed");
-
-    system.adjustParticleRadius();
-    timer.registerTime("radiusAdjust");
 
     std::cerr << system.particleCount() << " particles\n";
     timer.evaluateComponentsTime();
