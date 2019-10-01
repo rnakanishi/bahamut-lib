@@ -10,6 +10,8 @@ ParticleSystem2::ParticleSystem2(BoundingBox2 domain) : _domain(domain) {
   _count = 0;
   _totalIds = 0;
   _positionsId = newParticleArrayLabel("positions");
+
+  std::srand(0);
 }
 
 int ParticleSystem2::particleCount() { return _count; }
@@ -17,7 +19,7 @@ int ParticleSystem2::particleCount() { return _count; }
 int ParticleSystem2::seedParticles(BoundingBox2 region) {
   int id;
   if (_idQueue.empty()) {
-    id = _active.size();
+    id = _totalIds++;
     _active.emplace_back(true);
     for (auto &dataFieldId : _scalarMap)
       _scalarData[dataFieldId.second].emplace_back(0);
@@ -36,7 +38,6 @@ int ParticleSystem2::seedParticles(BoundingBox2 region) {
   position = region.min() + position.cwiseProduct(region.size()) / 100000;
   _positions[id] = position;
   _count++;
-  _totalIds++;
   return id;
 }
 
@@ -49,7 +50,7 @@ std::vector<int> ParticleSystem2::seedParticles(BoundingBox2 region, int n) {
   return ids;
 }
 
-Eigen::Array2d ParticleSystem2::particlePosition(int pid) {
+Eigen::Array2d ParticleSystem2::getParticlePosition(int pid) {
   if (!_active[pid])
     return Eigen::Array2d(0);
   return _arrayData[_positionsId][pid];
@@ -58,11 +59,11 @@ Eigen::Array2d ParticleSystem2::particlePosition(int pid) {
 bool ParticleSystem2::isActive(int pid) { return _active[pid]; }
 
 void ParticleSystem2::removeParticle(int pid) {
-  std::cerr << "Removing particle " << pid << std::endl;
   if (_active[pid]) {
     _idQueue.push(pid);
   }
   _active[pid] = false;
+  _count--;
 }
 
 void ParticleSystem2::removeParticle(std::vector<int> pids) {
@@ -103,6 +104,19 @@ ParticleSystem2::getParticleArrayData(std::string label) {
 
 std::vector<Eigen::Array2d> &ParticleSystem2::getParticleArrayData(int id) {
   return _arrayData[id];
+}
+
+std::vector<int> ParticleSystem2::searchParticles(Ramuh::BoundingBox2 region) {
+  std::vector<int> particleInCell;
+
+  for (size_t i = 0; i < _totalIds; i++) {
+    if (!isActive(i))
+      continue;
+    Eigen::Array2d particlePosition = getParticlePosition(i);
+    if (region.contains(particlePosition))
+      particleInCell.emplace_back(i);
+  }
+  return particleInCell;
 }
 
 } // namespace Ramuh

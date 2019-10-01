@@ -38,7 +38,7 @@ public:
    * @return std::vector<Eigen::Array2d> Either a vector containing all particle
    * positions; or a single position
    */
-  Eigen::Array2d particlePosition(int pid);
+  Eigen::Array2d getParticlePosition(int pid);
 
   /**
    * @brief Return either a particle is active or not.
@@ -59,6 +59,8 @@ public:
    */
   void removeParticle(int pid);
   void removeParticle(std::vector<int> pids);
+
+  std::vector<int> searchParticles(Ramuh::BoundingBox2 region);
 
   int newParticleScalarLabel(std::string label);
 

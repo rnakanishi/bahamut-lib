@@ -3,6 +3,10 @@
 #include <geometry/vector2.h>
 #include <cmath>
 #include <set>
+#include <sstream>
+#include <fstream>
+#include <iostream>
+#include <iomanip>
 #include <cstdlib>
 
 namespace Leviathan {
@@ -18,20 +22,41 @@ ParticleLevelSet2::ParticleLevelSet2(Eigen::Array2i gridSize,
   _particleVelocityId = newParticleArrayLabel("velocity");
   _particleSignalId = newParticleScalarLabel("particleSignal");
   _particleLevelSetId = newParticleScalarLabel("particleLevelSet");
+
+  _maxParticles = 80;
 }
 
-void ParticleLevelSet2::advectParticles() {
+void ParticleLevelSet2::advectEuler() {
   auto &velocity = getParticleArrayData(_particleVelocityId);
   auto &position = getParticleArrayData(_positionsId);
 
+#pragma omp parallel for
   for (size_t i = 0; i < _totalIds; i++) {
     if (_active[i]) {
       position[i] = position[i] + _dt * velocity[i];
     }
-    if (position[i].hasNaN() || std::isinf(position[i][0]) ||
-        std::isinf(position[i][1])) {
-      std::cerr << "Error";
-    }
+  }
+}
+
+void ParticleLevelSet2::advectParticles() {
+  auto &position = getParticleArrayData(_positionsId);
+
+  std::vector<Eigen::Array2d> lastPosition(position.size());
+  for (size_t i = 0; i < position.size(); i++) {
+    lastPosition[i] = position[i];
+  }
+  advectEuler();
+  interpolateVelocityToParticles();
+  advectEuler();
+#pragma omp parallel for
+  for (size_t i = 0; i < position.size(); i++) {
+    position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
+  }
+  interpolateVelocityToParticles();
+  advectEuler();
+#pragma omp parallel for
+  for (size_t i = 0; i < position.size(); i++) {
+    position[i] = lastPosition[i] / 3 + 2 * position[i] / 3;
   }
 }
 
@@ -42,6 +67,7 @@ void ParticleLevelSet2::interpolateVelocityToParticles() {
   auto &position = getParticleArrayData(_positionsId);
   auto h = getH();
 
+#pragma omp parallel for
   for (size_t pid = 0; pid < _totalIds; pid++) {
     if (!isActive(pid))
       continue;
@@ -90,12 +116,17 @@ void ParticleLevelSet2::interpolateVelocityToParticles() {
   }
 }
 
-void ParticleLevelSet2::seedParticlesNearSurface() {
+std::vector<int> ParticleLevelSet2::_findSurfaceCells() {
+  return _findSurfaceCells(1);
+}
+
+std::vector<int> ParticleLevelSet2::_findSurfaceCells(int surfaceDistance) {
   std::vector<int> distanceToSurface(cellCount(), 1e8);
   std::vector<int> visited(cellCount(), false);
   std::set<int> toSeed;
 
   std::queue<int> cellQueue;
+  trackSurface();
   for (auto cell : _surfaceCells) {
     distanceToSurface[cell] = 0;
     cellQueue.push(cell);
@@ -124,25 +155,90 @@ void ParticleLevelSet2::seedParticlesNearSurface() {
         }
         distanceToSurface[neighbor] =
             std::min(distanceToSurface[neighbor], distance + 1);
-        if (distanceToSurface[neighbor] < 3)
+        if (distanceToSurface[neighbor] < surfaceDistance)
           toSeed.insert(neighbor);
       }
     }
   }
+  return std::vector<int>(toSeed.begin(), toSeed.end());
+}
 
+void ParticleLevelSet2::seedParticlesNearSurface() {
+  auto toSeed = _findSurfaceCells(4);
+  _seedCells(toSeed);
+}
+
+void ParticleLevelSet2::_seedCells(std::set<int> &toSeed) {
+  std::vector<int> cells(toSeed.begin(), toSeed.end());
+  _seedCells(cells);
+}
+
+void ParticleLevelSet2::_seedCells(std::vector<int> &toSeed) {
+  std::vector<int> particlesNumber(toSeed.size(), _maxParticles);
+  _seedCells(toSeed, particlesNumber);
+}
+
+void ParticleLevelSet2::_seedCells(std::vector<int> &toSeed,
+                                   std::vector<int> &particleNumber) {
   // For marked cells, fill them with particles
   auto &particleSignal = getParticleScalarData(_particleSignalId);
-  int maxParticles = 128;
-  for (auto cell : toSeed) {
-    auto box = cellBoundingBox(cell);
-    auto seeded = seedParticles(box, maxParticles);
-    for (size_t i = 0; i < maxParticles / 2; i++) {
-      particleSignal[seeded[i]] = -1;
-    }
-    for (size_t i = maxParticles / 2; i < maxParticles; i++) {
-      particleSignal[seeded[i]] = +1;
+  auto &radiuses = getParticleScalarData(_particleRadiusId);
+  double band[2];
+  double radiusLimits[2];
+  radiusLimits[0] = 0.1 * getH().maxCoeff();
+  radiusLimits[1] = 0.5 * getH().maxCoeff();
+  band[0] = radiusLimits[0];
+  band[1] = 3.0 * getH().maxCoeff();
+  // for (auto cell : toSeed) {
+  for (size_t icell = 0; icell < toSeed.size(); icell++) {
+    auto cell = toSeed[icell];
+    auto nParticles = particleNumber[icell];
+
+    auto box = getCellBoundingBox(cell);
+    auto seeded = seedParticles(box, nParticles);
+
+    for (int pid : seeded) {
+      Eigen::Array2d pos = getParticlePosition(pid);
+      radiuses[pid] = interpolateCellScalarData(_phiId, pos);
+      if ((std::abs(radiuses[pid]) < band[0]) ||
+          (std::abs(radiuses[pid]) > band[1])) {
+        removeParticle(pid);
+      } else {
+        if (radiuses[pid] <= 0) {
+          particleSignal[pid] = -1;
+        } else {
+          particleSignal[pid] = 1;
+        }
+
+        radiuses[pid] =
+            std::min(radiusLimits[1],
+                     std::max(radiusLimits[0], std::abs(radiuses[pid])));
+      }
     }
   }
+}
+
+bool ParticleLevelSet2::_hasEscaped(int pid) {
+  auto &positions = getParticleArrayData(_positionsId);
+  auto &signals = getParticleScalarData(_particleSignalId);
+  auto &radiuses = getParticleScalarData(_particleRadiusId);
+  auto h = getH();
+
+  // FInd scaped particles
+  if (!isActive(pid))
+    return false;
+  Eigen::Array2d p = positions[pid];
+  double levelSet = interpolateCellScalarData(_phiId, p);
+  int lsignal = (levelSet <= 0) ? -1 : 1;
+  int psignal = signals[pid];
+
+  if (lsignal != psignal) {
+    // Check if radius tolerance applies
+    if (std::abs(levelSet) > radiuses[pid]) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void ParticleLevelSet2::attractParticles() {
@@ -162,9 +258,9 @@ void ParticleLevelSet2::attractParticles() {
 // Set a goal levelset for each particle
 #pragma omp parallel for
   for (size_t pid = 0; pid < _totalIds; pid++) {
-    double goal;
     if (!isActive(pid))
       continue;
+    double goal;
     goal = std::abs(std::rand() % 1000000);
     goal = band[0] + goal * (band[1] - band[0]) / 1000000;
     goal = goal * psignal[pid];
@@ -190,10 +286,8 @@ void ParticleLevelSet2::attractParticles() {
 
       // Verify if near goal
       particleLevelSet = interpolateCellScalarData(_phiId, newp);
-      if ((psignal[pid] * band[0] <= particleLevelSet &&
-           particleLevelSet <= psignal[pid] * band[1]) ||
-          (psignal[pid] * band[0] >= particleLevelSet &&
-           particleLevelSet >= psignal[pid] * band[1])) {
+      if ((band[0] <= psignal[pid] * particleLevelSet &&
+           psignal[pid] * particleLevelSet <= band[1])) {
         p = newp;
         break;
       }
@@ -203,20 +297,43 @@ void ParticleLevelSet2::attractParticles() {
 #pragma omp critical
       { removeParticle(pid); }
     }
+  }
+  adjustParticleRadius();
+}
+
+void ParticleLevelSet2::adjustParticleRadius() {
+  auto &particleSignal = getParticleScalarData(_particleSignalId);
+  auto &particlesLevelSet = getParticleScalarData(_particleLevelSetId);
+  auto &position = getParticleArrayData(_positionsId);
+  auto &radius = getParticleScalarData(_particleRadiusId);
+  auto &signals = getParticleScalarData(_particleSignalId);
+
+  double radiusLimits[2];
+  radiusLimits[0] = 0.1 * getH().maxCoeff();
+  radiusLimits[1] = 0.5 * getH().maxCoeff();
+  double limit = 3.0 * getH().maxCoeff();
+
+  for (size_t pid = 0; pid < _totalIds; pid++) {
     if (isActive(pid)) {
-      particlesLevelSet[pid] = particleLevelSet;
-      // Set radius of each active particle
-      if (particleLevelSet < radiusLimits[0])
-        radius[pid] = radiusLimits[0];
-      else if (particleLevelSet > radiusLimits[1])
-        radius[pid] = radiusLimits[1];
-      else
-        radius[pid] = std::abs(particleLevelSet);
+      double particleLevelSet =
+          interpolateCellScalarData(_phiId, position[pid]);
+      if (std::abs(particleLevelSet) > limit) {
+        removeParticle(pid);
+      } else {
+        particlesLevelSet[pid] = particleLevelSet;
+        // Set radius of each active particle
+        if (particleLevelSet < radiusLimits[0])
+          radius[pid] = radiusLimits[0];
+        else if (particleLevelSet > radiusLimits[1])
+          radius[pid] = radiusLimits[1];
+        else
+          radius[pid] = std::abs(particleLevelSet);
+      }
     }
   }
-} // namespace Leviathan
+}
 
-void ParticleLevelSet2::correctLevelSetWithParticles() {
+bool ParticleLevelSet2::correctLevelSetWithParticles() {
   auto &positions = getParticleArrayData(_positionsId);
   auto &signals = getParticleScalarData(_particleSignalId);
   auto &radiuses = getParticleScalarData(_particleRadiusId);
@@ -224,98 +341,141 @@ void ParticleLevelSet2::correctLevelSetWithParticles() {
   auto &phi = getCellScalarData(_phiId);
   auto h = getH();
 
-  std::vector<int> scapedParticles;
-  std::map<int, std::vector<int>> scappedCells; // contains scaped part. ids
-  // FInd scaped particles
+  bool hasCorrection = false;
+
+  std::map<int, std::vector<int>> escapedCells; // contains scaped part. ids
+  _escapedParticles.clear();
+
+  // Build phi+ and phi- fields
+  std::vector<double> phiPositive(phi.size()), phiNegative(phi.size());
+  for (size_t i = 0; i < phi.size(); i++) {
+    phiPositive[i] = phiNegative[i] = phi[i];
+  }
+
+  // FInd escaped particles
   for (size_t pid = 0; pid < _totalIds; pid++) {
-    if (!isActive(pid))
-      continue;
-    Eigen::Array2d p = positions[pid];
-    double levelSet = interpolateCellScalarData(_phiId, p);
-    int lsignal = (levelSet <= 0) ? -1 : 1;
-    int psignal = signals[pid];
+    if (_hasEscaped(pid)) {
+      hasCorrection = true;
+      _escapedParticles.emplace_back(pid);
+      Eigen::Array2i cellIj = (positions[pid] - ParticleSystem2::_domain.min())
+                                  .cwiseQuotient(h)
+                                  .floor()
+                                  .cast<int>();
+      int cellId = ijToid(cellIj[0], cellIj[1]);
+      escapedCells[cellId].emplace_back(pid);
 
-    if (lsignal != psignal) {
-      // Check if radius tolerance applies
-      if (std::abs(levelSet) > radiuses[pid]) {
-        scapedParticles.emplace_back(pid);
-        Eigen::Array2i cellIj =
-            (positions[pid] - ParticleSystem2::_domain.min())
-                .cwiseQuotient(h)
-                .floor()
-                .cast<int>();
-        int cellId = ijToid(cellIj[0], cellIj[1]);
-        scappedCells[cellId].emplace_back(pid);
+      // Find which cells centers enclosure the particle
+      auto particlePosition = getParticlePosition(pid);
+      auto cellPosition = getCellPosition(cellId);
+      if (particlePosition[0] < cellPosition[0])
+        cellIj[0]--;
+      if (particlePosition[1] < cellPosition[1])
+        cellIj[1]--;
+
+      std::vector<int> neighborCells;
+      for (size_t dx = 0; dx < 2; dx++) {
+        for (size_t dy = 0; dy < 2; dy++) {
+          neighborCells.emplace_back(ijToid(cellIj[0] + dx, cellIj[1] + dy));
+        }
+      }
+
+      for (auto neighborId : neighborCells) {
+        // Compute local levelset from particle
+        double localPhi =
+            signals[pid] *
+            (radiuses[pid] - (cellPosition - particlePosition).matrix().norm());
+
+        // Evaluate value accordign to particle sign
+        if (signals[pid] > 0)
+          phiPositive[cellId] = std::max(phiPositive[cellId], localPhi);
+        else
+          phiNegative[cellId] = std::min(phiNegative[cellId], localPhi);
+      }
+    }
+  }
+  if (hasCorrection)
+    for (size_t cellId = 0; cellId < cellCount(); cellId++) {
+      if (std::abs(phiPositive[cellId]) < std::abs(phiNegative[cellId]))
+        phi[cellId] = phiPositive[cellId];
+      else
+        phi[cellId] = phiNegative[cellId];
+    }
+
+  { // print escaped particles
+    static int count = 0;
+    count++;
+    if (count % 2) {
+      std::ofstream file;
+      std::stringstream filename;
+      filename << "results/particles/2d/es" << (int)(count / 2 + 1);
+      file.open(filename.str().c_str(), std::ofstream::out);
+      auto &vel = getParticleArrayData(_particleVelocityId);
+      auto &signal = getParticleScalarData(_particleSignalId);
+
+      // for (size_t i = 0; i < particleCount(); i++) {
+      for (auto i : _escapedParticles) {
+        if (isActive(i)) {
+          auto pos = getParticlePosition(i);
+          file << pos[0] << " " << pos[1] << " ";
+          file << vel[i][0] << " " << vel[i][1] << " ";
+          file << signal[i] << "\n";
+        }
+      }
+      std::cout << "File written: " << filename.str() << std::endl;
+      file.close();
+    }
+  }
+
+  return hasCorrection;
+}
+
+int ParticleLevelSet2::findCellIdByCoordinate(Eigen::Array2d position) {
+  auto h = getH();
+  Eigen::Array2i cellIj = (position - ParticleSystem2::_domain.min())
+                              .cwiseQuotient(h)
+                              .floor()
+                              .cast<int>();
+  return ijToid(cellIj[0], cellIj[1]);
+}
+
+void ParticleLevelSet2::reseedParticles() {
+  auto &signals = getParticleScalarData(_particleSignalId);
+  std::vector<int> cells = _findSurfaceCells(4);
+  std::vector<int> nParticles, seedingCells;
+
+  trackSurface();
+  // for (int pid : _escapedParticles) {
+  //   if (_hasEscaped(pid)) {
+  //     // signals[pid] = -signals[pid];
+  //     // removeParticle(pid);
+  //   }
+  // }
+  _escapedParticles.clear();
+
+// For all surface near cells
+#pragma omp parallel for
+  for (size_t icell = 0; icell < cells.size(); icell++) {
+    Ramuh::BoundingBox2 box = getCellBoundingBox(cells[icell]);
+    auto particles = searchParticles(box);
+    int pCount = particles.size();
+    if (pCount < _maxParticles - 0.1 * _maxParticles && _surfaceCells[icell]) {
+#pragma omp critical
+      {
+        nParticles.emplace_back(_maxParticles - pCount);
+        seedingCells.emplace_back(cells[icell]);
+      }
+    }
+    if (pCount > _maxParticles + 0.25 * _maxParticles &&
+        !_surfaceCells[icell]) {
+#pragma omp critical
+      {
+        removeParticle(std::vector<int>(particles.begin() + _maxParticles,
+                                        particles.end()));
       }
     }
   }
 
-  // Measure error and fix levelset for all scaped particles
-  double phiplus, phiminus;
-  for (auto cell : scappedCells) {
-    int cellId = cell.first;
-    auto particles = cell.second;
-    Eigen::Array2d cellCenter = getCellPosition(cellId);
-    Ramuh::BoundingBox2 cellBox = cellBoundingBox(cellId);
-    std::vector<Eigen::Array2d> cornersPosition;
-    cornersPosition.emplace_back(cellBox.min()[0], cellBox.min()[1]);
-    cornersPosition.emplace_back(cellBox.max()[0], cellBox.min()[1]);
-    cornersPosition.emplace_back(cellBox.min()[0], cellBox.max()[1]);
-    cornersPosition.emplace_back(cellBox.max()[0], cellBox.max()[1]);
-
-    phiplus = phiminus = phi[cellId];
-    // For all particles in the scapped cell
-    double distance[2] = {3 * h[0], 3 * h[1]}; // plus, minus
-    double pradius[2] = {h[0], 0};             // plus, minus
-    double finalphi[2];                        // plus, minus
-
-    for (auto particle : particles) {
-      Eigen::Array2d pPosition = particlePosition(particle);
-      // Compute level set values on the corners of the cell using particle
-      // local level set
-      // double pLevelset = interpolateCellScalarData(_phiId, pPosition);
-      double pLevelset = radiuses[particle];
-      // finalphi[0] = std::max(finalphi[0], pLevelset);
-      // finalphi[1] = std::min(finalphi[1], pLevelset);
-
-      std::vector<double> cornersLevelset;
-      for (size_t corner = 0; corner < 4; corner++) {
-        double cornerDistance =
-            (cornersPosition[corner] - pPosition).matrix().norm();
-        cornersLevelset.emplace_back(signals[particle] *
-                                     (radiuses[particle] - cornerDistance));
-      }
-      // for all neighbors
-      auto ij = idToij(cellId);
-      int i = ij[0], j = ij[1];
-      std::vector<int> neighbors;
-      neighbors.emplace_back(ijToid(i, j));
-      neighbors.emplace_back(ijToid(i + 1, j));
-      neighbors.emplace_back(ijToid(i - 1, j));
-      neighbors.emplace_back(ijToid(i, j + 1));
-      neighbors.emplace_back(ijToid(i, j - 1));
-      for (auto neighbor : neighbors) {
-        finalphi[0] = finalphi[1] = phi[cellId];
-        double neighLevelset = phi[neighbor];
-        int partSignal = (signals[particle] > 0) ? 1 : -1;
-        int cellSignal = (neighLevelset > 0) ? 1 : -1;
-        for (auto cornerLevelset : cornersLevelset) {
-          if (signals[particle] > 0 && neighLevelset > 0) {
-            finalphi[0] = std::max(finalphi[0], cornerLevelset);
-          } else if (signals[particle] <= 0 && neighLevelset <= 0) {
-            finalphi[1] = std::min(finalphi[1], cornerLevelset);
-          }
-        }
-        // Fix phi from particles phi
-        if (cellSignal == partSignal) {
-          if (std::abs(finalphi[0]) <= std::abs(finalphi[1]))
-            phi[neighbor] = finalphi[0];
-          else
-            phi[neighbor] = finalphi[1];
-        }
-      }
-    }
-  }
-} // namespace Leviathan
+  _seedCells(seedingCells, nParticles);
+}
 
 } // namespace Leviathan
