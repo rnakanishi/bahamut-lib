@@ -26,6 +26,8 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
 
   _gradientId = newCellArrayLabel("cellGradient");
   _cellVelocityId = newCellArrayLabel("cellVelocity");
+
+  _surfaceCells.resize(cellCount(), false);
 }
 
 void LevelSetFluid2::computeCellsGradient() {
@@ -481,11 +483,21 @@ void LevelSetFluid2::redistance() {
           phi[id] * phi[ijToid(i, j - 1)] <= 0 ||
           phi[id] * phi[ijToid(i, j + 1)] <= 0) {
         isInterface[id] = true;
-        interfaceFactor[id] = h[0] * 2. * phi[id];
-        double dx, dy;
-        dx = phi[ijToid(i + 1, j)] - phi[ijToid(i - 1, j)];
-        dy = phi[ijToid(i, j + 1)] - phi[ijToid(i, j - 1)];
-        interfaceFactor[id] /= sqrt(dx * dx + dy * dy);
+        interfaceFactor[id] = h[0] * phi[id];
+        double Dphi;
+        double dxCentral = phi[ijToid(i + 1, j)] - phi[ijToid(i - 1, j)];
+        double dyCentral = phi[ijToid(i, j + 1)] - phi[ijToid(i, j - 1)];
+        double dxUp = phi[ijToid(i, j)] - phi[ijToid(i - 1, j)];
+        double dxDown = phi[ijToid(i + 1, j)] - phi[ijToid(i, j)];
+        double dyUp = phi[ijToid(i, j)] - phi[ijToid(i, j - 1)];
+        double dyDown = phi[ijToid(i, j + 1)] - phi[ijToid(i, j)];
+
+        Dphi = std::max(
+            h[0],
+            std::max(sqrt(dxCentral * dxCentral + dyCentral * dyCentral) / 2,
+                     std::max(sqrt(dxUp * dxUp + dyUp * dyUp),
+                              sqrt(dxDown * dxDown + dyDown * dyDown))));
+        interfaceFactor[id] /= Dphi;
         // cellSignal[id] = interfaceFactor[id] / h[0];
       }
     }
@@ -662,7 +674,7 @@ void LevelSetFluid2::applyCfl() {
     vel[0] = (u[id] + u[faceijToid(0, i + 1, j)]) / 2.0;
     vel[1] = (v[id] + v[faceijToid(1, i, j + 1)]) / 2.0;
 
-    if (maxVel.norm() < vel.norm() * 1.05)
+    if (maxVel.norm() < vel.norm())
       maxVel = vel;
   }
 
@@ -674,14 +686,15 @@ void LevelSetFluid2::applyCfl() {
   }
 }
 
-void LevelSetFluid2::trackSurface() {
+std::vector<int> LevelSetFluid2::trackSurface() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
   double eps = h[0], error = 1e8, dt = 0.5 * h[0];
   std::vector<double> cellSignal(cellCount());
   std::vector<bool> isInterface(cellCount(), false);
+  std::vector<int> surface;
 
-  _surfaceCells.clear();
+  std::fill(_surfaceCells.begin(), _surfaceCells.end(), false);
 #pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     auto ij = idToij(id);
@@ -691,11 +704,13 @@ void LevelSetFluid2::trackSurface() {
           phi[id] * phi[ijToid(i + 1, j)] <= 0 ||
           phi[id] * phi[ijToid(i, j - 1)] <= 0 ||
           phi[id] * phi[ijToid(i, j + 1)] <= 0) {
+        _surfaceCells[id] = true;
 #pragma omp critical
-        { _surfaceCells.emplace_back(id); }
+        { surface.emplace_back(id); }
       }
     }
   }
+  return surface;
 }
 
 double LevelSetFluid2::interpolateCellScalarData(int dataId,

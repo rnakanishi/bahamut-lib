@@ -126,8 +126,8 @@ std::vector<int> ParticleLevelSet2::_findSurfaceCells(int surfaceDistance) {
   std::set<int> toSeed;
 
   std::queue<int> cellQueue;
-  trackSurface();
-  for (auto cell : _surfaceCells) {
+  auto surfaceCells = trackSurface();
+  for (auto cell : surfaceCells) {
     distanceToSurface[cell] = 0;
     cellQueue.push(cell);
   }
@@ -401,31 +401,6 @@ bool ParticleLevelSet2::correctLevelSetWithParticles() {
         phi[cellId] = phiNegative[cellId];
     }
 
-  { // print escaped particles
-    static int count = 0;
-    count++;
-    if (count % 2) {
-      std::ofstream file;
-      std::stringstream filename;
-      filename << "results/particles/2d/es" << (int)(count / 2 + 1);
-      file.open(filename.str().c_str(), std::ofstream::out);
-      auto &vel = getParticleArrayData(_particleVelocityId);
-      auto &signal = getParticleScalarData(_particleSignalId);
-
-      // for (size_t i = 0; i < particleCount(); i++) {
-      for (auto i : _escapedParticles) {
-        if (isActive(i)) {
-          auto pos = getParticlePosition(i);
-          file << pos[0] << " " << pos[1] << " ";
-          file << vel[i][0] << " " << vel[i][1] << " ";
-          file << signal[i] << "\n";
-        }
-      }
-      std::cout << "File written: " << filename.str() << std::endl;
-      file.close();
-    }
-  }
-
   return hasCorrection;
 }
 
@@ -444,12 +419,6 @@ void ParticleLevelSet2::reseedParticles() {
   std::vector<int> nParticles, seedingCells;
 
   trackSurface();
-  // for (int pid : _escapedParticles) {
-  //   if (_hasEscaped(pid)) {
-  //     // signals[pid] = -signals[pid];
-  //     // removeParticle(pid);
-  //   }
-  // }
   _escapedParticles.clear();
 
 // For all surface near cells
@@ -458,7 +427,7 @@ void ParticleLevelSet2::reseedParticles() {
     Ramuh::BoundingBox2 box = getCellBoundingBox(cells[icell]);
     auto particles = searchParticles(box);
     int pCount = particles.size();
-    if (pCount < _maxParticles - 0.1 * _maxParticles && _surfaceCells[icell]) {
+    if (pCount < _maxParticles - 0.1 * _maxParticles) {
 #pragma omp critical
       {
         nParticles.emplace_back(_maxParticles - pCount);
