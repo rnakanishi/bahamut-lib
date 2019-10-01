@@ -63,7 +63,7 @@ public:
 
   virtual void print();
 
-  void trackSurface();
+  std::vector<int> trackSurface();
 
   double interpolateCellScalarData(int dataId, Eigen::Array2d position);
 
@@ -82,7 +82,7 @@ protected:
   size_t _cellVelocityId;
   bool _isPressure2nd;
   double _tolerance;
-  std::vector<int> _surfaceCells;
+  std::vector<bool> _surfaceCells;
 };
 
 } // namespace Leviathan

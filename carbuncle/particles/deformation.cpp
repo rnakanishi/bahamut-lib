@@ -24,19 +24,6 @@ public:
       // if (sqrt(pow(p[0] - center[0], 2) + pow(p[1] - center[1], 2)) < radius)
       function[i] = sqrt(p[0] * p[0] + p[1] * p[1]) - radius;
       // function[i] = 5;
-
-      double s = radius / 4.;
-      if ((p[0] >= -s && p[0] <= s) && (p[1] <= s && p[1] >= -radius)) {
-        function[i] =
-            std::min(abs(s - p[1]), std::min(abs(p[0] + s), abs(s - p[0])));
-      }
-      if (function[i] < 0) {
-        if (p[1] <= s && p[1] >= -radius)
-          function[i] = -std::min(abs(function[i]),
-                                  std::min(abs(p[0] + s), abs(s - p[0])));
-        if (p[0] >= -s && p[0] <= s)
-          function[i] = -std::min(abs(function[i]), abs(s - p[1]));
-      }
     }
   }
 
@@ -47,15 +34,14 @@ public:
     // u velocities
     for (size_t i = 0; i < faceCount(0); i++) {
       auto p = facePosition(0, i);
-      u[i] = p[1];
-
+      u[i] = pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]);
       // u[i] = 0;
     }
 
     // v velocities
     for (size_t j = 0; j < faceCount(1); j++) {
       auto p = facePosition(1, j);
-      v[j] = -p[0];
+      v[j] = -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]);
       // v[i] = -1;
     }
   }
@@ -64,7 +50,7 @@ public:
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;
-    filename << "results/particles/2d/" << count++;
+    filename << baseFolder << "/" << count++;
     file.open(filename.str().c_str(), std::ofstream::out);
     if (!file.is_open()) {
       std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
@@ -92,7 +78,7 @@ public:
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;
-    filename << "results/particles/2d/ls" << count++;
+    filename << baseFolder << "/ls" << count++;
     file.open(filename.str().c_str(), std::ofstream::out);
     if (!file.is_open()) {
       std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
@@ -113,7 +99,7 @@ public:
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;
-    filename << "results/particles/2d/g" << count++;
+    filename << baseFolder << "/g" << count++;
     file.open(filename.str().c_str(), std::ofstream::out);
     if (!file.is_open()) {
       std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
@@ -134,7 +120,7 @@ public:
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;
-    filename << "results/particles/2d/v" << count++;
+    filename << baseFolder << "/v" << count++;
     file.open(filename.str().c_str(), std::ofstream::out);
     if (!file.is_open()) {
       std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
@@ -175,15 +161,17 @@ public:
     }
   }
 
+  void setBaseFolder(std::string folder) { baseFolder = folder; }
+
 protected:
+  std::string baseFolder;
 };
 
 int main(int argc, char const *argv[]) {
-  // PLevelSet system(Eigen::Array2i(50), Ramuh::BoundingBox2(0, 1));
-  PLevelSet system(Eigen::Array2i(150), Ramuh::BoundingBox2(-5, 5));
+  PLevelSet system(Eigen::Array2i(150), Ramuh::BoundingBox2(0, 1));
+  system.setBaseFolder("results/particles/weno_deform");
 
   system.initializeLevelSet(Eigen::Array2d(.5, .75), 0.15);
-  system.initializeLevelSet(Eigen::Array2d(0, 2), 1.5);
   system.redistance();
   system.computeCellsGradient();
   system.initializeGridVelocity();
@@ -198,52 +186,44 @@ int main(int argc, char const *argv[]) {
   Ramuh::Timer timer;
 
   int lastRedistance = 0;
-  for (size_t i = 0; i <= 500; i++) {
+  for (size_t i = 0; i <= 400; i++) {
     // system.defineVelocity(i);
     system.applyCfl();
 
     do {
-      system.trackSurface();
-      timer.registerTime("trackSurface");
+      // system.trackSurface();
+      // timer.registerTime("trackSurface");
 
-      system.interpolateVelocityToParticles();
-      timer.registerTime("interpolation");
-      // system.advectSemiLagrangian();
+      // system.interpolateVelocityToParticles();
+      // timer.registerTime("interpolation");
+
       system.advectWeno();
       timer.registerTime("cellAdvection");
-      system.advectParticles();
-      timer.registerTime("particleAdvect");
+      // system.advectParticles();
+      // timer.registerTime("particleAdvect");
 
-      if (system.correctLevelSetWithParticles()) {
-        std::cerr << "......................................... CORRECTED\n";
-        timer.registerTime("correction");
+      // bool recorrect = system.correctLevelSetWithParticles();
 
-        lastRedistance = 0;
-        system.redistanceSimple();
-        timer.registerTime("redistance");
+      // std::cerr << "......................................... CORRECTED\n";
+      // timer.registerTime("correction");
 
-        system.correctLevelSetWithParticles();
-        timer.registerTime("correction2");
-      } else
-        timer.registerTime("correction");
+      system.redistance();
+      timer.registerTime("redistance");
+      // if (recorrect) {
+      //   system.correctLevelSetWithParticles();
+      //   timer.registerTime("correction2");
+      // }
 
-      if (lastRedistance >= 5) {
-        lastRedistance = 0;
-        std::cerr << "Redistance iteration\n";
-        system.redistanceSimple();
-      }
-      lastRedistance++;
+      // system.reseedParticles();
+      // timer.registerTime("reseed");
 
-      system.reseedParticles();
-      timer.registerTime("reseed");
-
-      system.adjustParticleRadius();
-      timer.registerTime("radiusAdjust");
+      // system.adjustParticleRadius();
+      // timer.registerTime("radiusAdjust");
     } while (!system.advanceTime());
     system.printParticles();
     system.printLevelSet();
-    system.printGradients();
-    system.printVelocities();
+    // system.printGradients();
+    // system.printVelocities();
     timer.registerTime("print");
 
     std::cerr << system.particleCount() << " particles\n";
