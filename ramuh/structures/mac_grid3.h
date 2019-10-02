@@ -36,13 +36,43 @@ public:
   std::vector<Eigen::Array3d> &getFaceArrayData(size_t face, std::string label);
   std::vector<Eigen::Array3d> &getFaceArrayData(size_t face, size_t index);
 
-  Eigen::Array3d facePosition(int face, int id);
-  Eigen::Array3d facePosition(int face, int i, int j, int k);
+  Eigen::Array3d getFacePosition(int face, int id);
+  Eigen::Array3d getFacePosition(int face, int i, int j, int k);
+
+  /**
+   * @brief Face grid size differ from cell grid size due to values being placed
+   * at faces. Each coordinate has one more value then the cell counterpart.
+   *
+   * @param face x, y or z face (0,1 or 2 respectively)
+   * @return Eigen::Array3i Increments one into the grid size of corresponding
+   * face
+   */
+  Eigen::Array3i getFaceGridSize(int face);
 
   int faceCount(int face);
 
   int faceijkToid(int face, int i, int j, int k);
   std::vector<int> faceIdToijk(int face, int id);
+
+  /**
+   * @brief
+   *
+   * @param dataId
+   * @param position
+   * @return double
+   */
+  double interpolateFaceScalarData(int face, int dataId,
+                                   Eigen::Array3d position);
+
+  /**
+   * @brief
+   *
+   * @param dataId
+   * @param position
+   * @return Eigen::Array3d
+   */
+  Eigen::Array3d interpolateFaceArrayData(int face, int dataId,
+                                          Eigen::Array3d position);
 
 protected:
   std::vector<std::vector<double>> _uScalar, _vScalar, _wScalar;

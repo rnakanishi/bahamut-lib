@@ -12,13 +12,17 @@ BoundingBox3::BoundingBox3(Eigen::Array3d min, Eigen::Array3d max) {
   _max = max;
 }
 
-Eigen::Array3d BoundingBox3::min() { return _min; }
+void BoundingBox3::setMin(Eigen::Array3d min) { _min = min; }
 
-Eigen::Array3d BoundingBox3::max() { return _max; }
+void BoundingBox3::setMax(Eigen::Array3d max) { _max = max; }
 
-Eigen::Array3d BoundingBox3::center() { return (_max + _min) / 2.0; }
+Eigen::Array3d BoundingBox3::getMin() { return _min; }
 
-Eigen::Array3d BoundingBox3::size() { return _max - _min; }
+Eigen::Array3d BoundingBox3::getMax() { return _max; }
+
+Eigen::Array3d BoundingBox3::getCenter() { return (_max + _min) / 2.0; }
+
+Eigen::Array3d BoundingBox3::getSize() { return _max - _min; }
 
 Eigen::Array3d BoundingBox3::clamp(Eigen::Array3d point) {
   point[0] = std::min(_max[0], std::max(_min[0], point[0]));

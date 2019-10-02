@@ -1,4 +1,5 @@
 #include <structures/mac_grid3.h>
+#include <blas/interpolator.h>
 
 namespace Ramuh {
 MacGrid3::MacGrid3() : CellCenteredGrid3() {}
@@ -75,24 +76,24 @@ std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayData(size_t face,
   return _wArray[index];
 }
 
-Eigen::Array3d MacGrid3::facePosition(int face, int id) {
+Eigen::Array3d MacGrid3::getFacePosition(int face, int id) {
   auto ijk = faceIdToijk(face, id);
   auto h = getH();
   int i = ijk[0], j = ijk[1], k = ijk[2];
   if (face == 2)
-    return _domain.min() +
+    return _domain.getMin() +
            Eigen::Array3d((i + .5) * h[0], (j + .5) * h[1], k * h[2]);
   if (face == 1)
-    return _domain.min() +
+    return _domain.getMin() +
            Eigen::Array3d((i + .5) * h[0], j * h[1], (k + .5) * h[2]);
   if (face == 0)
-    return _domain.min() +
+    return _domain.getMin() +
            Eigen::Array3d(i * h[0], (j + .5) * h[1], (k + .5) * h[2]);
   return Eigen::Array3d(0);
 }
 
-Eigen::Array3d MacGrid3::facePosition(int face, int i, int j, int k) {
-  return facePosition(face, faceijkToid(face, i, j, k));
+Eigen::Array3d MacGrid3::getFacePosition(int face, int i, int j, int k) {
+  return getFacePosition(face, faceijkToid(face, i, j, k));
 }
 
 int MacGrid3::faceCount(int face) {
@@ -131,6 +132,105 @@ std::vector<int> MacGrid3::faceIdToijk(int face, int id) {
         (id % ((_gridSize[0] + 1) * _gridSize[1])) % (_gridSize[0] + 1);
   }
   return indices;
+}
+
+Eigen::Array3i MacGrid3::getFaceGridSize(int face) {
+  Eigen::Array3i inc(0);
+  inc[face] += 1;
+  return _gridSize + inc;
+}
+
+double MacGrid3::interpolateFaceScalarData(int face, int dataId,
+                                           Eigen::Array3d position) {
+  auto &data = getFaceScalarData(face, dataId);
+  auto h = getH();
+
+  Eigen::Array3i cellId =
+      (position - _domain.getMin()).cwiseQuotient(h).floor().cast<int>();
+
+  // Assemble bilinear stencil interpolation for velocities
+  auto facePos = getFacePosition(face, cellId[0], cellId[1], cellId[2]);
+  auto faceGridSize = getFaceGridSize(face);
+  int index[3];
+  for (size_t i = 0; i < 3; i++) {
+    index[i] = std::min(faceGridSize[i] - 1, cellId[i] + 1);
+    if (position[i] < facePos[i]) {
+      index[i] = std::max(0, cellId[i] - 1);
+      h[i] = -h[i];
+    }
+  }
+
+  std::vector<Eigen::Array3d> points;
+  std::vector<double> values(8);
+
+  points.emplace_back(facePos);
+  points.emplace_back(facePos + Eigen::Array3d(h[0], 0, 0));
+  points.emplace_back(facePos + Eigen::Array3d(0, h[1], 0));
+  points.emplace_back(facePos + Eigen::Array3d(h[0], h[1], 0));
+  points.emplace_back(facePos + Eigen::Array3d(0, 0, h[2]));
+  points.emplace_back(facePos + Eigen::Array3d(h[0], 0, h[2]));
+  points.emplace_back(facePos + Eigen::Array3d(0, h[1], h[2]));
+  points.emplace_back(facePos + h);
+
+  values[0] = data[ijkToid(cellId[0], cellId[1], cellId[2])];
+  values[1] = data[ijkToid(index[0], cellId[1], cellId[2])];
+  values[2] = data[ijkToid(cellId[0], index[1], cellId[2])];
+  values[3] = data[ijkToid(index[0], index[1], cellId[2])];
+  values[4] = data[ijkToid(cellId[0], cellId[1], index[2])];
+  values[5] = data[ijkToid(index[0], cellId[1], index[2])];
+  values[6] = data[ijkToid(cellId[0], index[1], index[2])];
+  values[7] = data[ijkToid(index[0], index[1], index[2])];
+
+  return Ramuh::Interpolator::trilinear(position, points, values);
+}
+
+Eigen::Array3d MacGrid3::interpolateFaceArrayData(int face, int dataId,
+                                                  Eigen::Array3d position) {
+  auto &data = getFaceArrayData(face, dataId);
+  auto h = getH();
+
+  Eigen::Array3i cellId =
+      (position - _domain.getMin()).cwiseQuotient(h).floor().cast<int>();
+
+  // Assemble bilinear stencil interpolation for velocities
+  auto facePos = getFacePosition(face, cellId[0], cellId[1], cellId[2]);
+  auto faceGridSize = getFaceGridSize(face);
+  int index[3];
+  for (size_t i = 0; i < 3; i++) {
+    index[i] = std::min(faceGridSize[i] - 1, cellId[i] + 1);
+    if (position[i] < facePos[i]) {
+      index[i] = std::max(0, cellId[i] - 1);
+      h[i] = -h[i];
+    }
+  }
+
+  std::vector<Eigen::Array3d> points;
+  std::vector<double> values(8);
+
+  points.emplace_back(facePos);
+  points.emplace_back(facePos + Eigen::Array3d(h[0], 0, 0));
+  points.emplace_back(facePos + Eigen::Array3d(0, h[1], 0));
+  points.emplace_back(facePos + Eigen::Array3d(h[0], h[1], 0));
+  points.emplace_back(facePos + Eigen::Array3d(0, 0, h[2]));
+  points.emplace_back(facePos + Eigen::Array3d(h[0], 0, h[2]));
+  points.emplace_back(facePos + Eigen::Array3d(0, h[1], h[2]));
+  points.emplace_back(facePos + h);
+
+  Eigen::Array3d interpData;
+  for (size_t d = 0; d < 2; d++) {
+    values[0] = data[ijkToid(cellId[0], cellId[1], cellId[2])][d];
+    values[1] = data[ijkToid(index[0], cellId[1], cellId[2])][d];
+    values[2] = data[ijkToid(cellId[0], index[1], cellId[2])][d];
+    values[3] = data[ijkToid(index[0], index[1], cellId[2])][d];
+    values[4] = data[ijkToid(cellId[0], cellId[1], index[2])][d];
+    values[5] = data[ijkToid(index[0], cellId[1], index[2])][d];
+    values[6] = data[ijkToid(cellId[0], index[1], index[2])][d];
+    values[7] = data[ijkToid(index[0], index[1], index[2])][d];
+
+    interpData[d] = Ramuh::Interpolator::trilinear(position, points, values);
+  }
+
+  return interpData;
 }
 
 } // namespace Ramuh

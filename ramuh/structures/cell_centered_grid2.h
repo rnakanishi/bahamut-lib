@@ -82,6 +82,29 @@ public:
   std::vector<Eigen::Array2d> &getCellArrayData(std::string label);
   std::vector<Eigen::Array2d> &getCellArrayData(int id);
 
+  /**
+   * @brief Given a cell field id and a point inside the domain, computes an
+   * inteprolated value at that position using bilinear method. If the point is
+   * outside the domain, an extrapolated (and not accurate) value is returned
+   *
+   * @param dataId cell field which value is wanted
+   * @param position point in the space as target
+   * @return double interpolated value at position
+   */
+  double interpolateCellScalarData(int dataId, Eigen::Array2d position);
+
+  /**
+   * @brief Given a cell field id and a point inside the domain, computes an
+   * inteprolated array value at that position using bilinear method. If the
+   * point is outside the domain, an extrapolated (and not accurate) value is
+   * returned
+   *
+   * @param dataId cell field which value is wanted
+   * @param position point in the space as target
+   * @return double interpolated value at position
+   */
+  Eigen::Array2d interpolateCellArrayData(int dataId, Eigen::Array2d position);
+
 protected:
   Eigen::Array2i _gridSize;
   BoundingBox2 _domain;

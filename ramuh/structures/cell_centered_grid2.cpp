@@ -1,4 +1,5 @@
 #include <structures/cell_centered_grid2.h>
+#include <blas/interpolator.h>
 
 namespace Ramuh {
 CellCenteredGrid2::CellCenteredGrid2()
@@ -100,6 +101,98 @@ CellCenteredGrid2::getCellArrayData(std::string label) {
 
 std::vector<Eigen::Array2d> &CellCenteredGrid2::getCellArrayData(int id) {
   return _arrayData[id];
+}
+
+double CellCenteredGrid2::interpolateCellScalarData(int dataId,
+                                                    Eigen::Array2d position) {
+  auto &data = getCellScalarData(dataId);
+  auto h = getH();
+
+  // Find which cell-id data belongs
+  Eigen::Array2i cellId =
+      (position - _domain.min()).cwiseQuotient(h).floor().cast<int>();
+
+  // Assemble bilinear stencil interpolation for velocities
+  auto cellPos = getCellPosition(cellId[0], cellId[1]);
+
+  int xindex, yindex;
+  xindex = std::min(_gridSize[0] - 1, cellId[0] + 1);
+  yindex = std::min(_gridSize[1] - 1, cellId[1] + 1);
+  if (position[0] < cellPos[0]) {
+    xindex = std::max(0, cellId[0] - 1);
+    h[0] = -h[0];
+  }
+  if (position[1] < cellPos[1]) {
+    yindex = std::max(0, cellId[1] - 1);
+    h[1] = -h[1];
+  }
+
+  std::vector<Eigen::Array2d> points;
+  std::vector<double> values(4);
+  double target[2];
+  target[0] = position[0];
+  target[1] = position[1];
+
+  // cell Stencil for linear interpolation
+  points.emplace_back(cellPos);
+  points.emplace_back(cellPos + Eigen::Array2d(h[0], 0));
+  points.emplace_back(cellPos + Eigen::Array2d(0, h[1]));
+  points.emplace_back(cellPos + h);
+
+  values[0] = data[ijToid(cellId[0], cellId[1])];
+  values[1] = data[ijToid(xindex, cellId[1])];
+  values[2] = data[ijToid(cellId[0], yindex)];
+  values[3] = data[ijToid(xindex, yindex)];
+
+  return Ramuh::Interpolator::bilinear(target, points, values);
+}
+
+Eigen::Array2d
+CellCenteredGrid2::interpolateCellArrayData(int dataId,
+                                            Eigen::Array2d position) {
+  auto &data = getCellArrayData(dataId);
+  auto h = getH();
+
+  // Find which cell-id data belongs
+  Eigen::Array2i cellId =
+      (position - _domain.min()).cwiseQuotient(h).floor().cast<int>();
+
+  // Assemble bilinear stencil interpolation for velocities
+  auto cellPos = getCellPosition(cellId[0], cellId[1]);
+
+  int xindex, yindex;
+  xindex = std::min(_gridSize[0] - 1, cellId[0] + 1);
+  yindex = std::min(_gridSize[1] - 1, cellId[1] + 1);
+  if (position[0] < cellPos[0]) {
+    xindex = std::max(0, cellId[0] - 1);
+    h[0] = -h[0];
+  }
+  if (position[1] < cellPos[1]) {
+    yindex = std::max(0, cellId[1] - 1);
+    h[1] = -h[1];
+  }
+
+  std::vector<Eigen::Array2d> points;
+  std::vector<double> values(4);
+  double target[2];
+  target[0] = position[0];
+  target[1] = position[1];
+
+  Eigen::Array2d interpData;
+  // cell Stencil for linear interpolation
+  points.emplace_back(cellPos);
+  points.emplace_back(cellPos + Eigen::Array2d(h[0], 0));
+  points.emplace_back(cellPos + Eigen::Array2d(0, h[1]));
+  points.emplace_back(cellPos + h);
+
+  for (size_t d = 0; d < 2; d++) {
+    values[0] = data[ijToid(cellId[0], cellId[1])][d];
+    values[1] = data[ijToid(xindex, cellId[1])][d];
+    values[2] = data[ijToid(cellId[0], yindex)][d];
+    values[3] = data[ijToid(xindex, yindex)][d];
+    interpData[d] = Ramuh::Interpolator::bilinear(target, points, values);
+  }
+  return interpData;
 }
 
 } // namespace Ramuh

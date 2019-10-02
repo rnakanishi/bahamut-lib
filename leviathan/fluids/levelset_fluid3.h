@@ -17,7 +17,10 @@ public:
    *
    */
   void advectSemiLagrangean();
-  void advect(int order);
+
+  void advectEuler();
+
+  void advectRungeKutta3();
 
   void advectMacCormack();
 
@@ -29,27 +32,31 @@ public:
 
   void computeCellsGradient();
 
+  void computeWenoGradient();
+
+  void computeCellVelocity();
+
   void redistance();
 
   bool advanceTime();
 
   void applyCfl();
 
-protected:
-  double __interpolateVelocityU(Eigen::Array3d position);
-  double __interpolateVelocityV(Eigen::Array3d position);
-  double __interpolateVelocityW(Eigen::Array3d position);
-  double __interpolateVelocityU(Eigen::Array3d position, double &min,
-                                double &max);
-  double __interpolateVelocityV(Eigen::Array3d position, double &min,
-                                double &max);
-  double __interpolateVelocityW(Eigen::Array3d position, double &min,
-                                double &max);
-  double __interpolatePhi(Eigen::Array3d position, double &_min, double &_max);
-  double __interpolatePhi(Eigen::Array3d position);
+  /**
+   * @brief Find all cells that are close to the interface. This is made
+   * computing the product between two cells. If the resulting value is
+   * negative, than the cell is possibly an interface cell. All the cells are
+   * internally marked and also their ids are returned in a std::vector
+   * container
+   *
+   * @return std::vector<int> contains all the cell ids that are part of the
+   * interface
+   */
+  std::vector<int> trackSurface();
 
+protected:
   virtual void print() {
-    auto &phi = getScalarData(_phiId);
+    auto &phi = getCellScalarData(_phiId);
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;
@@ -63,10 +70,14 @@ protected:
   }
 
 protected:
-  size_t _velocityId, _phiId, _gradientId;
+  size_t _cellVelocityId, _phiId, _cellGradientId;
+  size_t _faceVelocityId;
   bool _isPressure2nd;
   double _dt, _originalDt, _ellapsedDt;
   double _tolerance;
+
+  /// All cells that are part of the interface are marked as true
+  std::vector<bool> _surfaceCells;
 };
 
 } // namespace Leviathan

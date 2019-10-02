@@ -21,21 +21,66 @@ public:
   static BoundingBox3 unitBox();
 
   /**
-   * @brief Returns this bpunding box total size with double precision
+   * @brief Set the lowest corner coordinate for the bounding box
+   *
+   * @param new min coordinate
+   */
+  void setMin(Eigen::Array3d min);
+
+  /**
+   * @brief Set the highest corner coordinate for the bounding box
+   *
+   * @param new max coordinate
+   */
+  void setMax(Eigen::Array3d max);
+
+  /**
+   * @brief Returns this bpunding box total size with double precision. This
+   *value is computed taking the difference between each corner coordinate.
    *
    * @return Eigen::Array3d Each coordinate of the array corresponds to the
    *respective side's size.
    **/
-  Eigen::Array3d size();
+  Eigen::Array3d getSize();
 
-  Eigen::Array3d min();
+  /**
+   * @brief Get the Min coodinate of the bounding box
+   *
+   * @return Eigen::Array3d coordinate of the lowest corner
+   */
+  Eigen::Array3d getMin();
 
-  Eigen::Array3d max();
+  /**
+   * @brief Get the Max coordinate of the bounding box
+   *
+   * @return Eigen::Array3d  coordinate of the highest corner
+   */
+  Eigen::Array3d getMax();
 
-  Eigen::Array3d center();
+  /**
+   * @brief Get the Center coordinate of the bounding box. This coordinate is
+   * computed by taking the average coordinates of the bounding box corners
+   *
+   * @return Eigen::Array3d center coordinate of the bounding box
+   */
+  Eigen::Array3d getCenter();
 
+  /**
+   * @brief Clamp the point passed as parameter to the bounding box. If any
+   * coordinate goes out the box, it is set to the box limits insteads
+   *
+   * @param point to be clamped
+   * @return Eigen::Array3d clamped point
+   */
   Eigen::Array3d clamp(Eigen::Array3d point);
 
+  /**
+   * @brief Check either the bounding box contains the point given as parameter.
+   * If the point is inside the box, then true is returned
+   *
+   * @return true if the point is inside the box
+   * @return false otherwise
+   */
   bool contains(Eigen::Array3d);
 
 private:
