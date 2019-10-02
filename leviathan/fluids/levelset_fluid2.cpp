@@ -463,6 +463,7 @@ void LevelSetFluid2::redistance() {
   std::vector<double> interfaceFactor(cellCount());
   std::vector<bool> isInterface(cellCount(), false);
 
+#pragma omp parallel
   for (int id = 0; id < cellCount(); id++) {
     initialPhi[id] = phi[id];
 

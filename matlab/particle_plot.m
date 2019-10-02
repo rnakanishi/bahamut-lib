@@ -1,6 +1,6 @@
 clear;
 
-folder = '~/git/bahamut-lib/results/particles/pls_deform/';
+folder = '~/git/bahamut-lib/results/particles/pls_reconstruct/';
 timesteps = 100;
 first = dlmread([folder 'ls' num2str(0)]);
 N = sqrt(length(first(:, 1)));
@@ -20,29 +20,29 @@ hold on;
 vis = [0 1 0 1];
 % vis = [-5 5 -5 5];
 
-for t = 0:1:400
+for t = 0:1:91
     pause(0);
     % for t = [100 150 200]
     clf, hold on;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    particles = dlmread([folder num2str(t)]);
+    % particles = dlmread([folder num2str(t)]);
     % escaped = dlmread([folder 'es' num2str(t)]);
 
-    [row, col] = find(particles(:, 5) == -1);
-    negatives = particles(row, :);
-    [row, col] = find(particles(:, 5) == +1);
-    positives = particles(row, :);
+    % [row, col] = find(particles(:, 5) == -1);
+    % negatives = particles(row, :);
+    % [row, col] = find(particles(:, 5) == +1);
+    % positives = particles(row, :);
 
-    hold on;
+    % hold on;
 
     % if (length(escaped) > 0)
     %  scatter(escaped(:, 1), escaped(:, 2), 50, 'g', '*');
     % end
 
-    plot(negatives(1:3:end, 1), negatives(1:3:end, 2), 'markersize', 0.5, 'b.');
-    plot(positives(1:3:end, 1), positives(1:3:end, 2), 'markersize', 0.5, 'r.');
+    % plot(negatives(1:3:end, 1), negatives(1:3:end, 2), 'markersize', 0.5, 'b.');
+    % plot(positives(1:3:end, 1), positives(1:3:end, 2), 'markersize', 0.5, 'r.');
 
     % quiver(particles(:, 1), particles(:, 2), particles(:, 2), -particles(:, 1));
 
@@ -100,7 +100,7 @@ for t = 0:1:400
     axis(vis);
     % axis([-5 5 -5 5]);
     title(t);
-
+    pause(0);
     % axis off;
     % print(fig, ["../results/images/plsDeform/" int2str(t) ".jpg"], "-S1750,1800")
 

@@ -169,7 +169,7 @@ protected:
 
 int main(int argc, char const *argv[]) {
   PLevelSet system(Eigen::Array2i(150), Ramuh::BoundingBox2(0, 1));
-  system.setBaseFolder("results/particles/weno_deform");
+  system.setBaseFolder("results/particles/pls_reconstruct");
 
   system.initializeLevelSet(Eigen::Array2d(.5, .75), 0.15);
   system.redistance();
@@ -187,38 +187,38 @@ int main(int argc, char const *argv[]) {
 
   int lastRedistance = 0;
   for (size_t i = 0; i <= 400; i++) {
-    // system.defineVelocity(i);
+    system.defineVelocity(i);
     system.applyCfl();
 
     do {
-      // system.trackSurface();
-      // timer.registerTime("trackSurface");
+      system.trackSurface();
+      timer.registerTime("trackSurface");
 
-      // system.interpolateVelocityToParticles();
-      // timer.registerTime("interpolation");
+      system.interpolateVelocityToParticles();
+      timer.registerTime("interpolation");
 
       system.advectWeno();
       timer.registerTime("cellAdvection");
-      // system.advectParticles();
-      // timer.registerTime("particleAdvect");
+      system.advectParticles();
+      timer.registerTime("particleAdvect");
 
-      // bool recorrect = system.correctLevelSetWithParticles();
+      bool recorrect = system.correctLevelSetWithParticles();
 
-      // std::cerr << "......................................... CORRECTED\n";
-      // timer.registerTime("correction");
+      std::cerr << "......................................... CORRECTED\n";
+      timer.registerTime("correction");
 
       system.redistance();
       timer.registerTime("redistance");
-      // if (recorrect) {
-      //   system.correctLevelSetWithParticles();
-      //   timer.registerTime("correction2");
-      // }
+      if (recorrect) {
+        system.correctLevelSetWithParticles();
+        timer.registerTime("correction2");
+      }
 
-      // system.reseedParticles();
-      // timer.registerTime("reseed");
+      system.reseedParticles();
+      timer.registerTime("reseed");
 
-      // system.adjustParticleRadius();
-      // timer.registerTime("radiusAdjust");
+      system.adjustParticleRadius();
+      timer.registerTime("radiusAdjust");
     } while (!system.advanceTime());
     system.printParticles();
     system.printLevelSet();
