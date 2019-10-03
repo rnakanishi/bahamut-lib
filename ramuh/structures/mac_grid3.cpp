@@ -155,31 +155,32 @@ double MacGrid3::interpolateFaceScalarData(int face, int dataId,
   for (size_t i = 0; i < 3; i++) {
     index[i] = std::min(faceGridSize[i] - 1, cellId[i] + 1);
     if (position[i] < facePos[i]) {
-      index[i] = std::max(0, cellId[i] - 1);
-      h[i] = -h[i];
+      index[i] = cellId[i];
+      cellId[i] = std::max(0, cellId[i] - 1);
+      facePos[i] -= h[i];
     }
   }
 
   std::vector<Eigen::Array3d> points;
   std::vector<double> values(8);
 
-  points.emplace_back(facePos);
+  points.emplace_back(facePos + Eigen::Array3d(0, 0, 0));
   points.emplace_back(facePos + Eigen::Array3d(h[0], 0, 0));
   points.emplace_back(facePos + Eigen::Array3d(0, h[1], 0));
   points.emplace_back(facePos + Eigen::Array3d(h[0], h[1], 0));
   points.emplace_back(facePos + Eigen::Array3d(0, 0, h[2]));
   points.emplace_back(facePos + Eigen::Array3d(h[0], 0, h[2]));
   points.emplace_back(facePos + Eigen::Array3d(0, h[1], h[2]));
-  points.emplace_back(facePos + h);
+  points.emplace_back(facePos + Eigen::Array3d(h[0], h[1], h[2]));
 
-  values[0] = data[ijkToid(cellId[0], cellId[1], cellId[2])];
-  values[1] = data[ijkToid(index[0], cellId[1], cellId[2])];
-  values[2] = data[ijkToid(cellId[0], index[1], cellId[2])];
-  values[3] = data[ijkToid(index[0], index[1], cellId[2])];
-  values[4] = data[ijkToid(cellId[0], cellId[1], index[2])];
-  values[5] = data[ijkToid(index[0], cellId[1], index[2])];
-  values[6] = data[ijkToid(cellId[0], index[1], index[2])];
-  values[7] = data[ijkToid(index[0], index[1], index[2])];
+  values[0] = data[faceijkToid(face, cellId[0], cellId[1], cellId[2])];
+  values[1] = data[faceijkToid(face, index[0], cellId[1], cellId[2])];
+  values[2] = data[faceijkToid(face, cellId[0], index[1], cellId[2])];
+  values[3] = data[faceijkToid(face, index[0], index[1], cellId[2])];
+  values[4] = data[faceijkToid(face, cellId[0], cellId[1], index[2])];
+  values[5] = data[faceijkToid(face, index[0], cellId[1], index[2])];
+  values[6] = data[faceijkToid(face, cellId[0], index[1], index[2])];
+  values[7] = data[faceijkToid(face, index[0], index[1], index[2])];
 
   return Ramuh::Interpolator::trilinear(position, points, values);
 }

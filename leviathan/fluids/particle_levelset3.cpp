@@ -62,9 +62,6 @@ void ParticleLevelSet3::advectParticles() {
 
 void ParticleLevelSet3::interpolateVelocityToParticles() {
   auto &velocity = ParticleSystem3::getParticleArrayData(_particleVelocityId);
-  auto &u = getFaceScalarData(0, _faceVelocityId);
-  auto &v = getFaceScalarData(1, _faceVelocityId);
-  auto &w = getFaceScalarData(2, _faceVelocityId);
   auto &position = getParticleArrayData(_particlePositionsId);
   auto h = getH();
 

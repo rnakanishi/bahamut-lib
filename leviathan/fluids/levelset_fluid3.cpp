@@ -15,7 +15,7 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
                                Ramuh::BoundingBox3 domain)
     : Ramuh::MacGrid3(domain, gridSize) {
   _phiId = newCellScalarLabel("phi", 1e8);
-  _cellVelocityId = newCellScalarLabel("cellVelocity");
+  _cellVelocityId = newCellArrayLabel("cellVelocity");
   _faceVelocityId = newFaceScalarLabel("faceVelocity");
   //  --> Even though velocities are vector, MAC grid split them into scalar
   //  pieces for each coordinate
@@ -24,7 +24,7 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
   _tolerance = 1e-10;
 
   _cellGradientId = newCellArrayLabel("cellGradient");
-  newCellScalarLabel("newPhi");
+  _surfaceCells.resize(cellCount(), false);
 }
 
 void LevelSetFluid3::computeCellsGradient() {
@@ -92,7 +92,6 @@ void LevelSetFluid3::advectSemiLagrangean() {
 void LevelSetFluid3::advectUpwind() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
-  std::vector<double> upwind(cellCount());
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
   auto &cellGradient = getCellArrayData(_cellGradientId);
 
@@ -101,7 +100,7 @@ void LevelSetFluid3::advectUpwind() {
     Eigen::Vector3d velocity = cellVelocity[id].matrix();
     Eigen::Vector3d gradient = cellGradient[id].matrix();
 
-    phi[id] = phi[id] + velocity.dot(gradient);
+    phi[id] = phi[id] - velocity.dot(gradient) * _dt;
   }
 }
 
@@ -247,20 +246,12 @@ void LevelSetFluid3::advectWeno() {
   // computeCentralGradient();
   computeCellVelocity();
   computeWenoGradient();
-#pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
-    phi[id] =
-        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
-  }
+  advectUpwind();
 
   // computeCentralGradient();
   computeCellVelocity();
   computeWenoGradient();
-#pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
-    phi[id] =
-        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
-  }
+  advectUpwind();
 
   for (size_t i = 0; i < phi.size(); i++) {
     phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
@@ -269,11 +260,7 @@ void LevelSetFluid3::advectWeno() {
   // computeCentralGradient();
   computeCellVelocity();
   computeWenoGradient();
-#pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
-    phi[id] =
-        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
-  }
+  advectUpwind();
 
 #pragma omp parallel for
   for (size_t i = 0; i < phi.size(); i++) {
@@ -286,31 +273,14 @@ void LevelSetFluid3::computeCellVelocity() {
 
 #pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
-    auto ijk = idToijk(id);
-    int i = ijk[0], j = ijk[1], k = ijk[2];
+    auto position = getCellPosition(id);
 
-    for (size_t coord = 0; coord < 2; coord++) {
-      auto &uvw = getFaceScalarData(coord, _faceVelocityId);
-      double velocity;
-      switch (coord) {
-      case 0:
-        velocity = (uvw[faceijkToid(coord, i, j, k)] +
-                    uvw[faceijkToid(coord, i + 1, j, k)]) /
-                   2;
-        break;
-      case 1:
-        velocity = (uvw[faceijkToid(coord, i, j, k)] +
-                    uvw[faceijkToid(coord, i, j + 1, k)]) /
-                   2;
-        break;
-      case 2:
-        velocity = (uvw[faceijkToid(coord, i, j, k)] +
-                    uvw[faceijkToid(coord, i, j, k + 1)]) /
-                   2;
-        break;
-      }
-      cellVelocity[id][coord] = velocity;
-    }
+    cellVelocity[id][0] =
+        interpolateFaceScalarData(0, _faceVelocityId, position);
+    cellVelocity[id][1] =
+        interpolateFaceScalarData(1, _faceVelocityId, position);
+    cellVelocity[id][2] =
+        interpolateFaceScalarData(2, _faceVelocityId, position);
   }
 }
 
@@ -319,9 +289,9 @@ void LevelSetFluid3::advectCip() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
   auto &G = getCellArrayData(_cellGradientId);
-  auto &uVelocity = getFaceScalarData(0, _cellVelocityId);
-  auto &vVelocity = getFaceScalarData(1, _cellVelocityId);
-  auto &wVelocity = getFaceScalarData(2, _cellVelocityId);
+  auto &uVelocity = getFaceScalarData(0, _faceVelocityId);
+  auto &vVelocity = getFaceScalarData(1, _faceVelocityId);
+  auto &wVelocity = getFaceScalarData(2, _faceVelocityId);
   static int count = 0;
   std::vector<double> newPhi(cellCount(), 0);
   std::vector<Eigen::Array3d> newGrad(cellCount(), Eigen::Array3d(0));
@@ -438,6 +408,7 @@ void LevelSetFluid3::redistance() {
       cellSignal[id] = 0;
 
     auto ijk = idToijk(id);
+    isInterface[id] = false;
     int i = ijk[0], j = ijk[1], k = ijk[2];
     interfaceFactor[id] = 0;
     if ((i > 0 && i < _gridSize[0] - 1) && (j > 0 && j < _gridSize[1] - 1) &&
@@ -449,7 +420,7 @@ void LevelSetFluid3::redistance() {
           phi[id] * phi[ijkToid(i, j, k - 1)] <= 0 ||
           phi[id] * phi[ijkToid(i, j, k + 1)] <= 0) {
         isInterface[id] = true;
-        interfaceFactor[id] = 2 * h[0] * phi[id];
+        interfaceFactor[id] = h[0] * phi[id];
 
         // These differential values are used to improbe robustness when
         // redistancing levelsets that may suffer too much from topological
@@ -458,12 +429,12 @@ void LevelSetFluid3::redistance() {
         dCentral[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i - 1, j, k)];
         dCentral[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j - 1, k)];
         dCentral[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k - 1)];
-        dUp[0] = phi[ijkToid(i, j, k)] - phi[ijkToid(i - 1, j, k)];
-        dUp[1] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j - 1, k)];
-        dUp[2] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j, k - 1)];
-        dDown[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i, j, k)];
-        dDown[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j, k)];
-        dDown[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k)];
+        dDown[0] = phi[ijkToid(i, j, k)] - phi[ijkToid(i - 1, j, k)];
+        dDown[1] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j - 1, k)];
+        dDown[2] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j, k - 1)];
+        dUp[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i, j, k)];
+        dUp[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j, k)];
+        dUp[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k)];
 
         for (size_t d = 0; d < 3; d++) {
           dCentral[d] = dCentral[d] * dCentral[d];

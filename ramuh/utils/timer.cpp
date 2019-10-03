@@ -29,7 +29,8 @@ double Timer::getEllapsedTime() {
 double Timer::registerTime(const std::string &name) {
   auto it = _components.find(name);
   double timeInterval = getEllapsedTime();
-  std::cout << name << " took " << timeInterval << std::endl;
+  std::cout << "\033[21;32m[TIMER]: \033[0m" << name << " took " << timeInterval
+            << std::endl;
   if (it == _components.end())
     _components[name] = 0.0;
   _components[name] += timeInterval;

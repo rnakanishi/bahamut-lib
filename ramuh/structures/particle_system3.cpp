@@ -9,12 +9,12 @@ ParticleSystem3::ParticleSystem3() : ParticleSystem3(BoundingBox3::unitBox()) {}
 ParticleSystem3::ParticleSystem3(BoundingBox3 domain) : _domain(domain) {
   _count = 0;
   _totalIds = 0;
-  _positionsId = newParticleArrayLabel("positions");
+  _particlePositionsId = newParticleArrayLabel("positions");
 
   std::srand(0);
 }
 
-int ParticleSystem3::particleCount() { return _count; }
+int ParticleSystem3::getParticleCount() { return _count; }
 
 int ParticleSystem3::seedParticles(BoundingBox3 region) {
   int id;
@@ -31,12 +31,12 @@ int ParticleSystem3::seedParticles(BoundingBox3 region) {
     _active[id] = true;
   }
 
-  auto &_positions = getParticleArrayData(_positionsId);
+  auto &_positions = getParticleArrayData(_particlePositionsId);
   Eigen::Array3d position;
   position[0] = std::rand() % 100000;
   position[1] = std::rand() % 100000;
   position[2] = std::rand() % 100000;
-  position = region.min() + position.cwiseProduct(region.size()) / 100000;
+  position = region.getMin() + position.cwiseProduct(region.getSize()) / 100000;
   _positions[id] = position;
   _count++;
   return id;
@@ -54,7 +54,7 @@ std::vector<int> ParticleSystem3::seedParticles(BoundingBox3 region, int n) {
 Eigen::Array3d ParticleSystem3::getParticlePosition(int pid) {
   if (!_active[pid])
     return Eigen::Array3d(0);
-  return _arrayData[_positionsId][pid];
+  return _arrayData[_particlePositionsId][pid];
 }
 
 bool ParticleSystem3::isActive(int pid) { return _active[pid]; }

@@ -12,6 +12,7 @@ public:
   PLevelSet3(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain)
       : ParticleLevelSet3(gridSize, domain) {
     // _dt = 1 / 30.;
+    _maxParticles = 80;
   }
 
   void initializeLevelSet(Eigen::Array3d center, double radius) {
@@ -41,24 +42,24 @@ public:
   }
 
   void initializeGridVelocity() {
-    auto &u = getFaceScalarData(0, _cellVelocityId);
-    auto &v = getFaceScalarData(1, _cellVelocityId);
-    auto &w = getFaceScalarData(2, _velocityId);
+    auto &u = getFaceScalarData(0, _faceVelocityId);
+    auto &v = getFaceScalarData(1, _faceVelocityId);
+    auto &w = getFaceScalarData(2, _faceVelocityId);
 
     // u velocities
     for (size_t i = 0; i < faceCount(0); i++) {
-      auto p = facePosition(0, i);
+      auto p = getFacePosition(0, i);
       u[i] = p[1];
     }
 
     // v velocities
     for (size_t j = 0; j < faceCount(1); j++) {
-      auto p = facePosition(1, j);
+      auto p = getFacePosition(1, j);
       v[j] = -p[0];
     }
 
     for (size_t k = 0; k < faceCount(1); k++) {
-      auto p = facePosition(1, j);
+      auto p = getFacePosition(2, k);
       w[k] = 0;
     }
   }
@@ -154,43 +155,6 @@ public:
     file.close();
   }
 
-  void defineVelocity(int i) {
-    double time = _dt * i;
-    auto &u = getFaceScalarData(0, _cellVelocityId);
-    auto &v = getFaceScalarData(1, _cellVelocityId);
-    auto &w = getFaceScalarData(2, _cellVelocityId);
-
-    // u velocities
-    for (size_t i = 0; i < faceCount(0); i++) {
-      auto p = getFacePosition(0, i);
-      u[i] = p[1];
-      u[i] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
-             sin(2 * M_PI * p[2]);
-      u[i] *= cos(M_PI * time / 3.0);
-
-      // u[i] = 0;
-    }
-
-    // v velocities
-    for (size_t j = 0; j < faceCount(1); j++) {
-      auto p = getFacePosition(1, j);
-      v[j] = -p[0];
-      v[j] = -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) *
-             sin(2 * M_PI * p[2]);
-      v[j] *= cos(M_PI * time / 3.0);
-      // v[i] = -1;
-    }
-
-    // w velocities
-    for (size_t k = 0; k < faceCount(1); k++) {
-      auto p = getFacePosition(2, k);
-      w[k] = -p[0];
-      w[k] = -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) *
-             sin(2 * M_PI * p[1]);
-      w[k] *= cos(M_PI * time / 3.0);
-      // v[i] = -1;
-    }
-  }
   void setBaseFolder(std::string folder) { baseFolder = folder; }
 
 protected:
@@ -198,13 +162,14 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet3 system(Eigen::Array3i(150), Ramuh::BoundingBox3(-5, 5));
+  PLevelSet3 system(Eigen::Array3i(100), Ramuh::BoundingBox3(-5, 5));
   system.setBaseFolder("results/particles/3d/pls_rigid");
 
-  system.initializeLevelSet(Eigen::Array3d(0, 2), 1.5);
+  system.initializeLevelSet(Eigen::Array3d(0, 2, 0), 1.5);
   system.redistance();
-  system.computeCellsGradient();
   system.initializeGridVelocity();
+  system.computeCellsGradient();
+  system.computeCellVelocity();
   system.trackSurface();
   system.seedParticlesNearSurface();
   // system.attractParticles();
@@ -216,8 +181,8 @@ int main(int argc, char const *argv[]) {
   Ramuh::Timer timer;
 
   int lastRedistance = 0;
-  for (size_t i = 0; i <= 500; i++) {
-    // system.defineVelocity(i);
+  for (size_t i = 0; i <= 400; i++) {
+    timer.reset();
     system.applyCfl();
 
     do {
@@ -226,7 +191,7 @@ int main(int argc, char const *argv[]) {
 
       system.interpolateVelocityToParticles();
       timer.registerTime("interpolation");
-      // system.advectSemiLagrangian();
+
       system.advectWeno();
       timer.registerTime("cellAdvection");
       system.advectParticles();
@@ -252,16 +217,17 @@ int main(int argc, char const *argv[]) {
       }
       lastRedistance++;
 
-      system.reseedParticles();
-      timer.registerTime("reseed");
+      // system.reseedParticles();
+      // timer.registerTime("reseed");
 
-      system.adjustParticleRadius();
-      timer.registerTime("radiusAdjust");
+      // system.adjustParticleRadius();
+      // timer.registerTime("radiusAdjust");
     } while (!system.advanceTime());
+
     system.printParticles();
     system.printLevelSet();
-    system.printGradients();
-    system.printVelocities();
+    // system.printGradients();
+    // system.printVelocities();
     timer.registerTime("print");
 
     std::cerr << system.getParticleCount() << " particles\n";

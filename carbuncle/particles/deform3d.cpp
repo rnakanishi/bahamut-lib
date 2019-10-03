@@ -24,19 +24,6 @@ public:
       // if (sqrt(pow(p[0] - center[0], 2) + pow(p[1] - center[1], 2)) < radius)
       function[i] = sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]) - radius;
       // function[i] = 5;
-
-      double s = radius / 4.;
-      if ((p[0] >= -s && p[0] <= s) && (p[1] <= s && p[1] >= -radius)) {
-        function[i] =
-            std::min(abs(s - p[1]), std::min(abs(p[0] + s), abs(s - p[0])));
-      }
-      if (function[i] < 0) {
-        if (p[1] <= s && p[1] >= -radius)
-          function[i] = -std::min(abs(function[i]),
-                                  std::min(abs(p[0] + s), abs(s - p[0])));
-        if (p[0] >= -s && p[0] <= s)
-          function[i] = -std::min(abs(function[i]), abs(s - p[1]));
-      }
     }
   }
 
@@ -181,7 +168,8 @@ int main(int argc, char const *argv[]) {
 
   system.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
   system.redistance();
-  system.computeCellsGradient();
+  system.computeCellVelocity();
+  system.computeWenoGradient();
   system.trackSurface();
   system.seedParticlesNearSurface();
   // system.attractParticles();
@@ -193,54 +181,57 @@ int main(int argc, char const *argv[]) {
   Ramuh::Timer timer;
 
   int lastRedistance = 0;
-  for (size_t i = 0; i <= 500; i++) {
+  for (size_t i = 0; i <= 360; i++) {
     system.defineVelocity(i);
     system.applyCfl();
 
     do {
-      system.trackSurface();
-      timer.registerTime("trackSurface");
+      //   system.trackSurface();
+      //   timer.registerTime("trackSurface");
 
-      system.interpolateVelocityToParticles();
-      timer.registerTime("interpolation");
+      // system.interpolateVelocityToParticles();
+      // timer.registerTime("interpolation");
       // system.advectSemiLagrangian();
-      system.advectWeno();
-      timer.registerTime("cellAdvection");
-      system.advectParticles();
-      timer.registerTime("particleAdvect");
+      system.computeWenoGradient();
+      system.computeCellVelocity();
+      system.advectUpwind();
+      // system.advectWeno();
+      // timer.registerTime("cellAdvection");
+      // system.advectParticles();
+      // timer.registerTime("particleAdvect");
 
-      if (system.correctLevelSetWithParticles()) {
-        std::cerr << "......................................... CORRECTED\n";
-        timer.registerTime("correction");
+      // if (system.correctLevelSetWithParticles()) {
+      //   std::cerr << "......................................... CORRECTED\n";
+      //   timer.registerTime("correction");
 
-        lastRedistance = 0;
-        system.redistance();
-        timer.registerTime("redistance");
+      lastRedistance = 0;
+      system.redistance();
+      timer.registerTime("redistance");
 
-        system.correctLevelSetWithParticles();
-        timer.registerTime("correction2");
-      } else
-        timer.registerTime("correction");
+      //   system.correctLevelSetWithParticles();
+      //   timer.registerTime("correction2");
+      // } else
+      //   timer.registerTime("correction");
 
-      if (lastRedistance >= 5) {
-        lastRedistance = 0;
-        std::cerr << "Redistance iteration\n";
-        system.redistance();
-      }
-      lastRedistance++;
+      // if (lastRedistance >= 5) {
+      //   lastRedistance = 0;
+      //   std::cerr << "Redistance iteration\n";
+      //   system.redistance();
+      // }
+      // lastRedistance++;
 
-      system.reseedParticles();
-      timer.registerTime("reseed");
+      // system.reseedParticles();
+      // timer.registerTime("reseed");
 
-      system.adjustParticleRadius();
-      timer.registerTime("radiusAdjust");
+      // system.adjustParticleRadius();
+      // timer.registerTime("radiusAdjust");
+
+      // system.printParticles();
+      system.printLevelSet();
+      system.printGradients();
+      system.printVelocities();
+      timer.registerTime("print");
     } while (!system.advanceTime());
-    system.printParticles();
-    system.printLevelSet();
-    system.printGradients();
-    system.printVelocities();
-    timer.registerTime("print");
-
     std::cerr << system.getParticleCount() << " particles\n";
     timer.evaluateComponentsTime();
   }
