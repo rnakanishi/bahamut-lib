@@ -8,4 +8,4 @@ data/*
 obj/*
 octave-workspace
 results/*
-commit.txt
+commit.log

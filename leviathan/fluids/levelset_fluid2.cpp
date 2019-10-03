@@ -75,6 +75,7 @@ void LevelSetFluid2::advectUpwind() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
   std::vector<double> newPhi(cellCount());
+
   for (int id = 0; id < cellCount(); id++) {
     auto p = getCellPosition(id);
     auto ij = idToij(id);
@@ -238,14 +239,11 @@ void LevelSetFluid2::computeWenoGradient() {
   auto &gradient = getCellArrayData(_gradientId);
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
 
-  std::vector<double> newPhi(cellCount());
-
   // Weno computation
   for (int id = 0; id < cellCount(); id++) {
     auto p = getCellPosition(id);
     auto ij = idToij(id);
     int i = ij[0], j = ij[1];
-    newPhi[id] = 0;
     gradient[id] = 0;
     std::vector<double> values(6);
 
@@ -284,7 +282,6 @@ void LevelSetFluid2::computeWenoGradient() {
             // velocity = .5 * (uv[faceijToid(coord, faceindex, facej)] +
             //                  uv[faceijToid(coord, faceindex - 1, facej)]);
             values[ival] =
-                // velocity *
                 (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) / h[coord];
             break;
           case 1:
@@ -295,7 +292,6 @@ void LevelSetFluid2::computeWenoGradient() {
             // velocity = .5 * (uv[faceijToid(coord, facei, faceindex)] +
             //                  uv[faceijToid(coord, facei, faceindex - 1)]);
             values[ival] =
-                // velocity *
                 (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) / h[coord];
           default:
             break;
@@ -324,7 +320,6 @@ void LevelSetFluid2::computeWenoGradient() {
             // velocity = .5 * (uv[faceijToid(coord, faceIndex, facej)] +
             //                  uv[faceijToid(coord, faceIndex - 1, facej)]);
             values[ival] =
-                // velocity *
                 (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) / h[coord];
             break;
           case 1:
@@ -335,7 +330,6 @@ void LevelSetFluid2::computeWenoGradient() {
             // velocity = .5 * (uv[faceijToid(coord, facei, faceIndex)] +
             //                  uv[faceijToid(coord, facei, faceIndex - 1)]);
             values[ival] =
-                // velocity *
                 (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) / h[coord];
             break;
           }
@@ -350,7 +344,6 @@ void LevelSetFluid2::computeWenoGradient() {
           values[4] = 1e4;
       }
       double dPhi = Ramuh::Weno::evaluate(values, h[coord], false);
-      newPhi[id] += velocity * dPhi;
       gradient[id][coord] = dPhi;
     }
   }
@@ -560,16 +553,10 @@ void LevelSetFluid2::redistance() {
                                           interfaceFactor[id]);
       }
       error += abs(phi[id] - newPhi);
-      if (abs(phi[id] - newPhi) > dt * h[0] * h[0])
-        hasError = true;
-
-      if (phi[id] < -0.4 && phi[ijToid(i - 1, j)] > 0)
-        phi[id] = newPhi;
       phi[id] = newPhi;
     }
 
     if (error / cellCount() < dt * h[0] * h[0])
-      // if (!hasError)
       break;
   }
 }
