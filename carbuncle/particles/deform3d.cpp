@@ -120,6 +120,7 @@ public:
 
   void defineVelocity(int i) {
     double time = _dt * i;
+    double T = 1.5;
     auto &u = getFaceScalarData(0, _cellVelocityId);
     auto &v = getFaceScalarData(1, _cellVelocityId);
     auto &w = getFaceScalarData(2, _cellVelocityId);
@@ -127,10 +128,9 @@ public:
     // u velocities
     for (size_t i = 0; i < faceCount(0); i++) {
       auto p = getFacePosition(0, i);
-      u[i] = p[1];
       u[i] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
              sin(2 * M_PI * p[2]);
-      u[i] *= cos(M_PI * time / 3.0);
+      u[i] *= cos(M_PI * time / T);
 
       // u[i] = 0;
     }
@@ -138,20 +138,18 @@ public:
     // v velocities
     for (size_t j = 0; j < faceCount(1); j++) {
       auto p = getFacePosition(1, j);
-      v[j] = -p[0];
       v[j] = -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) *
              sin(2 * M_PI * p[2]);
-      v[j] *= cos(M_PI * time / 3.0);
+      v[j] *= cos(M_PI * time / T);
       // v[i] = -1;
     }
 
     // w velocities
-    for (size_t k = 0; k < faceCount(1); k++) {
+    for (size_t k = 0; k < faceCount(2); k++) {
       auto p = getFacePosition(2, k);
-      w[k] = -p[0];
       w[k] = -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) *
              sin(2 * M_PI * p[1]);
-      w[k] *= cos(M_PI * time / 3.0);
+      w[k] *= cos(M_PI * time / T);
       // v[i] = -1;
     }
   }
@@ -163,7 +161,7 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet3 system(Eigen::Array3i(50), Ramuh::BoundingBox3(0, 1));
+  PLevelSet3 system(Eigen::Array3i(100), Ramuh::BoundingBox3(0, 1));
   system.setBaseFolder("results/particles/3d/pls_deform");
 
   system.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
@@ -189,12 +187,9 @@ int main(int argc, char const *argv[]) {
     system.applyCfl();
 
     do {
-      // system.trackSurface();
+      system.trackSurface();
       system.findSurfaceCells(4);
       timer.registerTime("trackSurface");
-
-      system.interpolateVelocityToParticles();
-      timer.registerTime("interpolation");
 
       system.advectWeno();
       timer.registerTime("cellAdvection");
@@ -220,20 +215,20 @@ int main(int argc, char const *argv[]) {
         system.redistance();
       }
       lastRedistance++;
-
-      if (i % 20 == 0) {
-        system.reseedParticles();
-        timer.registerTime("reseed");
-
-        system.adjustParticleRadius();
-        timer.registerTime("radiusAdjust");
-      }
-      system.printParticles();
-      system.printLevelSet();
-      // system.printGradients();
-      // system.printVelocities();
-      timer.registerTime("print");
     } while (!system.advanceTime());
+
+    if (i % 20 == 0) {
+      system.reseedParticles();
+      timer.registerTime("reseed");
+
+      system.adjustParticleRadius();
+      timer.registerTime("radiusAdjust");
+    }
+    system.printParticles();
+    system.printLevelSet();
+    // system.printGradients();
+    // system.printVelocities();
+    timer.registerTime("print");
     std::cerr << system.getParticleCount() << " particles\n";
     timer.evaluateComponentsTime();
   }

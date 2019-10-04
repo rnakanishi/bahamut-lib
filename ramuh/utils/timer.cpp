@@ -5,11 +5,12 @@
 namespace Ramuh {
 
 Timer::Timer() {
-  _start = _lastLap = _end = std::clock();
+  _start = _lastLap = _end = std::chrono::steady_clock::now();
   _longestName = 0;
+  std::cout << "\033[21;32m=[Timer created]= \033[0m\n";
 }
 
-void Timer::reset() { _start = _lastLap = std::clock(); }
+void Timer::reset() { _start = _lastLap = std::chrono::steady_clock::now(); }
 
 void Timer::clearAll() {
   for (auto &comp : _components) {
@@ -17,13 +18,13 @@ void Timer::clearAll() {
   }
 }
 
-void Timer::lap() { _lastLap = std::clock(); }
+void Timer::lap() { _lastLap = std::chrono::steady_clock::now(); }
 
 double Timer::getEllapsedTime() {
-  double seconds =
-      (std::clock() - _lastLap) / static_cast<double>(CLOCKS_PER_SEC);
-  _lastLap = std::clock();
-  return seconds;
+  auto timeNow = std::chrono::steady_clock::now();
+  std::chrono::duration<double> duration = timeNow - _lastLap;
+  _lastLap = std::chrono::steady_clock::now();
+  return duration.count();
 }
 
 double Timer::registerTime(const std::string &name) {
@@ -36,10 +37,13 @@ double Timer::registerTime(const std::string &name) {
   _components[name] += timeInterval;
   if (name.length() > _longestName)
     _longestName = name.length();
+  return 0.0; // FIXME: registeTime: fix return value
 }
 
 double Timer::getTotalTime() {
-  return (std::clock() - _start) / static_cast<double>(CLOCKS_PER_SEC);
+  auto timeNow = std::chrono::steady_clock::now();
+  std::chrono::duration<double> duration = timeNow - _start;
+  return duration.count();
 }
 
 void Timer::evaluateComponentsTime() {

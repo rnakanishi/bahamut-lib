@@ -20,20 +20,20 @@ hold on;
 vis = [0 1 0 1 0 1];
 % vis = [-5 5 -5 5 -5 5];
 
-for t = 40:1:90
+for t = 0:1:90
     % for t = [100 150 200]
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    particles = dlmread([folder num2str(t)]);
+    % particles = dlmread([folder num2str(t)]);
 
-    [row, col] = find(particles(:, 7) == -1);
-    negatives = particles(row, :);
-    [row, col] = find(particles(:, 7) == +1);
-    positives = particles(row, :);
+    % [row, col] = find(particles(:, 7) == -1);
+    % negatives = particles(row, :);
+    % [row, col] = find(particles(:, 7) == +1);
+    % positives = particles(row, :);
 
-    clf, hold on;
+    % clf, hold on;
 
-    plot3(negatives(1:2:end, 1), negatives(1:2:end, 2), negatives(1:2:end, 3), 'markersize', 0.5, 'b.', 'LineStyle', 'none');
+    % plot3(negatives(1:2:end, 1), negatives(1:2:end, 2), negatives(1:2:end, 3), 'markersize', 0.5, 'b.', 'LineStyle', 'none');
     % plot3(positives(1:10:end, 1), positives(1:10:end, 2), positives(1:10:end, 3), 'markersize', 0.5, 'r.', 'LineStyle', 'none' );
 
     % quiver(particles(:, 1), particles(:, 2), particles(:, 2), -particles(:, 1));

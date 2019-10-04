@@ -3,6 +3,7 @@
 #include <ctime>
 #include <map>
 #include <string>
+#include <chrono>
 
 namespace Ramuh {
 class Timer {
@@ -58,7 +59,9 @@ public:
   void evaluateComponentsTime();
 
 protected:
-  std::clock_t _start, _end, _lastLap;
+  std::chrono::time_point<std::chrono::steady_clock,
+                          std::chrono::duration<double>>
+      _start, _end, _lastLap;
   int _longestName;
   std::map<std::string, double> _components;
 };

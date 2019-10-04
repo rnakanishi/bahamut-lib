@@ -45,6 +45,7 @@ void ParticleLevelSet3::advectParticles() {
   for (size_t i = 0; i < position.size(); i++) {
     lastPosition[i] = position[i];
   }
+  interpolateVelocityToParticles();
   advectEuler();
   interpolateVelocityToParticles();
   advectEuler();
@@ -67,7 +68,7 @@ void ParticleLevelSet3::interpolateVelocityToParticles() {
 
 #pragma omp parallel for
   for (size_t pid = 0; pid < _totalIds; pid++) {
-    if (!isActive(pid))
+    if (!_active[pid])
       continue;
 
     velocity[pid][0] =
@@ -275,6 +276,8 @@ bool ParticleLevelSet3::correctLevelSetWithParticles() {
 
   // FInd escaped particles
   for (size_t pid = 0; pid < _totalIds; pid++) {
+    if (!_active[pid])
+      continue;
     if (_hasEscaped(pid)) {
       hasCorrection = true;
       _escapedParticles.emplace_back(pid);

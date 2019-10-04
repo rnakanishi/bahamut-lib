@@ -98,8 +98,7 @@ void LevelSetFluid3::advectUpwind() {
   auto &cellGradient = getCellArrayData(_cellGradientId);
 
 #pragma omp parallel for
-  for (size_t i = 0; i < _surfaceCellIds.size(); i++) {
-    int id = _surfaceCellIds[i];
+  for (int id = 0; id < cellCount(); id++) {
     Eigen::Vector3d velocity = cellVelocity[id].matrix();
     Eigen::Vector3d gradient = cellGradient[id].matrix();
 
@@ -241,8 +240,6 @@ void LevelSetFluid3::advectWeno() {
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
   auto &phi = getCellScalarData(_phiId);
 
-  auto surfaceCells = findSurfaceCells(5);
-
   std::vector<double> phiN(phi.size());
   for (size_t i = 0; i < phi.size(); i++) {
     phiN[i] = phi[i];
@@ -258,9 +255,7 @@ void LevelSetFluid3::advectWeno() {
   computeWenoGradient();
   advectUpwind();
 
-#pragma omp parallel for
-  for (size_t i = 0; i < _surfaceCellIds.size(); i++) {
-    int id = _surfaceCellIds[i];
+  for (size_t i = 0; i < phi.size(); i++) {
     phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
   }
 
@@ -270,8 +265,7 @@ void LevelSetFluid3::advectWeno() {
   advectUpwind();
 
 #pragma omp parallel for
-  for (size_t i = 0; i < _surfaceCellIds.size(); i++) {
-    int id = _surfaceCellIds[i];
+  for (size_t i = 0; i < phi.size(); i++) {
     phi[i] = phiN[i] / 3 + 2 * phi[i] / 3;
   }
 }
@@ -280,8 +274,7 @@ void LevelSetFluid3::computeCellVelocity() {
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
 
 #pragma omp parallel for
-  for (size_t i = 0; i < _surfaceCellIds.size(); i++) {
-    int id = _surfaceCellIds[i];
+  for (int id = 0; id < cellCount(); id++) {
     auto position = getCellPosition(id);
 
     cellVelocity[id][0] =
