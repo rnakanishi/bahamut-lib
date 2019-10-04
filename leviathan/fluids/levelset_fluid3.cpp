@@ -3,6 +3,8 @@
 #include <blas/weno.h>
 #include <cmath>
 #include <iostream>
+#include <set>
+#include <queue>
 
 namespace Leviathan {
 
@@ -24,7 +26,7 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
   _tolerance = 1e-10;
 
   _cellGradientId = newCellArrayLabel("cellGradient");
-  _surfaceCells.resize(cellCount(), false);
+  _isSurfaceCell.resize(cellCount(), false);
 }
 
 void LevelSetFluid3::computeCellsGradient() {
@@ -96,7 +98,8 @@ void LevelSetFluid3::advectUpwind() {
   auto &cellGradient = getCellArrayData(_cellGradientId);
 
 #pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
+  for (size_t i = 0; i < _surfaceCellIds.size(); i++) {
+    int id = _surfaceCellIds[i];
     Eigen::Vector3d velocity = cellVelocity[id].matrix();
     Eigen::Vector3d gradient = cellGradient[id].matrix();
 
@@ -238,6 +241,8 @@ void LevelSetFluid3::advectWeno() {
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
   auto &phi = getCellScalarData(_phiId);
 
+  auto surfaceCells = findSurfaceCells(5);
+
   std::vector<double> phiN(phi.size());
   for (size_t i = 0; i < phi.size(); i++) {
     phiN[i] = phi[i];
@@ -253,7 +258,9 @@ void LevelSetFluid3::advectWeno() {
   computeWenoGradient();
   advectUpwind();
 
-  for (size_t i = 0; i < phi.size(); i++) {
+#pragma omp parallel for
+  for (size_t i = 0; i < _surfaceCellIds.size(); i++) {
+    int id = _surfaceCellIds[i];
     phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
   }
 
@@ -263,7 +270,8 @@ void LevelSetFluid3::advectWeno() {
   advectUpwind();
 
 #pragma omp parallel for
-  for (size_t i = 0; i < phi.size(); i++) {
+  for (size_t i = 0; i < _surfaceCellIds.size(); i++) {
+    int id = _surfaceCellIds[i];
     phi[i] = phiN[i] / 3 + 2 * phi[i] / 3;
   }
 }
@@ -272,7 +280,8 @@ void LevelSetFluid3::computeCellVelocity() {
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
 
 #pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
+  for (size_t i = 0; i < _surfaceCellIds.size(); i++) {
+    int id = _surfaceCellIds[i];
     auto position = getCellPosition(id);
 
     cellVelocity[id][0] =
@@ -573,7 +582,7 @@ std::vector<int> LevelSetFluid3::trackSurface() {
   std::vector<bool> isInterface(cellCount(), false);
   std::vector<int> surface;
 
-  std::fill(_surfaceCells.begin(), _surfaceCells.end(), false);
+  std::fill(_isSurfaceCell.begin(), _isSurfaceCell.end(), false);
 #pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     auto ijk = idToijk(id);
@@ -586,13 +595,67 @@ std::vector<int> LevelSetFluid3::trackSurface() {
           phi[id] * phi[ijkToid(i, j + 1, k)] <= 0 ||
           phi[id] * phi[ijkToid(i, j, k - 1)] <= 0 ||
           phi[id] * phi[ijkToid(i, j, k + 1)] <= 0) {
-        _surfaceCells[id] = true;
+        _isSurfaceCell[id] = true;
 #pragma omp critical
         { surface.emplace_back(id); }
       }
     }
   }
   return surface;
+}
+
+std::vector<int> LevelSetFluid3::findSurfaceCells() {
+  return findSurfaceCells(1);
+}
+
+std::vector<int> LevelSetFluid3::findSurfaceCells(int surfaceDistance) {
+  std::vector<int> distanceToSurface(cellCount(), 1e8);
+  std::vector<int> visited(cellCount(), false);
+  std::set<int> toSeed;
+
+  std::queue<int> cellQueue;
+  auto surfaceCells = trackSurface();
+  for (auto cell : surfaceCells) {
+    distanceToSurface[cell] = 0;
+    cellQueue.push(cell);
+  }
+
+  // For every cell surface tracked before, compute bfs and mark those cells
+  // that are at most 3 cells away from surface
+  while (!cellQueue.empty()) {
+    int cell = cellQueue.front();
+    cellQueue.pop();
+    if (!visited[cell]) {
+      visited[cell] = true;
+      auto ijk = idToijk(cell);
+      int i = ijk[0], j = ijk[1], k = ijk[2];
+      int distance = distanceToSurface[cell];
+
+      // All neighbors are taken into consideration
+      int neighbors[6];
+      neighbors[0] = ijkToid(std::max(0, i - 1), j, k);
+      neighbors[1] =
+          ijkToid(std::min(LevelSetFluid3::_gridSize[0] - 1, i + 1), j, k);
+      neighbors[2] = ijkToid(i, std::max(0, j - 1), k);
+      neighbors[3] =
+          ijkToid(i, std::min(LevelSetFluid3::_gridSize[1] - 1, j + 1), k);
+      neighbors[4] = ijkToid(i, j, std::max(0, k - 1));
+      neighbors[5] =
+          ijkToid(i, j, std::min(LevelSetFluid3::_gridSize[2] - 1, k + 1));
+      for (auto neighbor : neighbors) {
+        if (!visited[neighbor]) {
+          cellQueue.push(neighbor);
+        }
+        distanceToSurface[neighbor] =
+            std::min(distanceToSurface[neighbor], distance + 1);
+        if (distanceToSurface[neighbor] < surfaceDistance)
+          toSeed.insert(neighbor);
+      }
+    }
+  }
+  _surfaceCellIds.clear();
+  _surfaceCellIds.insert(_surfaceCellIds.begin(), toSeed.begin(), toSeed.end());
+  return _surfaceCellIds;
 }
 
 } // namespace Leviathan

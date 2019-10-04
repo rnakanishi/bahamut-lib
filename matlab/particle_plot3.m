@@ -1,6 +1,6 @@
 clear;
 
-folder = '~/git/bahamut-lib/results/particles/3d/pls_rigid/';
+folder = '~/git/bahamut-lib/results/particles/3d/pls_deform/';
 timesteps = 100;
 first = dlmread([folder 'ls' num2str(0)]);
 N = (length(first(:, 1)))^(1/3) + 1;
@@ -11,16 +11,16 @@ dx = x(2) - x(1);
 [X, Y, Z] = meshgrid(x, x, x);
 
 az = 0;
-el = 90;
+el = 0;
 
 fig = figure('position', [350, 150, 1500, 1500]);
 % figure/
 hold on;
 
-% vis = [0 1 0 1 0 1];
-vis = [-5 5 -5 5 -5 5];
+vis = [0 1 0 1 0 1];
+% vis = [-5 5 -5 5 -5 5];
 
-for t = 0:5:400
+for t = 40:1:90
     % for t = [100 150 200]
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -41,14 +41,15 @@ for t = 0:5:400
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    hold on;
     levelset = dlmread([folder 'ls' num2str(t)]);
     values = reshape(levelset(:, 4), N, N, N);
     values = permute(values, [2,1,3]);
     levelx = reshape(levelset(:, 2), N, N, N);
     levely = reshape(levelset(:, 1), N, N, N);
     levelz = reshape(levelset(:, 3), N, N, N);
-
+    
+    clf; 
+    hold on;
     view(az, el);
     [face, vert] = isosurface(levelx, levely, levelz, values, 0);
     p = patch("Faces", face, "Vertices", vert, "EdgeColor", "none");

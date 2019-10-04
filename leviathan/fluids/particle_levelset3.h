@@ -55,11 +55,10 @@ public:
 
   bool correctLevelSetWithParticles();
 
+  void sortParticles();
+
 protected:
   bool _hasEscaped(int pid);
-
-  std::vector<int> _findSurfaceCells(int distacenToSurface);
-  std::vector<int> _findSurfaceCells();
 
   void _seedCells(std::vector<int> &toSeed, std::vector<int> &n);
   void _seedCells(std::vector<int> &toSeed);
@@ -72,6 +71,7 @@ protected:
   int _particleSignalId;
   int _particleLevelSetId;
 
+  std::map<int, std::vector<int>> _particlesInCell;
   std::vector<int> _escapedParticles;
 };
 

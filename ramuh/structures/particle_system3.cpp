@@ -16,6 +16,8 @@ ParticleSystem3::ParticleSystem3(BoundingBox3 domain) : _domain(domain) {
 
 int ParticleSystem3::getParticleCount() { return _count; }
 
+int ParticleSystem3::getTotalParticleCount() { return _totalIds; }
+
 int ParticleSystem3::seedParticles(BoundingBox3 region) {
   int id;
   if (_idQueue.empty()) {
@@ -62,9 +64,9 @@ bool ParticleSystem3::isActive(int pid) { return _active[pid]; }
 void ParticleSystem3::removeParticle(int pid) {
   if (_active[pid]) {
     _idQueue.push(pid);
+    _count--;
   }
   _active[pid] = false;
-  _count--;
 }
 
 void ParticleSystem3::removeParticle(std::vector<int> pids) {

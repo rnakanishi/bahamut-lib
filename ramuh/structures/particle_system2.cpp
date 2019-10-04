@@ -6,7 +6,11 @@ namespace Ramuh {
 
 ParticleSystem2::ParticleSystem2() : ParticleSystem2(BoundingBox2::unitBox()) {}
 
-ParticleSystem2::ParticleSystem2(BoundingBox2 domain) : _domain(domain) {
+ParticleSystem2::ParticleSystem2(BoundingBox2 domain)
+    : ParticleSystem2(_domain, Eigen::Array2i(32, 32)) {}
+
+ParticleSystem2::ParticleSystem2(BoundingBox2 domain, Eigen::Array2i gridSize)
+    : _domain(domain), _gridSize(gridSize) {
   _count = 0;
   _totalIds = 0;
   _positionsId = newParticleArrayLabel("positions");

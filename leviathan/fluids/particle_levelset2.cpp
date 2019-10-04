@@ -3,11 +3,13 @@
 #include <geometry/vector2.h>
 #include <cmath>
 #include <set>
+#include <map>
 #include <sstream>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
+#include <iterator>
 
 namespace Leviathan {
 
@@ -146,9 +148,11 @@ std::vector<int> ParticleLevelSet2::_findSurfaceCells(int surfaceDistance) {
       // All neighbors
       int neighbors[4];
       neighbors[0] = ijToid(std::max(0, i - 1), j);
-      neighbors[1] = ijToid(std::min(_gridSize[0] - 1, i + 1), j);
+      neighbors[1] =
+          ijToid(std::min(LevelSetFluid2::_gridSize[0] - 1, i + 1), j);
       neighbors[2] = ijToid(i, std::max(0, j - 1));
-      neighbors[3] = ijToid(i, std::min(_gridSize[1] - 1, j + 1));
+      neighbors[3] =
+          ijToid(i, std::min(LevelSetFluid2::_gridSize[1] - 1, j + 1));
       for (auto neighbor : neighbors) {
         if (!visited[neighbor]) {
           cellQueue.push(neighbor);
@@ -419,13 +423,16 @@ void ParticleLevelSet2::reseedParticles() {
   std::vector<int> nParticles, seedingCells;
 
   trackSurface();
+  sortParticles();
   _escapedParticles.clear();
 
-// For all surface near cells
 #pragma omp parallel for
-  for (size_t icell = 0; icell < cells.size(); icell++) {
-    Ramuh::BoundingBox2 box = getCellBoundingBox(cells[icell]);
-    auto particles = searchParticles(box);
+  for (size_t imap = 0; imap < _particlesInCell.size(); imap++) {
+    std::map<int, std::vector<int>>::iterator it = _particlesInCell.begin();
+    std::advance(it, imap);
+    int icell = it->first;
+    auto particles = it->second;
+
     int pCount = particles.size();
     if (pCount < _maxParticles - 0.1 * _maxParticles) {
 #pragma omp critical
@@ -445,6 +452,31 @@ void ParticleLevelSet2::reseedParticles() {
   }
 
   _seedCells(seedingCells, nParticles);
+}
+
+void ParticleLevelSet2::sortParticles() {
+  auto h = getH();
+
+  // Loop over particles computing their cell index
+  for (size_t pid = 0; pid < particleCount(); pid++) {
+    auto position = getParticlePosition(pid);
+
+    // Computing cell id
+    Eigen::Array2i cellIj = (position - LevelSetFluid2::_domain.min())
+                                .cwiseQuotient(h)
+                                .floor()
+                                .cast<int>();
+    int cellId = ijToid(cellIj[0], cellIj[1]);
+    if (_particlesInCell.find(cellId) == _particlesInCell.end()) {
+      _particlesInCell[cellId] = std::vector<int>();
+    }
+    _particlesInCell[cellId].emplace_back(pid);
+  }
+
+  // for each cell that contains particles, count the particles and reseed
+  for (auto particleVector : _particlesInCell) {
+    auto particles = particleVector.second;
+  }
 }
 
 } // namespace Leviathan

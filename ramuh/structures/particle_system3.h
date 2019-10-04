@@ -14,8 +14,10 @@ class ParticleSystem3 {
 public:
   ParticleSystem3();
   ParticleSystem3(BoundingBox3 domain);
+  ParticleSystem3(BoundingBox3 domain, Eigen::Array3i gridSize);
 
   int getParticleCount();
+  int getTotalParticleCount();
 
   /**
    * @brief Seeds a predertmined number (default: 1) of particles over a given
@@ -82,6 +84,7 @@ protected:
   std::map<std::string, int> _arrayMap, _scalarMap;
 
   BoundingBox3 _domain;
+  Eigen::Array3i _gridSize;
   int _count, _totalIds;
 };
 

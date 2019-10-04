@@ -13,8 +13,8 @@ namespace Ramuh {
 class ParticleSystem2 {
 public:
   ParticleSystem2();
-
   ParticleSystem2(BoundingBox2 domain);
+  ParticleSystem2(BoundingBox2 domain, Eigen::Array2i gridSize);
 
   int particleCount();
 
@@ -80,6 +80,8 @@ protected:
   std::vector<std::vector<double>> _scalarData;
   std::vector<std::vector<Eigen::Array2d>> _arrayData;
   std::map<std::string, int> _arrayMap, _scalarMap;
+
+  Eigen::Array2i _gridSize;
 
   BoundingBox2 _domain;
   int _count, _totalIds;

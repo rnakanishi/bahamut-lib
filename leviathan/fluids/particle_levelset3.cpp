@@ -79,57 +79,8 @@ void ParticleLevelSet3::interpolateVelocityToParticles() {
   }
 }
 
-std::vector<int> ParticleLevelSet3::_findSurfaceCells() {
-  return _findSurfaceCells(1);
-}
-
-std::vector<int> ParticleLevelSet3::_findSurfaceCells(int surfaceDistance) {
-  std::vector<int> distanceToSurface(cellCount(), 1e8);
-  std::vector<int> visited(cellCount(), false);
-  std::set<int> toSeed;
-
-  std::queue<int> cellQueue;
-  auto surfaceCells = trackSurface();
-  for (auto cell : surfaceCells) {
-    distanceToSurface[cell] = 0;
-    cellQueue.push(cell);
-  }
-
-  // For every cell surface tracked before, compute bfs and mark those cells
-  // that are at most 3 cells away from surface
-  while (!cellQueue.empty()) {
-    int cell = cellQueue.front();
-    cellQueue.pop();
-    if (!visited[cell]) {
-      visited[cell] = true;
-      auto ijk = idToijk(cell);
-      int i = ijk[0], j = ijk[1], k = ijk[2];
-      int distance = distanceToSurface[cell];
-
-      // All neighbors are taken into consideration
-      int neighbors[6];
-      neighbors[0] = ijkToid(std::max(0, i - 1), j, k);
-      neighbors[1] = ijkToid(std::min(_gridSize[0] - 1, i + 1), j, k);
-      neighbors[2] = ijkToid(i, std::max(0, j - 1), k);
-      neighbors[3] = ijkToid(i, std::min(_gridSize[1] - 1, j + 1), k);
-      neighbors[4] = ijkToid(i, j, std::max(0, k - 1));
-      neighbors[5] = ijkToid(i, j, std::min(_gridSize[2] - 1, k + 1));
-      for (auto neighbor : neighbors) {
-        if (!visited[neighbor]) {
-          cellQueue.push(neighbor);
-        }
-        distanceToSurface[neighbor] =
-            std::min(distanceToSurface[neighbor], distance + 1);
-        if (distanceToSurface[neighbor] < surfaceDistance)
-          toSeed.insert(neighbor);
-      }
-    }
-  }
-  return std::vector<int>(toSeed.begin(), toSeed.end());
-}
-
 void ParticleLevelSet3::seedParticlesNearSurface() {
-  auto toSeed = _findSurfaceCells(4);
+  auto toSeed = findSurfaceCells(4);
   _seedCells(toSeed);
 }
 
@@ -391,27 +342,30 @@ int ParticleLevelSet3::findCellIdByCoordinate(Eigen::Array3d position) {
 
 void ParticleLevelSet3::reseedParticles() {
   auto &signals = getParticleScalarData(_particleSignalId);
-  std::vector<int> cells = _findSurfaceCells(4);
   std::vector<int> nParticles, seedingCells;
 
   trackSurface();
+  sortParticles();
   _escapedParticles.clear();
 
 // For all surface near cells
 #pragma omp parallel for
-  for (size_t icell = 0; icell < cells.size(); icell++) {
-    Ramuh::BoundingBox3 box = getCellBoundingBox(cells[icell]);
-    auto particles = searchParticles(box);
+  for (size_t imap = 0; imap < _particlesInCell.size(); imap++) {
+    std::map<int, std::vector<int>>::iterator it = _particlesInCell.begin();
+    std::advance(it, imap);
+    int icell = it->first;
+    auto particles = it->second;
+
     int pCount = particles.size();
     if (pCount < _maxParticles - 0.1 * _maxParticles) {
 #pragma omp critical
       {
         nParticles.emplace_back(_maxParticles - pCount);
-        seedingCells.emplace_back(cells[icell]);
+        seedingCells.emplace_back(icell);
       }
     }
     if (pCount > _maxParticles + 0.25 * _maxParticles &&
-        !_surfaceCells[icell]) {
+        !_isSurfaceCell[icell]) {
 #pragma omp critical
       {
         removeParticle(std::vector<int>(particles.begin() + _maxParticles,
@@ -421,6 +375,33 @@ void ParticleLevelSet3::reseedParticles() {
   }
 
   _seedCells(seedingCells, nParticles);
+}
+
+void ParticleLevelSet3::sortParticles() {
+  auto h = getH();
+
+  // Loop over particles computing their cell index
+  for (size_t pid = 0; pid < getTotalParticleCount(); pid++) {
+    if (!isActive(pid))
+      continue;
+    auto position = getParticlePosition(pid);
+
+    // Computing cell id
+    Eigen::Array3i cellIjk = (position - LevelSetFluid3::_domain.getMin())
+                                 .cwiseQuotient(h)
+                                 .floor()
+                                 .cast<int>();
+    int cellId = ijkToid(cellIjk[0], cellIjk[1], cellIjk[2]);
+    if (_particlesInCell.find(cellId) == _particlesInCell.end()) {
+      _particlesInCell[cellId] = std::vector<int>();
+    }
+    _particlesInCell[cellId].emplace_back(pid);
+  }
+
+  // for each cell that contains particles, count the particles and reseed
+  for (auto particleVector : _particlesInCell) {
+    auto particles = particleVector.second;
+  }
 }
 
 } // namespace Leviathan

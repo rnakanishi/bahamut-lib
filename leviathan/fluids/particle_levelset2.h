@@ -55,6 +55,8 @@ public:
 
   bool correctLevelSetWithParticles();
 
+  void sortParticles();
+
 protected:
   bool _hasEscaped(int pid);
 
@@ -73,6 +75,7 @@ protected:
   int _particleLevelSetId;
 
   std::vector<int> _escapedParticles;
+  std::map<int, std::vector<int>> _particlesInCell;
 };
 
 } // namespace Leviathan

@@ -42,7 +42,7 @@ public:
     auto &signal = getParticleScalarData(_particleSignalId);
     auto &radius = getParticleScalarData(_particleRadiusId);
 
-    for (size_t i = 0; i < getParticleCount(); i++) {
+    for (size_t i = 0; i < getTotalParticleCount(); i++) {
       if (isActive(i)) {
         auto pos = getParticlePosition(i);
         file << pos[0] << " " << pos[1] << " " << pos[2] << " ";
@@ -163,7 +163,7 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet3 system(Eigen::Array3i(64), Ramuh::BoundingBox3(0, 1));
+  PLevelSet3 system(Eigen::Array3i(50), Ramuh::BoundingBox3(0, 1));
   system.setBaseFolder("results/particles/3d/pls_deform");
 
   system.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
@@ -175,61 +175,63 @@ int main(int argc, char const *argv[]) {
   // system.attractParticles();
   system.printParticles();
   system.printLevelSet();
-  system.printGradients();
-  system.printVelocities();
+  // system.printGradients();
+  // system.printVelocities();
 
   Ramuh::Timer timer;
 
   int lastRedistance = 0;
+  int pReseed = 0;
   for (size_t i = 0; i <= 360; i++) {
+    timer.clearAll();
+    timer.reset();
     system.defineVelocity(i);
     system.applyCfl();
 
     do {
-      //   system.trackSurface();
-      //   timer.registerTime("trackSurface");
+      // system.trackSurface();
+      system.findSurfaceCells(4);
+      timer.registerTime("trackSurface");
 
-      // system.interpolateVelocityToParticles();
-      // timer.registerTime("interpolation");
-      // system.advectSemiLagrangian();
-      system.computeWenoGradient();
-      system.computeCellVelocity();
-      system.advectUpwind();
-      // system.advectWeno();
-      // timer.registerTime("cellAdvection");
-      // system.advectParticles();
-      // timer.registerTime("particleAdvect");
+      system.interpolateVelocityToParticles();
+      timer.registerTime("interpolation");
 
-      // if (system.correctLevelSetWithParticles()) {
-      //   std::cerr << "......................................... CORRECTED\n";
-      //   timer.registerTime("correction");
+      system.advectWeno();
+      timer.registerTime("cellAdvection");
+      system.advectParticles();
+      timer.registerTime("particleAdvect");
 
-      lastRedistance = 0;
-      system.redistance();
-      timer.registerTime("redistance");
+      if (system.correctLevelSetWithParticles()) {
+        std::cerr << "......................................... CORRECTED\n";
+        timer.registerTime("correction");
 
-      //   system.correctLevelSetWithParticles();
-      //   timer.registerTime("correction2");
-      // } else
-      //   timer.registerTime("correction");
+        lastRedistance = 0;
+        system.redistance();
+        timer.registerTime("redistance");
 
-      // if (lastRedistance >= 5) {
-      //   lastRedistance = 0;
-      //   std::cerr << "Redistance iteration\n";
-      //   system.redistance();
-      // }
-      // lastRedistance++;
+        system.correctLevelSetWithParticles();
+        timer.registerTime("correction2");
+      } else
+        timer.registerTime("correction");
 
-      // system.reseedParticles();
-      // timer.registerTime("reseed");
+      if (lastRedistance >= 5) {
+        lastRedistance = 0;
+        std::cerr << "Redistance iteration\n";
+        system.redistance();
+      }
+      lastRedistance++;
 
-      // system.adjustParticleRadius();
-      // timer.registerTime("radiusAdjust");
+      if (i % 20 == 0) {
+        system.reseedParticles();
+        timer.registerTime("reseed");
 
-      // system.printParticles();
+        system.adjustParticleRadius();
+        timer.registerTime("radiusAdjust");
+      }
+      system.printParticles();
       system.printLevelSet();
-      system.printGradients();
-      system.printVelocities();
+      // system.printGradients();
+      // system.printVelocities();
       timer.registerTime("print");
     } while (!system.advanceTime());
     std::cerr << system.getParticleCount() << " particles\n";

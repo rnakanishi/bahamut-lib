@@ -125,20 +125,8 @@ public:
    */
   std::vector<int> trackSurface();
 
-protected:
-  virtual void print() {
-    auto &phi = getCellScalarData(_phiId);
-    static int count = 0;
-    std::ofstream file;
-    std::stringstream filename;
-    filename << "results/redistance/3d/" << count++;
-    file.open(filename.str().c_str(), std::ofstream::out);
-
-    for (size_t i = 0; i < cellCount(); i++) {
-      file << phi[i] << "\n";
-    }
-    file.close();
-  }
+  std::vector<int> findSurfaceCells(int distacenToSurface);
+  std::vector<int> findSurfaceCells();
 
 protected:
   size_t _cellVelocityId, _phiId, _cellGradientId;
@@ -148,7 +136,8 @@ protected:
   double _tolerance;
 
   /// All cells that are part of the interface are marked as true
-  std::vector<bool> _surfaceCells;
+  std::vector<bool> _isSurfaceCell;
+  std::vector<int> _surfaceCellIds;
 };
 
 } // namespace Leviathan
