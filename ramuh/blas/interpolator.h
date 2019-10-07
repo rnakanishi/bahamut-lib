@@ -20,8 +20,8 @@ public:
    * @param values values of the above given coordinates
    * @return double interpolated value
    */
-  static double linear(double position, std::vector<double> points,
-                       std::vector<double> values);
+  static double linear(double &position, std::vector<double> &points,
+                       std::vector<double> &values);
 
   /**
    * @brief Performs a bilinear interpolation of the values. For each
@@ -39,7 +39,7 @@ public:
    */
   static double bilinear(double position[2],
                          std::vector<Eigen::Array2d> &points,
-                         std::vector<double> values);
+                         std::vector<double> &values);
 
   /**
    * @brief Performs a trilinear interpolation of the values. For each
@@ -56,9 +56,9 @@ public:
    * @param values values of the above given coordinates
    * @return double interpolated value
    */
-  static double trilinear(Eigen::Array3d position,
+  static double trilinear(Eigen::Array3d &position,
                           std::vector<Eigen::Array3d> &points,
-                          std::vector<double> values);
+                          std::vector<double> &values);
 
   /**
    * @brief Cubic Hermite Splines interpolation for arbitrary interval

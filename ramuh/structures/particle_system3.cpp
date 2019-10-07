@@ -1,6 +1,7 @@
 #include <structures/particle_system3.h>
 #include <cstdlib>
 #include <iostream>
+#include <cmath>
 
 namespace Ramuh {
 
@@ -45,11 +46,36 @@ int ParticleSystem3::seedParticles(BoundingBox3 region) {
 }
 
 std::vector<int> ParticleSystem3::seedParticles(BoundingBox3 region, int n) {
-  std::vector<int> ids;
-  // TODO: seedParticels: Check if domain contains seeding region
-  for (size_t i = 0; i < n; i++) {
-    ids.emplace_back(seedParticles(region));
+  auto &_positions = getParticleArrayData(_particlePositionsId);
+  std::vector<int> ids(n);
+
+  if (_totalIds < _count + n) {
+    _active.resize(_count + n, true);
+    for (auto &dataFieldId : _scalarMap)
+      _scalarData[dataFieldId.second].resize(_count + n, 0);
+    for (auto &arrayFieldId : _arrayMap)
+      _arrayData[arrayFieldId.second].resize(_count + n, Eigen::Array3d(0));
   }
+
+  for (size_t i = 0; i < n; i++) {
+    if (_idQueue.empty()) {
+      ids[i] = _totalIds++;
+    } else {
+      ids[i] = _idQueue.front();
+      _idQueue.pop();
+      _active[ids[i]] = true;
+    }
+
+    Eigen::Array3d position;
+    position[0] = std::rand() % 100000;
+    position[1] = std::rand() % 100000;
+    position[2] = std::rand() % 100000;
+    position =
+        region.getMin() + position.cwiseProduct(region.getSize()) / 100000;
+    _positions[ids[i]] = position;
+    _count++;
+  }
+
   return ids;
 }
 

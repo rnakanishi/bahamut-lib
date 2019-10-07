@@ -39,9 +39,11 @@ public:
    * last label registered
    *
    * @param name
+   * @param [bool:false] silence if set, the method does not display current
+   * evaluation time, but it is computed internally
    * @return double
    */
-  double registerTime(const std::string &name);
+  double registerTime(const std::string &name, bool silence = false);
 
   /**
    * @brief Get the Total Time  pasted since object instantiation, or since last

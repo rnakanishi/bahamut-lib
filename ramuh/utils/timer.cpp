@@ -7,7 +7,7 @@ namespace Ramuh {
 Timer::Timer() {
   _start = _lastLap = _end = std::chrono::steady_clock::now();
   _longestName = 0;
-  std::cout << "\033[21;32m=[Timer created]= \033[0m\n";
+  std::cout << "\033[21;32m===[Timer created]=== \033[0m\n";
 }
 
 void Timer::reset() { _start = _lastLap = std::chrono::steady_clock::now(); }
@@ -27,11 +27,12 @@ double Timer::getEllapsedTime() {
   return duration.count();
 }
 
-double Timer::registerTime(const std::string &name) {
+double Timer::registerTime(const std::string &name, bool silence) {
   auto it = _components.find(name);
   double timeInterval = getEllapsedTime();
-  std::cout << "\033[21;32m[TIMER]: \033[0m" << name << " took " << timeInterval
-            << std::endl;
+  if (!silence)
+    std::cout << "\033[21;32m[TIMER]: \033[0m" << name << " took "
+              << timeInterval << std::endl;
   if (it == _components.end())
     _components[name] = 0.0;
   _components[name] += timeInterval;

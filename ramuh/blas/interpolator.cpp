@@ -8,8 +8,8 @@ namespace Ramuh {
 
 Interpolator::Interpolator() {}
 
-double Interpolator::linear(double target, std::vector<double> points,
-                            std::vector<double> values) {
+double Interpolator::linear(double &target, std::vector<double> &points,
+                            std::vector<double> &values) {
   if (points[1] == points[0])
     return values[0];
 
@@ -20,7 +20,7 @@ double Interpolator::linear(double target, std::vector<double> points,
 
 double Interpolator::bilinear(double position[2],
                               std::vector<Eigen::Array2d> &samples,
-                              std::vector<double> sampleValues) {
+                              std::vector<double> &sampleValues) {
   double intermediateValues[2];
   for (int it = 0; it < 2; it++) {
     std::vector<double> points, values;
@@ -45,9 +45,9 @@ double Interpolator::bilinear(double position[2],
   return interpolated;
 }
 
-double Interpolator::trilinear(Eigen::Array3d position,
+double Interpolator::trilinear(Eigen::Array3d &position,
                                std::vector<Eigen::Array3d> &samples,
-                               std::vector<double> sampleValues) {
+                               std::vector<double> &sampleValues) {
   double intermediateValues[4];
   for (int it = 0; it < 4; it++) {
     std::vector<double> points, values;

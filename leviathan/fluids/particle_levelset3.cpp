@@ -1,4 +1,5 @@
 #include <fluids/particle_levelset3.h>
+#include <utils/timer.hpp>
 #include <blas/interpolator.h>
 #include <geometry/vector3.h>
 #include <cmath>
@@ -40,24 +41,23 @@ void ParticleLevelSet3::advectEuler() {
 
 void ParticleLevelSet3::advectParticles() {
   auto &position = getParticleArrayData(_particlePositionsId);
+  std::vector<Eigen::Array3d> lastPosition(position.begin(), position.end());
 
-  std::vector<Eigen::Array3d> lastPosition(position.size());
-  for (size_t i = 0; i < position.size(); i++) {
-    lastPosition[i] = position[i];
-  }
   interpolateVelocityToParticles();
   advectEuler();
   interpolateVelocityToParticles();
   advectEuler();
 #pragma omp parallel for
-  for (size_t i = 0; i < position.size(); i++) {
-    position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
+  for (size_t i = 0; i < _totalIds; i++) {
+    if (_active[i])
+      position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
   }
   interpolateVelocityToParticles();
   advectEuler();
 #pragma omp parallel for
-  for (size_t i = 0; i < position.size(); i++) {
-    position[i] = lastPosition[i] / 3 + 2 * position[i] / 3;
+  for (size_t i = 0; i < _totalIds; i++) {
+    if (_active[i])
+      position[i] = lastPosition[i] / 3 + 2 * position[i] / 3;
   }
 }
 
@@ -81,8 +81,9 @@ void ParticleLevelSet3::interpolateVelocityToParticles() {
 }
 
 void ParticleLevelSet3::seedParticlesNearSurface() {
-  auto toSeed = findSurfaceCells(4);
+  auto toSeed = findSurfaceCells(3);
   _seedCells(toSeed);
+  std::cerr << "Seeded " << getParticleCount() << " particles\n";
 }
 
 void ParticleLevelSet3::_seedCells(std::set<int> &toSeed) {
@@ -112,7 +113,9 @@ void ParticleLevelSet3::_seedCells(std::vector<int> &toSeed,
     auto nParticles = particleNumber[icell];
 
     auto box = getCellBoundingBox(cell);
-    auto seeded = seedParticles(box, nParticles);
+    std::vector<int> seeded;
+
+    { seeded = seedParticles(box, nParticles); }
 
     for (int pid : seeded) {
       Eigen::Array3d pos = getParticlePosition(pid);
@@ -136,7 +139,7 @@ void ParticleLevelSet3::_seedCells(std::vector<int> &toSeed,
       }
     }
   }
-}
+} // namespace Leviathan
 
 bool ParticleLevelSet3::_hasEscaped(int pid) {
   auto &positions = getParticleArrayData(_particlePositionsId);
@@ -234,12 +237,15 @@ void ParticleLevelSet3::adjustParticleRadius() {
   radiusLimits[1] = 0.5 * getH().maxCoeff();
   double limit = 3.0 * getH().maxCoeff();
 
+  std::vector<int> toRemove;
+#pragma omp parallel for
   for (size_t pid = 0; pid < _totalIds; pid++) {
     if (isActive(pid)) {
       double particleLevelSet =
           interpolateCellScalarData(_phiId, position[pid]);
       if (std::abs(particleLevelSet) > limit) {
-        removeParticle(pid);
+#pragma omp critical
+        { toRemove.emplace_back(pid); }
       } else {
         particlesLevelSet[pid] = particleLevelSet;
         // Set radius of each active particle according to their position in
@@ -253,6 +259,7 @@ void ParticleLevelSet3::adjustParticleRadius() {
       }
     }
   }
+  removeParticle(toRemove);
 }
 
 bool ParticleLevelSet3::correctLevelSetWithParticles() {
@@ -270,11 +277,13 @@ bool ParticleLevelSet3::correctLevelSetWithParticles() {
 
   // Build phi+ and phi- fields
   std::vector<double> phiPositive(phi.size()), phiNegative(phi.size());
+#pragma omp parallel for
   for (size_t i = 0; i < phi.size(); i++) {
     phiPositive[i] = phiNegative[i] = phi[i];
   }
 
-  // FInd escaped particles
+// FInd escaped particles
+#pragma omp parallel for
   for (size_t pid = 0; pid < _totalIds; pid++) {
     if (!_active[pid])
       continue;
@@ -324,6 +333,7 @@ bool ParticleLevelSet3::correctLevelSetWithParticles() {
     }
   }
   if (hasCorrection)
+#pragma omp parallel for
     for (size_t cellId = 0; cellId < cellCount(); cellId++) {
       if (std::abs(phiPositive[cellId]) < std::abs(phiNegative[cellId]))
         phi[cellId] = phiPositive[cellId];

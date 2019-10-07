@@ -161,17 +161,17 @@ double MacGrid3::interpolateFaceScalarData(int face, int dataId,
     }
   }
 
-  std::vector<Eigen::Array3d> points;
+  std::vector<Eigen::Array3d> points(8);
   std::vector<double> values(8);
 
-  points.emplace_back(facePos + Eigen::Array3d(0, 0, 0));
-  points.emplace_back(facePos + Eigen::Array3d(h[0], 0, 0));
-  points.emplace_back(facePos + Eigen::Array3d(0, h[1], 0));
-  points.emplace_back(facePos + Eigen::Array3d(h[0], h[1], 0));
-  points.emplace_back(facePos + Eigen::Array3d(0, 0, h[2]));
-  points.emplace_back(facePos + Eigen::Array3d(h[0], 0, h[2]));
-  points.emplace_back(facePos + Eigen::Array3d(0, h[1], h[2]));
-  points.emplace_back(facePos + Eigen::Array3d(h[0], h[1], h[2]));
+  points[0] = (facePos + Eigen::Array3d(0, 0, 0));
+  points[1] = (facePos + Eigen::Array3d(h[0], 0, 0));
+  points[2] = (facePos + Eigen::Array3d(0, h[1], 0));
+  points[3] = (facePos + Eigen::Array3d(h[0], h[1], 0));
+  points[4] = (facePos + Eigen::Array3d(0, 0, h[2]));
+  points[5] = (facePos + Eigen::Array3d(h[0], 0, h[2]));
+  points[6] = (facePos + Eigen::Array3d(0, h[1], h[2]));
+  points[7] = (facePos + Eigen::Array3d(h[0], h[1], h[2]));
 
   values[0] = data[faceijkToid(face, cellId[0], cellId[1], cellId[2])];
   values[1] = data[faceijkToid(face, index[0], cellId[1], cellId[2])];

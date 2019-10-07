@@ -120,7 +120,7 @@ public:
 
   void defineVelocity(int i) {
     double time = _dt * i;
-    double T = 1.5;
+    double T = 3;
     auto &u = getFaceScalarData(0, _cellVelocityId);
     auto &v = getFaceScalarData(1, _cellVelocityId);
     auto &w = getFaceScalarData(2, _cellVelocityId);
@@ -161,34 +161,41 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet3 system(Eigen::Array3i(100), Ramuh::BoundingBox3(0, 1));
+  PLevelSet3 system(Eigen::Array3i(50), Ramuh::BoundingBox3(0, 1));
   system.setBaseFolder("results/particles/3d/pls_deform");
 
+  Ramuh::Timer initTimer;
+
   system.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
+  initTimer.registerTime("Initialization");
   system.redistance();
-  system.computeCellVelocity();
-  system.computeWenoGradient();
-  system.trackSurface();
+  initTimer.registerTime("Redistance");
+
+  // system.computeCellVelocity();
+  // system.computeWenoGradient();
+  // system.trackSurface();
   system.seedParticlesNearSurface();
+  initTimer.registerTime("Particles seeding");
   // system.attractParticles();
   system.printParticles();
   system.printLevelSet();
   // system.printGradients();
   // system.printVelocities();
-
-  Ramuh::Timer timer;
+  initTimer.evaluateComponentsTime();
 
   int lastRedistance = 0;
   int pReseed = 0;
-  for (size_t i = 0; i <= 360; i++) {
+  Ramuh::Timer timer;
+  std::cerr << "Starting simulation\n";
+  for (size_t i = 0; i <= 300; i++) {
     timer.clearAll();
     timer.reset();
     system.defineVelocity(i);
     system.applyCfl();
 
     do {
-      system.trackSurface();
-      system.findSurfaceCells(4);
+      // system.trackSurface();
+      system.findSurfaceCells(5);
       timer.registerTime("trackSurface");
 
       system.advectWeno();
@@ -204,8 +211,8 @@ int main(int argc, char const *argv[]) {
         system.redistance();
         timer.registerTime("redistance");
 
-        system.correctLevelSetWithParticles();
-        timer.registerTime("correction2");
+        // system.correctLevelSetWithParticles();
+        // timer.registerTime("correction2");
       } else
         timer.registerTime("correction");
 
@@ -228,6 +235,7 @@ int main(int argc, char const *argv[]) {
     system.printLevelSet();
     // system.printGradients();
     // system.printVelocities();
+
     timer.registerTime("print");
     std::cerr << system.getParticleCount() << " particles\n";
     timer.evaluateComponentsTime();

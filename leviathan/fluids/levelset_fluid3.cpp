@@ -98,7 +98,11 @@ void LevelSetFluid3::advectUpwind() {
   auto &cellGradient = getCellArrayData(_cellGradientId);
 
 #pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int id = _surfaceCellIds[sId];
+    // for (size_t id = 0; id < phi.size(); id++) {
+
+    // for (int id = 0; id < cellCount(); id++) {
     Eigen::Vector3d velocity = cellVelocity[id].matrix();
     Eigen::Vector3d gradient = cellGradient[id].matrix();
 
@@ -240,32 +244,31 @@ void LevelSetFluid3::advectWeno() {
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
   auto &phi = getCellScalarData(_phiId);
 
-  std::vector<double> phiN(phi.size());
-  for (size_t i = 0; i < phi.size(); i++) {
-    phiN[i] = phi[i];
-  }
+  findSurfaceCells(5);
 
-  // computeCentralGradient();
+  std::vector<double> phiN(phi.begin(), phi.end());
+
   computeCellVelocity();
   computeWenoGradient();
   advectUpwind();
 
-  // computeCentralGradient();
-  computeCellVelocity();
+  // computeCellVelocity();
   computeWenoGradient();
-  advectUpwind();
 
-  for (size_t i = 0; i < phi.size(); i++) {
+  advectUpwind();
+#pragma omp parallel for
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int i = _surfaceCellIds[sId];
     phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
   }
 
-  // computeCentralGradient();
-  computeCellVelocity();
+  // computeCellVelocity();
   computeWenoGradient();
   advectUpwind();
 
 #pragma omp parallel for
-  for (size_t i = 0; i < phi.size(); i++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int i = _surfaceCellIds[sId];
     phi[i] = phiN[i] / 3 + 2 * phi[i] / 3;
   }
 }
@@ -454,8 +457,9 @@ void LevelSetFluid3::redistance() {
   }
   int t;
   double error = 1;
-  for (t = 0; t < 300; t++) {
-#pragma omp parallel for
+  for (t = 0; t < 40; t++) {
+    error = 0.;
+#pragma omp parallel for reduction(+ : error)
     for (int id = 0; id < cellCount(); id++) {
       auto ijk = idToijk(id);
       int i = ijk[0], j = ijk[1], k = ijk[2];
@@ -505,12 +509,11 @@ void LevelSetFluid3::redistance() {
         gx = gy = gz = 1.0 / 3;
       }
       gradient[id] = std::sqrt(gx + gy + gz) - 1;
-    }
+      //     }
 
-    error = 0.;
-// Time integration step. Euler method
-#pragma omp parallel for reduction(+ : error)
-    for (int id = 0; id < cellCount(); id++) {
+      // // Time integration step. Euler method
+      // #pragma omp parallel for
+      //     for (int id = 0; id < cellCount(); id++) {
       double newPhi = 0.;
 
       if (!isInterface[id]) {
@@ -617,6 +620,8 @@ std::vector<int> LevelSetFluid3::findSurfaceCells(int surfaceDistance) {
   // that are at most 3 cells away from surface
   while (!cellQueue.empty()) {
     int cell = cellQueue.front();
+    toSeed.insert(cell);
+
     cellQueue.pop();
     if (!visited[cell]) {
       visited[cell] = true;
@@ -636,13 +641,12 @@ std::vector<int> LevelSetFluid3::findSurfaceCells(int surfaceDistance) {
       neighbors[5] =
           ijkToid(i, j, std::min(LevelSetFluid3::_gridSize[2] - 1, k + 1));
       for (auto neighbor : neighbors) {
-        if (!visited[neighbor]) {
-          cellQueue.push(neighbor);
-        }
         distanceToSurface[neighbor] =
             std::min(distanceToSurface[neighbor], distance + 1);
-        if (distanceToSurface[neighbor] < surfaceDistance)
-          toSeed.insert(neighbor);
+        if (!visited[neighbor]) {
+          if (distanceToSurface[neighbor] <= surfaceDistance)
+            cellQueue.push(neighbor);
+        }
       }
     }
   }

@@ -11,7 +11,7 @@ dx = x(2) - x(1);
 [X, Y, Z] = meshgrid(x, x, x);
 
 az = 0;
-el = 0;
+el = 90;
 
 fig = figure('position', [350, 150, 1500, 1500]);
 % figure/
@@ -20,7 +20,9 @@ hold on;
 vis = [0 1 0 1 0 1];
 % vis = [-5 5 -5 5 -5 5];
 
-for t = 0:1:90
+print("Starting loop")
+
+for t = 0:1:360
     % for t = [100 150 200]
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -43,12 +45,12 @@ for t = 0:1:90
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     levelset = dlmread([folder 'ls' num2str(t)]);
     values = reshape(levelset(:, 4), N, N, N);
-    values = permute(values, [2,1,3]);
+    values = permute(values, [2, 1, 3]);
     levelx = reshape(levelset(:, 2), N, N, N);
     levely = reshape(levelset(:, 1), N, N, N);
     levelz = reshape(levelset(:, 3), N, N, N);
-    
-    clf; 
+
+    clf;
     hold on;
     view(az, el);
     [face, vert] = isosurface(levelx, levely, levelz, values, 0);
@@ -56,7 +58,11 @@ for t = 0:1:90
     pbaspect([1 1 1]);
     isonormals(levelx, levely, levelz, values, p);
     set(p, "FaceColor", "cyan", "FaceLighting", "gouraud");
-    light("Position", [1 1 5]);
+    material dull
+    % light("Position", [3 -.5 .5],  "color", [0.95 0.95 0.95]);
+    % light("Position", [-0.25 1 -.5], "color", [0.6 0.6 0.6]);
+    light("Position", [0 0 10], "color", [0.95 0.95 0.95]);
+    % light("Position", [-5 -5 0], "color", [0.6 0.6 0.6]);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -93,9 +99,10 @@ for t = 0:1:90
     axis equal
     title(t);
     axis(vis);
-    pause(0);
+    rotate3d on;
+    pause();
     axis off;
-    % print(fig, ["../results/images/3d/pls_rigid/" int2str(t) ".jpg"], "-S1750,1800")
+    % print(fig, ["../results/images/3d/pls_deform/" int2str(t) ".jpg"], "-S1150,1000")
 
     % pause;
     [az, el] = view();
