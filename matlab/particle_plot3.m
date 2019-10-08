@@ -103,8 +103,8 @@ for t = 0:1:181
     axis(vis);
     axis off;
     rotate3d on;
-    pause(0);
-    imagename = sprintf("../results/images/3d/pls_deform_weno/%04d.jpg", t);
+    pause( );
+    % imagename = sprintf("../results/images/3d/pls_deform_weno/%04d.jpg", t);
     % print(fig, imagename, "-S1150,1000");
 
     % pause;

@@ -16,6 +16,7 @@ public:
 
   void initializeLevelSet(Eigen::Array3d center, double radius) {
     auto &function = getCellScalarData(_phiId);
+#pragma omp parallel for
     for (size_t i = 0; i < cellCount(); i++) {
       auto p = getCellPosition(i);
 
@@ -179,6 +180,7 @@ int main(int argc, char const *argv[]) {
   // system.attractParticles();
   system.printParticles();
   system.printLevelSet();
+  initTimer.registerTime("printFile");
   // system.printGradients();
   // system.printVelocities();
   initTimer.evaluateComponentsTime();
@@ -212,7 +214,7 @@ int main(int argc, char const *argv[]) {
       system.correctLevelSetWithParticles();
       timer.registerTime("correction");
 
-      lastRedistance = 0;
+      // lastRedistance = 0;
       system.redistance();
       timer.registerTime("redistance");
 
@@ -240,13 +242,13 @@ int main(int argc, char const *argv[]) {
     // system.printGradients();
     // system.printVelocities();
 
-    system.printParticles();
+    // system.printParticles();
     system.printLevelSet();
     timer.registerTime("print");
     std::cerr << system.getParticleCount() << " particles\n";
 
     timer.evaluateComponentsTime();
-    if ((i + 1) % 5 == 0)
+    if (i % 5 == 0)
       timer.evaluateComponentsAverageTime();
   }
   timer.evaluateComponentsAverageTime();

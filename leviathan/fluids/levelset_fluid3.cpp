@@ -255,29 +255,31 @@ void LevelSetFluid3::advectWeno() {
   findSurfaceCells(8);
 
   std::vector<double> phiN(phi.begin(), phi.end());
+#pragma omp parallel
+  {
+    computeCellVelocity();
+    computeWenoGradient();
+    advectUpwind();
 
-  computeCellVelocity();
-  computeWenoGradient();
-  advectUpwind();
+    // computeCellVelocity();
+    computeWenoGradient();
 
-  // computeCellVelocity();
-  computeWenoGradient();
+    advectUpwind();
+#pragma omp for
+    for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+      int i = _surfaceCellIds[sId];
+      phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
+    }
 
-  advectUpwind();
-#pragma omp parallel for
-  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
-    int i = _surfaceCellIds[sId];
-    phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
-  }
+    // computeCellVelocity();
+    computeWenoGradient();
+    advectUpwind();
 
-  // computeCellVelocity();
-  computeWenoGradient();
-  advectUpwind();
-
-#pragma omp parallel for
-  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
-    int i = _surfaceCellIds[sId];
-    phi[i] = phiN[i] / 3 + 2 * phi[i] / 3;
+#pragma omp for
+    for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+      int i = _surfaceCellIds[sId];
+      phi[i] = phiN[i] / 3 + 2 * phi[i] / 3;
+    }
   }
 }
 
@@ -427,133 +429,144 @@ void LevelSetFluid3::redistance() {
   std::vector<double> interfaceFactor(cellCount());
   std::vector<bool> isInterface(cellCount(), false);
 
-#pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
-    initialPhi[id] = phi[id];
-    if (phi[id] > 0)
-      cellSignal[id] = 1;
-    else if (phi[id] < 0)
-      cellSignal[id] = -1;
-    else
-      cellSignal[id] = 0;
+  double totalError;
+  int iterations = 0;
+  bool shouldStop = false;
+#pragma omp parallel
+  {
+#pragma omp for schedule(static) nowait
+    for (int id = 0; id < cellCount(); id++) {
+      initialPhi[id] = phi[id];
+      if (phi[id] > 0)
+        cellSignal[id] = 1;
+      else if (phi[id] < 0)
+        cellSignal[id] = -1;
+      else
+        cellSignal[id] = 0;
 
-    auto ijk = idToijk(id);
-    isInterface[id] = false;
-    int i = ijk[0], j = ijk[1], k = ijk[2];
-    interfaceFactor[id] = 0;
-    if ((i > 0 && i < _gridSize[0] - 1) && (j > 0 && j < _gridSize[1] - 1) &&
-        (k > 0 && k < _gridSize[2] - 1)) {
-      if (phi[id] * phi[ijkToid(i - 1, j, k)] <= 0 ||
-          phi[id] * phi[ijkToid(i + 1, j, k)] <= 0 ||
-          phi[id] * phi[ijkToid(i, j - 1, k)] <= 0 ||
-          phi[id] * phi[ijkToid(i, j + 1, k)] <= 0 ||
-          phi[id] * phi[ijkToid(i, j, k - 1)] <= 0 ||
-          phi[id] * phi[ijkToid(i, j, k + 1)] <= 0) {
-        isInterface[id] = true;
-        interfaceFactor[id] = h[0] * phi[id];
+      auto ijk = idToijk(id);
+      isInterface[id] = false;
+      int i = ijk[0], j = ijk[1], k = ijk[2];
+      interfaceFactor[id] = 0;
+      if ((i > 0 && i < _gridSize[0] - 1) && (j > 0 && j < _gridSize[1] - 1) &&
+          (k > 0 && k < _gridSize[2] - 1)) {
+        if (phi[id] * phi[ijkToid(i - 1, j, k)] <= 0 ||
+            phi[id] * phi[ijkToid(i + 1, j, k)] <= 0 ||
+            phi[id] * phi[ijkToid(i, j - 1, k)] <= 0 ||
+            phi[id] * phi[ijkToid(i, j + 1, k)] <= 0 ||
+            phi[id] * phi[ijkToid(i, j, k - 1)] <= 0 ||
+            phi[id] * phi[ijkToid(i, j, k + 1)] <= 0) {
+          isInterface[id] = true;
+          interfaceFactor[id] = h[0] * phi[id];
 
-        // These differential values are used to improbe robustness when
-        // redistancing levelsets that may suffer too much from topological
-        // changes
-        double Dphi, dCentral[3], dUp[3], dDown[3];
-        dCentral[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i - 1, j, k)];
-        dCentral[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j - 1, k)];
-        dCentral[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k - 1)];
-        dDown[0] = phi[ijkToid(i, j, k)] - phi[ijkToid(i - 1, j, k)];
-        dDown[1] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j - 1, k)];
-        dDown[2] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j, k - 1)];
-        dUp[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i, j, k)];
-        dUp[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j, k)];
-        dUp[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k)];
+          // These differential values are used to improbe robustness when
+          // redistancing levelsets that may suffer too much from topological
+          // changes
+          double Dphi, dCentral[3], dUp[3], dDown[3];
+          dCentral[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i - 1, j, k)];
+          dCentral[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j - 1, k)];
+          dCentral[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k - 1)];
+          dDown[0] = phi[ijkToid(i, j, k)] - phi[ijkToid(i - 1, j, k)];
+          dDown[1] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j - 1, k)];
+          dDown[2] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j, k - 1)];
+          dUp[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i, j, k)];
+          dUp[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j, k)];
+          dUp[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k)];
 
-        for (size_t d = 0; d < 3; d++) {
-          dCentral[d] = dCentral[d] * dCentral[d];
-          dUp[d] = dUp[d] * dUp[d];
-          dDown[d] = dDown[d] * dDown[d];
+          for (size_t d = 0; d < 3; d++) {
+            dCentral[d] = dCentral[d] * dCentral[d];
+            dUp[d] = dUp[d] * dUp[d];
+            dDown[d] = dDown[d] * dDown[d];
+          }
+
+          Dphi = std::max(
+              h[0], std::max(sqrt(dCentral[0] + dCentral[1] + dCentral[2]) / 2,
+                             std::max(sqrt(dUp[0] + dUp[1] + dUp[2]),
+                                      sqrt(dDown[0] + dDown[1] + dDown[2]))));
+          interfaceFactor[id] /= Dphi;
+        }
+      }
+    }
+    for (int t = 0; t < 25 && !shouldStop; t++) {
+      double error = 0.;
+#pragma omp single nowait
+      {
+        totalError = 0;
+        iterations++;
+      }
+#pragma omp for schedule(static)
+      for (int id = 0; id < cellCount(); id++) {
+        auto ijk = idToijk(id);
+        int i = ijk[0], j = ijk[1], k = ijk[2];
+        double dx[2], dy[2], dz[2]; // Index 0: Dx-, Index 1: Dx+
+        dx[0] = dx[1] = dy[0] = dy[1] = dz[0] = dz[1] = 0.;
+        {
+          if (i > 0)
+            dx[0] = (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[0];
+          if (i < _gridSize[0] - 1)
+            dx[1] = (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[0];
+
+          if (j > 0)
+            dy[0] = (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[1];
+          if (j < _gridSize[1] - 1)
+            dy[1] = (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[1];
+
+          if (k > 0)
+            dz[0] = (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[2];
+          if (k < _gridSize[2] - 1)
+            dz[1] = (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[2];
         }
 
-        Dphi = std::max(
-            h[0], std::max(sqrt(dCentral[0] + dCentral[1] + dCentral[2]) / 2,
-                           std::max(sqrt(dUp[0] + dUp[1] + dUp[2]),
-                                    sqrt(dDown[0] + dDown[1] + dDown[2]))));
-        interfaceFactor[id] /= Dphi;
+        double gx, gy, gz;
+        if (initialPhi[id] > 0) {
+          double a, b;
+          a = std::max(0., dx[0]);
+          b = std::min(0., dx[1]);
+          gx = std::max(a * a, b * b);
+          a = std::max(0., dy[0]);
+          b = std::min(0., dy[1]);
+          gy = std::max(a * a, b * b);
+          a = std::max(0., dz[0]);
+          b = std::min(0., dz[1]);
+          gz = std::max(a * a, b * b);
+        } else if (initialPhi[id] < 0) {
+          double a, b;
+          a = std::min(0., dx[0]);
+          b = std::max(0., dx[1]);
+          gx = std::max(a * a, b * b);
+          a = std::min(0., dy[0]);
+          b = std::max(0., dy[1]);
+          gy = std::max(a * a, b * b);
+          a = std::min(0., dz[0]);
+          b = std::max(0., dz[1]);
+          gz = std::max(a * a, b * b);
+        } else {
+          gx = gy = gz = 1.0 / 3;
+        }
+        gradient[id] = std::sqrt(gx + gy + gz) - 1;
+        // // Time integration step. Euler method
+        double newPhi = 0.;
+
+        if (!isInterface[id]) {
+          newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
+        } else {
+          newPhi = phi[id] - (dt / h[0]) * (cellSignal[id] * abs(phi[id]) -
+                                            interfaceFactor[id]);
+        }
+        double newError = abs(phi[id] - newPhi);
+        error += newError;
+        phi[id] = newPhi;
+      }
+#pragma omp atomic
+      totalError += error;
+
+#pragma omp single
+      if (totalError / cellCount() < dt * h[0] * h[0]) {
+        shouldStop = true;
       }
     }
   }
-  int t;
-  double error = 1;
-  for (t = 0; t < 25; t++) {
-    error = 0.;
-#pragma omp parallel for reduction(+ : error)
-    for (int id = 0; id < cellCount(); id++) {
-      auto ijk = idToijk(id);
-      int i = ijk[0], j = ijk[1], k = ijk[2];
-      double dx[2], dy[2], dz[2]; // Index 0: Dx-, Index 1: Dx+
-      dx[0] = dx[1] = dy[0] = dy[1] = dz[0] = dz[1] = 0.;
-      {
-        if (i > 0)
-          dx[0] = (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[0];
-        if (i < _gridSize[0] - 1)
-          dx[1] = (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[0];
-
-        if (j > 0)
-          dy[0] = (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[1];
-        if (j < _gridSize[1] - 1)
-          dy[1] = (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[1];
-
-        if (k > 0)
-          dz[0] = (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[2];
-        if (k < _gridSize[2] - 1)
-          dz[1] = (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[2];
-      }
-
-      double gx, gy, gz;
-      if (initialPhi[id] > 0) {
-        double a, b;
-        a = std::max(0., dx[0]);
-        b = std::min(0., dx[1]);
-        gx = std::max(a * a, b * b);
-        a = std::max(0., dy[0]);
-        b = std::min(0., dy[1]);
-        gy = std::max(a * a, b * b);
-        a = std::max(0., dz[0]);
-        b = std::min(0., dz[1]);
-        gz = std::max(a * a, b * b);
-      } else if (initialPhi[id] < 0) {
-        double a, b;
-        a = std::min(0., dx[0]);
-        b = std::max(0., dx[1]);
-        gx = std::max(a * a, b * b);
-        a = std::min(0., dy[0]);
-        b = std::max(0., dy[1]);
-        gy = std::max(a * a, b * b);
-        a = std::min(0., dz[0]);
-        b = std::max(0., dz[1]);
-        gz = std::max(a * a, b * b);
-      } else {
-        gx = gy = gz = 1.0 / 3;
-      }
-      gradient[id] = std::sqrt(gx + gy + gz) - 1;
-      //     }
-
-      // // Time integration step. Euler method
-      // #pragma omp parallel for
-      //     for (int id = 0; id < cellCount(); id++) {
-      double newPhi = 0.;
-
-      if (!isInterface[id]) {
-        newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
-      } else {
-        newPhi = phi[id] - (dt / h[0]) * (cellSignal[id] * abs(phi[id]) -
-                                          interfaceFactor[id]);
-      }
-      error += abs(phi[id] - newPhi);
-      phi[id] = newPhi;
-    }
-    if (error / cellCount() < dt * h[0] * h[0])
-      break;
-  }
-  std::cerr << "Run redistance for " << t << " iterations\n";
+  std::cerr << "Run redistance for " << iterations << " iterations\n";
 }
 
 bool LevelSetFluid3::advanceTime() {

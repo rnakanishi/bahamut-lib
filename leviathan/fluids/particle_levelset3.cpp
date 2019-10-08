@@ -301,66 +301,80 @@ bool ParticleLevelSet3::correctLevelSetWithParticles() {
   phiPositive.insert(phiPositive.begin(), phi.begin(), phi.end());
   phiNegative.insert(phiNegative.begin(), phi.begin(), phi.end());
 
+  sortParticles();
+
 // FInd escaped particles
-#pragma omp parallel for
-  for (size_t pid = 0; pid < _totalIds; pid++) {
-    if (!_active[pid])
-      continue;
-    if (_hasEscaped(pid)) {
-      hasCorrection = true;
-      _escapedParticles.emplace_back(pid);
-      Eigen::Array3i cellIj =
-          (positions[pid] - ParticleSystem3::_domain.getMin())
-              .cwiseQuotient(h)
-              .floor()
-              .cast<int>();
-      int cellId = ijkToid(cellIj[0], cellIj[1], cellIj[2]);
+#pragma omp parallel
+  {
+    std::vector<int> threadEscaped;
+#pragma omp for
+    for (size_t imap = 0; imap < _particlesInCell.size(); imap++) {
+      std::map<int, std::vector<int>>::iterator it = _particlesInCell.begin();
+      std::advance(it, imap);
+      int cellId = it->first;
+      auto particles = it->second;
 
-      // Find which cells centers enclosure the particle
-      auto particlePosition = getParticlePosition(pid);
-      auto cellPosition = getCellPosition(cellId);
-      if (particlePosition[0] < cellPosition[0])
-        cellIj[0]--;
-      if (particlePosition[1] < cellPosition[1])
-        cellIj[1]--;
-      if (particlePosition[2] < cellPosition[2])
-        cellIj[2]--;
+      for (auto pid : particles) {
+        if (!_active[pid])
+          continue;
+        if (_hasEscaped(pid)) {
+          hasCorrection = true;
+          threadEscaped.emplace_back(pid);
+          auto cellIj = idToijk(cellId);
 
-      std::vector<int> neighborCells;
-      for (size_t dx = 0; dx < 2; dx++) {
-        for (size_t dy = 0; dy < 2; dy++) {
-          for (size_t dz = 0; dz < 2; dz++) {
-            neighborCells.emplace_back(
-                ijkToid(cellIj[0] + dx, cellIj[1] + dy, cellIj[2] + dz));
+          // Find which cells centers enclosure the particle
+          auto particlePosition = getParticlePosition(pid);
+          auto cellPosition = getCellPosition(cellId);
+          // FIXME: correctLevelSetWithParticles: Treat boundary cell ids
+          if (particlePosition[0] < cellPosition[0])
+            cellIj[0]--;
+          if (particlePosition[1] < cellPosition[1])
+            cellIj[1]--;
+          if (particlePosition[2] < cellPosition[2])
+            cellIj[2]--;
+
+          std::vector<int> neighborCells;
+          for (size_t dx = 0; dx < 2; dx++) {
+            for (size_t dy = 0; dy < 2; dy++) {
+              for (size_t dz = 0; dz < 2; dz++) {
+                neighborCells.emplace_back(
+                    ijkToid(cellIj[0] + dx, cellIj[1] + dy, cellIj[2] + dz));
+              }
+            }
+          }
+
+          for (auto neighborId : neighborCells) {
+            // Compute local levelset from particle
+            double localPhi =
+                signals[pid] *
+                (radiuses[pid] -
+                 (cellPosition - particlePosition).matrix().norm());
+
+            // Evaluate value accordign to particle sign
+            if (signals[pid] > 0)
+#pragma omp critical(positive)
+              phiPositive[cellId] = std::max(phiPositive[cellId], localPhi);
+            else
+#pragma omp critical(negative)
+              phiNegative[cellId] = std::min(phiNegative[cellId], localPhi);
           }
         }
       }
-
-      for (auto neighborId : neighborCells) {
-        // Compute local levelset from particle
-        double localPhi =
-            signals[pid] *
-            (radiuses[pid] - (cellPosition - particlePosition).matrix().norm());
-
-        // Evaluate value accordign to particle sign
-        if (signals[pid] > 0)
-#pragma omp critical(positive)
-          phiPositive[cellId] = std::max(phiPositive[cellId], localPhi);
+    }
+#pragma omp critical
+    {
+      _escapedParticles.insert(_escapedParticles.end(), threadEscaped.begin(),
+                               threadEscaped.end());
+    }
+    if (hasCorrection)
+#pragma omp for
+      for (size_t cellId = 0; cellId < cellCount(); cellId++) {
+        if (std::abs(phiPositive[cellId]) < std::abs(phiNegative[cellId]))
+          phi[cellId] = phiPositive[cellId];
         else
-#pragma omp critical(negative)
-          phiNegative[cellId] = std::min(phiNegative[cellId], localPhi);
+          phi[cellId] = phiNegative[cellId];
       }
-    }
   }
-  if (hasCorrection)
-#pragma omp parallel for
-    for (size_t cellId = 0; cellId < cellCount(); cellId++) {
-      if (std::abs(phiPositive[cellId]) < std::abs(phiNegative[cellId]))
-        phi[cellId] = phiPositive[cellId];
-      else
-        phi[cellId] = phiNegative[cellId];
-    }
-
   return hasCorrection;
 }
 

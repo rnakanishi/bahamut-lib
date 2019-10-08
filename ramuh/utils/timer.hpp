@@ -10,6 +10,8 @@ class Timer {
 public:
   Timer();
 
+  void setLogging(bool silence = true);
+
   /**
    * @brief Reset the timer and lap time, setting both to current time (zero)
    *
@@ -75,7 +77,9 @@ protected:
   int _longestName;
   std::map<std::string, double> _components;
   std::map<std::string, double> _cumulative;
+  std::map<std::string, int> _calls;
   int _resetTimes;
+  bool _silence;
 };
 
 } // namespace Ramuh
