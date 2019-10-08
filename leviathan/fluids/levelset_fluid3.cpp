@@ -68,26 +68,33 @@ void LevelSetFluid3::computeCellsGradient() {
 
 void LevelSetFluid3::advectSemiLagrangean() {
   size_t nCells = cellCount();
-  auto &newPhi = getCellScalarData("newPhi");
   auto &phi = getCellScalarData(_phiId);
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
+  std::vector<double> newPhi;
+  newPhi.insert(newPhi.begin(), phi.begin(), phi.end());
 
 #pragma omp parallel for
-  for (size_t id = 0; id < nCells; id++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int id = _surfaceCellIds[sId];
     Eigen::Array3d position, h, velocity;
     h = getH();
     velocity = cellVelocity[id];
 
+    position = getCellPosition(id);
     position = position - (velocity * _dt);
     Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
     // Check if inside domain
-    double newValue = phi[id];
     if ((velocity.matrix().norm() > _tolerance) && index[0] >= 0 &&
         index[1] >= 0 && index[2] >= 0 && index[0] < _gridSize[0] &&
         index[1] < _gridSize[1] && index[2] < _gridSize[2]) {
-      newValue = interpolateCellScalarData(_phiId, position);
+      newPhi[id] = interpolateCellScalarData(_phiId, position);
     }
-    phi[id] = newValue;
+  }
+
+#pragma omp parallel for
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int id = _surfaceCellIds[sId];
+    phi[id] = newPhi[id];
   }
 }
 
@@ -98,11 +105,10 @@ void LevelSetFluid3::advectUpwind() {
   auto &cellGradient = getCellArrayData(_cellGradientId);
 
 #pragma omp parallel for
+  // for (int id = 0; id < cellCount(); id++) {
   for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
     int id = _surfaceCellIds[sId];
-    // for (size_t id = 0; id < phi.size(); id++) {
 
-    // for (int id = 0; id < cellCount(); id++) {
     Eigen::Vector3d velocity = cellVelocity[id].matrix();
     Eigen::Vector3d gradient = cellGradient[id].matrix();
 
@@ -119,7 +125,9 @@ void LevelSetFluid3::computeWenoGradient() {
   computeCellVelocity();
 // Weno computation
 #pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
+  // for (int id = 0; id < cellCount(); id++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int id = _surfaceCellIds[sId];
     std::vector<double> values(6);
     auto ijk = idToijk(id);
     int i = ijk[0], j = ijk[1], k = ijk[2];
@@ -244,7 +252,7 @@ void LevelSetFluid3::advectWeno() {
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
   auto &phi = getCellScalarData(_phiId);
 
-  findSurfaceCells(5);
+  findSurfaceCells(8);
 
   std::vector<double> phiN(phi.begin(), phi.end());
 
@@ -275,17 +283,34 @@ void LevelSetFluid3::advectWeno() {
 
 void LevelSetFluid3::computeCellVelocity() {
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
+  auto h = getH();
 
 #pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int id = _surfaceCellIds[sId];
     auto position = getCellPosition(id);
 
-    cellVelocity[id][0] =
-        interpolateFaceScalarData(0, _faceVelocityId, position);
-    cellVelocity[id][1] =
-        interpolateFaceScalarData(1, _faceVelocityId, position);
-    cellVelocity[id][2] =
-        interpolateFaceScalarData(2, _faceVelocityId, position);
+    for (int face = 0; face < 3; face++) {
+      auto &data = getFaceScalarData(face, _faceVelocityId);
+      auto cellId = idToijk(id);
+      int index;
+      switch (face) {
+      case 0:
+        index = faceijkToid(face, cellId[0] + 1, cellId[1], cellId[2]);
+        break;
+      case 1:
+        index = faceijkToid(face, cellId[0], cellId[1] + 1, cellId[2]);
+        break;
+      case 2:
+        index = faceijkToid(face, cellId[0], cellId[1], cellId[2] + 1);
+        break;
+      default:
+        break;
+      }
+      cellVelocity[id][face] =
+          0.5 * (data[faceijkToid(face, cellId[0], cellId[1], cellId[2])] +
+                 data[index]);
+    }
   }
 }
 
@@ -457,7 +482,7 @@ void LevelSetFluid3::redistance() {
   }
   int t;
   double error = 1;
-  for (t = 0; t < 40; t++) {
+  for (t = 0; t < 25; t++) {
     error = 0.;
 #pragma omp parallel for reduction(+ : error)
     for (int id = 0; id < cellCount(); id++) {
@@ -528,7 +553,7 @@ void LevelSetFluid3::redistance() {
     if (error / cellCount() < dt * h[0] * h[0])
       break;
   }
-  std::cerr << "Run redistance for " << t + 1 << " iterations\n";
+  std::cerr << "Run redistance for " << t << " iterations\n";
 }
 
 bool LevelSetFluid3::advanceTime() {

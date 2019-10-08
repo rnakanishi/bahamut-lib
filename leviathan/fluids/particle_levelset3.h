@@ -20,6 +20,7 @@ public:
    *
    */
   void advectParticles();
+  void advectParticles(double time);
 
   void advectEuler();
 
@@ -28,7 +29,7 @@ public:
    * interpolation method.
    *
    */
-  void interpolateVelocityToParticles();
+  void interpolateVelocityToParticles(double time);
 
   /**
    * @brief From the tracked surface cells, compute where particles should be
@@ -37,7 +38,7 @@ public:
    * Note that particles receive random position and signal.
    *
    */
-  void seedParticlesNearSurface();
+  virtual void seedParticlesNearSurface();
 
   /**
    * @brief Procede with the attraction phase for particles, so their signal

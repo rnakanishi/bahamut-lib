@@ -161,7 +161,7 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet3 system(Eigen::Array3i(50), Ramuh::BoundingBox3(0, 1));
+  PLevelSet3 system(Eigen::Array3i(80), Ramuh::BoundingBox3(0, 1));
   system.setBaseFolder("results/particles/3d/pls_deform");
 
   Ramuh::Timer initTimer;
@@ -187,59 +187,69 @@ int main(int argc, char const *argv[]) {
   int pReseed = 0;
   Ramuh::Timer timer;
   std::cerr << "Starting simulation\n";
-  for (size_t i = 0; i <= 300; i++) {
+  for (size_t i = 0; i <= 180; i++) {
     timer.clearAll();
     timer.reset();
     system.defineVelocity(i);
     system.applyCfl();
 
     do {
-      // system.trackSurface();
-      system.findSurfaceCells(5);
+      system.findSurfaceCells(8);
       timer.registerTime("trackSurface");
 
-      system.advectWeno();
+      {
+        system.computeCellVelocity();
+        // system.computeWenoGradient();
+        // system.advectUpwind();
+        system.advectSemiLagrangean();
+      }
+      // system.advectWeno();
       timer.registerTime("cellAdvection");
-      system.advectParticles();
+
+      system.advectParticles((double)i * 3.0);
       timer.registerTime("particleAdvect");
 
-      if (system.correctLevelSetWithParticles()) {
-        std::cerr << "......................................... CORRECTED\n";
-        timer.registerTime("correction");
+      system.correctLevelSetWithParticles();
+      timer.registerTime("correction");
 
-        lastRedistance = 0;
-        system.redistance();
-        timer.registerTime("redistance");
+      lastRedistance = 0;
+      system.redistance();
+      timer.registerTime("redistance");
 
-        // system.correctLevelSetWithParticles();
-        // timer.registerTime("correction2");
-      } else
-        timer.registerTime("correction");
+      // system.correctLevelSetWithParticles();
+      // timer.registerTime("correction2");
+      // } else timer.registerTime("correction");
 
       if (lastRedistance >= 5) {
         lastRedistance = 0;
         std::cerr << "Redistance iteration\n";
         system.redistance();
+        timer.registerTime("redistance");
       }
       lastRedistance++;
     } while (!system.advanceTime());
 
-    if (i % 20 == 0) {
+    if (i % 5 == 0) {
       system.reseedParticles();
       timer.registerTime("reseed");
 
       system.adjustParticleRadius();
       timer.registerTime("radiusAdjust");
     }
-    system.printParticles();
-    system.printLevelSet();
+
     // system.printGradients();
     // system.printVelocities();
 
+    system.printParticles();
+    system.printLevelSet();
     timer.registerTime("print");
     std::cerr << system.getParticleCount() << " particles\n";
+
     timer.evaluateComponentsTime();
+    if ((i + 1) % 5 == 0)
+      timer.evaluateComponentsAverageTime();
   }
+  timer.evaluateComponentsAverageTime();
 
   return 0;
 }

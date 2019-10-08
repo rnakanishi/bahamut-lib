@@ -52,6 +52,7 @@ public:
    * @return double
    */
   double getTotalTime();
+  double getLapTime();
 
   /**
    * @brief Prints every componet taken time.
@@ -60,12 +61,21 @@ public:
    */
   void evaluateComponentsTime();
 
+  /**
+   * @brief Prints all components average time, based on how many times %reset()
+   * method was called.
+   *
+   */
+  void evaluateComponentsAverageTime();
+
 protected:
   std::chrono::time_point<std::chrono::steady_clock,
                           std::chrono::duration<double>>
-      _start, _end, _lastLap;
+      _start, _end, _lastLap, _creation;
   int _longestName;
   std::map<std::string, double> _components;
+  std::map<std::string, double> _cumulative;
+  int _resetTimes;
 };
 
 } // namespace Ramuh

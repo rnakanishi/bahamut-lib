@@ -39,20 +39,20 @@ void ParticleLevelSet3::advectEuler() {
   }
 }
 
-void ParticleLevelSet3::advectParticles() {
+void ParticleLevelSet3::advectParticles(double time) {
   auto &position = getParticleArrayData(_particlePositionsId);
   std::vector<Eigen::Array3d> lastPosition(position.begin(), position.end());
 
-  interpolateVelocityToParticles();
+  interpolateVelocityToParticles(time * _dt);
   advectEuler();
-  interpolateVelocityToParticles();
+  interpolateVelocityToParticles(time * _dt);
   advectEuler();
 #pragma omp parallel for
   for (size_t i = 0; i < _totalIds; i++) {
     if (_active[i])
       position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
   }
-  interpolateVelocityToParticles();
+  interpolateVelocityToParticles(time * _dt);
   advectEuler();
 #pragma omp parallel for
   for (size_t i = 0; i < _totalIds; i++) {
@@ -61,22 +61,28 @@ void ParticleLevelSet3::advectParticles() {
   }
 }
 
-void ParticleLevelSet3::interpolateVelocityToParticles() {
+void ParticleLevelSet3::interpolateVelocityToParticles(double time) {
   auto &velocity = ParticleSystem3::getParticleArrayData(_particleVelocityId);
   auto &position = getParticleArrayData(_particlePositionsId);
   auto h = getH();
 
 #pragma omp parallel for
   for (size_t pid = 0; pid < _totalIds; pid++) {
+    auto p = position[pid];
     if (!_active[pid])
       continue;
 
-    velocity[pid][0] =
-        interpolateFaceScalarData(0, _faceVelocityId, position[pid]);
+    velocity[pid][0] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
+                       sin(2 * M_PI * p[2]);
+    // interpolateFaceScalarData(0, _faceVelocityId, position[pid]);
     velocity[pid][1] =
-        interpolateFaceScalarData(1, _faceVelocityId, position[pid]);
+        -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) * sin(2 * M_PI * p[2]);
+    // interpolateFaceScalarData(1, _faceVelocityId, position[pid]);
     velocity[pid][2] =
-        interpolateFaceScalarData(2, _faceVelocityId, position[pid]);
+        -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) * sin(2 * M_PI * p[1]);
+    // interpolateFaceScalarData(2, _faceVelocityId, position[pid]);
+
+    velocity[pid] *= cos(M_PI * time);
   }
 }
 
@@ -108,38 +114,54 @@ void ParticleLevelSet3::_seedCells(std::vector<int> &toSeed,
   band[0] = radiusLimits[0];
   band[1] = 3.0 * getH().maxCoeff();
 
-  for (size_t icell = 0; icell < toSeed.size(); icell++) {
-    auto cell = toSeed[icell];
-    auto nParticles = particleNumber[icell];
+  std::vector<int> allSeededParticles;
 
-    auto box = getCellBoundingBox(cell);
-    std::vector<int> seeded;
+#pragma omp parallel
+  {
+    std::vector<int> threadSeeded;
 
-    { seeded = seedParticles(box, nParticles); }
+#pragma omp for nowait
+    for (size_t icell = 0; icell < toSeed.size(); icell++) {
+      auto cell = toSeed[icell];
+      auto nParticles = particleNumber[icell];
 
-    for (int pid : seeded) {
-      Eigen::Array3d pos = getParticlePosition(pid);
-      radiuses[pid] = interpolateCellScalarData(_phiId, pos);
-      if ((std::abs(radiuses[pid]) < band[0]) ||
-          (std::abs(radiuses[pid]) > band[1])) {
-        // If seeded particle is too close from interface, remove it
-        // No particle should be seeded at interface
-        removeParticle(pid);
-      } else {
-        // Assign particle signal according to their seeded position
-        if (radiuses[pid] <= 0) {
-          particleSignal[pid] = -1;
-        } else {
-          particleSignal[pid] = 1;
-        }
+      auto box = getCellBoundingBox(cell);
+      std::vector<int> seeded;
 
-        radiuses[pid] =
-            std::min(radiusLimits[1],
-                     std::max(radiusLimits[0], std::abs(radiuses[pid])));
-      }
+#pragma omp critical
+      { seeded = seedParticles(box, nParticles); }
+      threadSeeded.insert(threadSeeded.end(), seeded.begin(), seeded.end());
+    }
+#pragma omp critical
+    {
+      allSeededParticles.insert(allSeededParticles.end(), threadSeeded.begin(),
+                                threadSeeded.end());
     }
   }
-} // namespace Leviathan
+
+#pragma omp parallel for
+  for (int i = 0; i < allSeededParticles.size(); i++) {
+    int pid = allSeededParticles[i];
+    Eigen::Array3d pos = getParticlePosition(pid);
+    radiuses[pid] = interpolateCellScalarData(_phiId, pos);
+    if ((std::abs(radiuses[pid]) < band[0]) ||
+        (std::abs(radiuses[pid]) > band[1])) {
+      // If seeded particle is too close from interface, remove it
+      // No particle should be seeded at interface
+      removeParticle(pid);
+    } else {
+      // Assign particle signal according to their seeded position
+      if (radiuses[pid] <= 0) {
+        particleSignal[pid] = -1;
+      } else {
+        particleSignal[pid] = 1;
+      }
+
+      radiuses[pid] = std::min(
+          radiusLimits[1], std::max(radiusLimits[0], std::abs(radiuses[pid])));
+    }
+  }
+}
 
 bool ParticleLevelSet3::_hasEscaped(int pid) {
   auto &positions = getParticleArrayData(_particlePositionsId);
@@ -272,15 +294,12 @@ bool ParticleLevelSet3::correctLevelSetWithParticles() {
 
   bool hasCorrection = false;
 
-  std::map<int, std::vector<int>> escapedCells; // contains scaped part. ids
   _escapedParticles.clear();
 
   // Build phi+ and phi- fields
-  std::vector<double> phiPositive(phi.size()), phiNegative(phi.size());
-#pragma omp parallel for
-  for (size_t i = 0; i < phi.size(); i++) {
-    phiPositive[i] = phiNegative[i] = phi[i];
-  }
+  std::vector<double> phiPositive, phiNegative;
+  phiPositive.insert(phiPositive.begin(), phi.begin(), phi.end());
+  phiNegative.insert(phiNegative.begin(), phi.begin(), phi.end());
 
 // FInd escaped particles
 #pragma omp parallel for
@@ -296,7 +315,6 @@ bool ParticleLevelSet3::correctLevelSetWithParticles() {
               .floor()
               .cast<int>();
       int cellId = ijkToid(cellIj[0], cellIj[1], cellIj[2]);
-      escapedCells[cellId].emplace_back(pid);
 
       // Find which cells centers enclosure the particle
       auto particlePosition = getParticlePosition(pid);
@@ -326,8 +344,10 @@ bool ParticleLevelSet3::correctLevelSetWithParticles() {
 
         // Evaluate value accordign to particle sign
         if (signals[pid] > 0)
+#pragma omp critical(positive)
           phiPositive[cellId] = std::max(phiPositive[cellId], localPhi);
         else
+#pragma omp critical(negative)
           phiNegative[cellId] = std::min(phiNegative[cellId], localPhi);
       }
     }
@@ -355,65 +375,80 @@ int ParticleLevelSet3::findCellIdByCoordinate(Eigen::Array3d position) {
 
 void ParticleLevelSet3::reseedParticles() {
   auto &signals = getParticleScalarData(_particleSignalId);
-  std::vector<int> nParticles, seedingCells;
+  std::vector<int> nParticles, seedingCells, particlesToRemove;
 
   trackSurface();
   sortParticles();
   _escapedParticles.clear();
 
 // For all surface near cells
-#pragma omp parallel for
-  for (size_t imap = 0; imap < _particlesInCell.size(); imap++) {
-    std::map<int, std::vector<int>>::iterator it = _particlesInCell.begin();
-    std::advance(it, imap);
-    int icell = it->first;
-    auto particles = it->second;
+#pragma omp parallel
+  {
+    std::vector<int> threadParticlesToRemove;
+    std::vector<int> threadNparticles, threadCells;
 
-    int pCount = particles.size();
-    if (pCount < _maxParticles - 0.1 * _maxParticles) {
-#pragma omp critical
-      {
-        nParticles.emplace_back(_maxParticles - pCount);
-        seedingCells.emplace_back(icell);
+#pragma omp for nowait
+    for (size_t imap = 0; imap < _particlesInCell.size(); imap++) {
+      std::map<int, std::vector<int>>::iterator it = _particlesInCell.begin();
+      std::advance(it, imap);
+      int icell = it->first;
+      auto particles = it->second;
+
+      int pCount = particles.size();
+      if (pCount < _maxParticles - 0.1 * _maxParticles) {
+        threadNparticles.emplace_back(_maxParticles - pCount);
+        threadCells.emplace_back(icell);
+      }
+      if (pCount > _maxParticles + 0.5 * _maxParticles &&
+          !_isSurfaceCell[icell]) {
+        threadParticlesToRemove.insert(threadParticlesToRemove.end(),
+                                       particles.begin() + _maxParticles,
+                                       particles.end());
       }
     }
-    if (pCount > _maxParticles + 0.25 * _maxParticles &&
-        !_isSurfaceCell[icell]) {
 #pragma omp critical
-      {
-        removeParticle(std::vector<int>(particles.begin() + _maxParticles,
-                                        particles.end()));
-      }
+    {
+      particlesToRemove.insert(particlesToRemove.end(),
+                               threadParticlesToRemove.begin(),
+                               threadParticlesToRemove.end());
+      nParticles.insert(nParticles.end(), threadNparticles.begin(),
+                        threadNparticles.end());
+      seedingCells.insert(seedingCells.end(), threadCells.begin(),
+                          threadCells.end());
     }
   }
-
+  removeParticle(particlesToRemove);
   _seedCells(seedingCells, nParticles);
 }
 
 void ParticleLevelSet3::sortParticles() {
   auto h = getH();
 
-  // Loop over particles computing their cell index
-  for (size_t pid = 0; pid < getTotalParticleCount(); pid++) {
-    if (!isActive(pid))
-      continue;
-    auto position = getParticlePosition(pid);
+// Loop over particles computing their cell index
+#pragma omp parallel
+  {
+    std::map<int, std::vector<int>> threadMap;
 
-    // Computing cell id
-    Eigen::Array3i cellIjk = (position - LevelSetFluid3::_domain.getMin())
-                                 .cwiseQuotient(h)
-                                 .floor()
-                                 .cast<int>();
-    int cellId = ijkToid(cellIjk[0], cellIjk[1], cellIjk[2]);
-    if (_particlesInCell.find(cellId) == _particlesInCell.end()) {
-      _particlesInCell[cellId] = std::vector<int>();
+#pragma omp for nowait
+    for (size_t pid = 0; pid < getTotalParticleCount(); pid++) {
+      if (!isActive(pid))
+        continue;
+      auto position = getParticlePosition(pid);
+
+      // Computing cell id
+      Eigen::Array3i cellIjk = (position - LevelSetFluid3::_domain.getMin())
+                                   .cwiseQuotient(h)
+                                   .floor()
+                                   .cast<int>();
+      int cellId = ijkToid(cellIjk[0], cellIjk[1], cellIjk[2]);
+      if (threadMap.find(cellId) == threadMap.end()) {
+        threadMap[cellId] = std::vector<int>();
+      }
+      threadMap[cellId].emplace_back(pid);
     }
-    _particlesInCell[cellId].emplace_back(pid);
-  }
 
-  // for each cell that contains particles, count the particles and reseed
-  for (auto particleVector : _particlesInCell) {
-    auto particles = particleVector.second;
+#pragma omp critical
+    { _particlesInCell.insert(threadMap.begin(), threadMap.end()); }
   }
 }
 

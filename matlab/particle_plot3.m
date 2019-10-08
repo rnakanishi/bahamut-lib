@@ -11,7 +11,7 @@ dx = x(2) - x(1);
 [X, Y, Z] = meshgrid(x, x, x);
 
 az = 0;
-el = 90;
+el = -90;
 
 fig = figure('position', [350, 150, 1500, 1500]);
 % figure/
@@ -22,7 +22,9 @@ vis = [0 1 0 1 0 1];
 
 print("Starting loop")
 
-for t = 0:1:360
+for t = 0:1:181
+    title([num2str(t) "..."]);
+    drawnow;
     % for t = [100 150 200]
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -59,9 +61,9 @@ for t = 0:1:360
     isonormals(levelx, levely, levelz, values, p);
     set(p, "FaceColor", "cyan", "FaceLighting", "gouraud");
     material dull
-    % light("Position", [3 -.5 .5],  "color", [0.95 0.95 0.95]);
-    % light("Position", [-0.25 1 -.5], "color", [0.6 0.6 0.6]);
-    light("Position", [0 0 10], "color", [0.95 0.95 0.95]);
+    light("Position", [3 -.5 .5],  "color", [0.95 0.95 0.95]);
+    light("Position", [-0.25 1 -.5], "color", [0.6 0.6 0.6]);
+    % light("Position", [0 0 10], "color", [0.95 0.95 0.95]);
     % light("Position", [-5 -5 0], "color", [0.6 0.6 0.6]);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -99,10 +101,11 @@ for t = 0:1:360
     axis equal
     title(t);
     axis(vis);
-    rotate3d on;
-    pause();
     axis off;
-    % print(fig, ["../results/images/3d/pls_deform/" int2str(t) ".jpg"], "-S1150,1000")
+    rotate3d on;
+    pause(0);
+    imagename = sprintf("../results/images/3d/pls_deform_weno/%04d.jpg", t);
+    % print(fig, imagename, "-S1150,1000");
 
     % pause;
     [az, el] = view();

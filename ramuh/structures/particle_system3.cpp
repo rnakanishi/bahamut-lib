@@ -89,7 +89,8 @@ bool ParticleSystem3::isActive(int pid) { return _active[pid]; }
 
 void ParticleSystem3::removeParticle(int pid) {
   if (_active[pid]) {
-    _idQueue.push(pid);
+#pragma omp critical
+    { _idQueue.push(pid); }
     _count--;
   }
   _active[pid] = false;
