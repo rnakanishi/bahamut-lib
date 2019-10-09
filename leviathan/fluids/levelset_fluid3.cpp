@@ -617,22 +617,29 @@ std::vector<int> LevelSetFluid3::trackSurface() {
   std::vector<int> surface;
 
   std::fill(_isSurfaceCell.begin(), _isSurfaceCell.end(), false);
-#pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
-    auto ijk = idToijk(id);
-    int i = ijk[0], j = ijk[1], k = ijk[2];
-    if (i > 0 && i < _gridSize[0] - 1 && j > 0 && j < _gridSize[1] - 1 &&
-        k > 0 && k < _gridSize[2] - 1) {
-      if (phi[id] * phi[ijkToid(i - 1, j, k)] <= 0 ||
-          phi[id] * phi[ijkToid(i + 1, j, k)] <= 0 ||
-          phi[id] * phi[ijkToid(i, j - 1, k)] <= 0 ||
-          phi[id] * phi[ijkToid(i, j + 1, k)] <= 0 ||
-          phi[id] * phi[ijkToid(i, j, k - 1)] <= 0 ||
-          phi[id] * phi[ijkToid(i, j, k + 1)] <= 0) {
-        _isSurfaceCell[id] = true;
-#pragma omp critical
-        { surface.emplace_back(id); }
+#pragma omp parallel
+  {
+    std::vector<int> threadSurface;
+#pragma omp for nowait
+    for (int id = 0; id < cellCount(); id++) {
+      auto ijk = idToijk(id);
+      int i = ijk[0], j = ijk[1], k = ijk[2];
+      if (i > 0 && i < _gridSize[0] - 1 && j > 0 && j < _gridSize[1] - 1 &&
+          k > 0 && k < _gridSize[2] - 1) {
+        if (phi[id] * phi[ijkToid(i - 1, j, k)] <= 0 ||
+            phi[id] * phi[ijkToid(i + 1, j, k)] <= 0 ||
+            phi[id] * phi[ijkToid(i, j - 1, k)] <= 0 ||
+            phi[id] * phi[ijkToid(i, j + 1, k)] <= 0 ||
+            phi[id] * phi[ijkToid(i, j, k - 1)] <= 0 ||
+            phi[id] * phi[ijkToid(i, j, k + 1)] <= 0) {
+          _isSurfaceCell[id] = true;
+          threadSurface.emplace_back(id);
+        }
       }
+    }
+#pragma omp critical
+    {
+      surface.insert(surface.end(), threadSurface.begin(), threadSurface.end());
     }
   }
   return surface;

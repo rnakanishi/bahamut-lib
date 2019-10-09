@@ -19,10 +19,15 @@ public:
   int getParticleCount();
   int getTotalParticleCount();
 
+  void preAllocateParticles(int nparticles);
+
   /**
    * @brief Seeds a predertmined number (default: 1) of particles over a given
    * region and set them to active. If there are non-active ids, they are used
    * first. The spread of all particles is randomly generated.
+   *
+   * WARNING: %preAllocateParticles() method SHOULD be called before seeding
+   * particles
    *
    * @param region bounding box corresponding to target region
    * @param n [optional] number of particles to be seeded

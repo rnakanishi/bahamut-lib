@@ -114,11 +114,19 @@ void ParticleLevelSet3::_seedCells(std::vector<int> &toSeed,
   band[0] = radiusLimits[0];
   band[1] = 3.0 * getH().maxCoeff();
 
-  std::vector<int> allSeededParticles;
+  std::set<int> allSeededParticles;
+  std::vector<int> toRemoveParticles;
+
+  int totalParticles;
+  for (auto count : particleNumber)
+    totalParticles += count;
+  preAllocateParticles(totalParticles);
 
 #pragma omp parallel
   {
     std::vector<int> threadSeeded;
+    std::vector<int> threadFinalParticles;
+    std::vector<int> threadRemove;
 
 #pragma omp for nowait
     for (size_t icell = 0; icell < toSeed.size(); icell++) {
@@ -128,39 +136,43 @@ void ParticleLevelSet3::_seedCells(std::vector<int> &toSeed,
       auto box = getCellBoundingBox(cell);
       std::vector<int> seeded;
 
-#pragma omp critical
-      { seeded = seedParticles(box, nParticles); }
+      seeded = seedParticles(box, nParticles);
       threadSeeded.insert(threadSeeded.end(), seeded.begin(), seeded.end());
     }
-#pragma omp critical
-    {
-      allSeededParticles.insert(allSeededParticles.end(), threadSeeded.begin(),
-                                threadSeeded.end());
-    }
-  }
 
-#pragma omp parallel for
-  for (int i = 0; i < allSeededParticles.size(); i++) {
-    int pid = allSeededParticles[i];
-    Eigen::Array3d pos = getParticlePosition(pid);
-    radiuses[pid] = interpolateCellScalarData(_phiId, pos);
-    if ((std::abs(radiuses[pid]) < band[0]) ||
-        (std::abs(radiuses[pid]) > band[1])) {
-      // If seeded particle is too close from interface, remove it
-      // No particle should be seeded at interface
-      removeParticle(pid);
-    } else {
-      // Assign particle signal according to their seeded position
-      if (radiuses[pid] <= 0) {
-        particleSignal[pid] = -1;
+    for (int i = 0; i < threadSeeded.size(); i++) {
+      int pid = threadSeeded[i];
+      Eigen::Array3d pos = getParticlePosition(pid);
+      radiuses[pid] = interpolateCellScalarData(_phiId, pos);
+      if ((std::abs(radiuses[pid]) < band[0]) ||
+          (std::abs(radiuses[pid]) > band[1])) {
+        // If seeded particle is too close from interface, remove it
+        // No particle should be seeded at interface
+        threadRemove.emplace_back(pid);
       } else {
-        particleSignal[pid] = 1;
-      }
+        // Assign particle signal according to their seeded position
+        threadFinalParticles.emplace_back(pid);
+        if (radiuses[pid] <= 0) {
+          particleSignal[pid] = -1;
+        } else {
+          particleSignal[pid] = 1;
+        }
 
-      radiuses[pid] = std::min(
-          radiusLimits[1], std::max(radiusLimits[0], std::abs(radiuses[pid])));
+        radiuses[pid] =
+            std::min(radiusLimits[1],
+                     std::max(radiusLimits[0], std::abs(radiuses[pid])));
+      }
+    }
+
+#pragma omp critical(gather)
+    {
+      allSeededParticles.insert(threadFinalParticles.begin(),
+                                threadFinalParticles.end());
+      toRemoveParticles.insert(toRemoveParticles.end(), threadRemove.begin(),
+                               threadRemove.end());
     }
   }
+  removeParticle(toRemoveParticles);
 }
 
 bool ParticleLevelSet3::_hasEscaped(int pid) {
@@ -260,25 +272,33 @@ void ParticleLevelSet3::adjustParticleRadius() {
   double limit = 3.0 * getH().maxCoeff();
 
   std::vector<int> toRemove;
-#pragma omp parallel for
-  for (size_t pid = 0; pid < _totalIds; pid++) {
-    if (isActive(pid)) {
-      double particleLevelSet =
-          interpolateCellScalarData(_phiId, position[pid]);
-      if (std::abs(particleLevelSet) > limit) {
-#pragma omp critical
-        { toRemove.emplace_back(pid); }
-      } else {
-        particlesLevelSet[pid] = particleLevelSet;
-        // Set radius of each active particle according to their position in
-        // relation to the interface
-        if (particleLevelSet < radiusLimits[0])
-          radius[pid] = radiusLimits[0];
-        else if (particleLevelSet > radiusLimits[1])
-          radius[pid] = radiusLimits[1];
-        else
-          radius[pid] = std::abs(particleLevelSet);
+#pragma omp parallel
+  {
+    std::vector<int> threadRemove;
+#pragma omp for nowait
+    for (size_t pid = 0; pid < _totalIds; pid++) {
+      if (isActive(pid)) {
+        double particleLevelSet =
+            interpolateCellScalarData(_phiId, position[pid]);
+        if (std::abs(particleLevelSet) > limit) {
+          threadRemove.emplace_back(pid);
+        } else {
+          particlesLevelSet[pid] = particleLevelSet;
+          // Set radius of each active particle according to their position in
+          // relation to the interface
+          if (particleLevelSet < radiusLimits[0])
+            radius[pid] = radiusLimits[0];
+          else if (particleLevelSet > radiusLimits[1])
+            radius[pid] = radiusLimits[1];
+          else
+            radius[pid] = std::abs(particleLevelSet);
+        }
       }
+    }
+#pragma omp critical(gatherRemove)
+    {
+      toRemove.insert(toRemove.begin(), threadRemove.begin(),
+                      threadRemove.end());
     }
   }
   removeParticle(toRemove);
@@ -409,12 +429,11 @@ void ParticleLevelSet3::reseedParticles() {
       auto particles = it->second;
 
       int pCount = particles.size();
-      if (pCount < _maxParticles - 0.1 * _maxParticles) {
+      if (pCount < 0.75 * _maxParticles) {
         threadNparticles.emplace_back(_maxParticles - pCount);
         threadCells.emplace_back(icell);
       }
-      if (pCount > _maxParticles + 0.5 * _maxParticles &&
-          !_isSurfaceCell[icell]) {
+      if (pCount > 1.25 * _maxParticles && !_isSurfaceCell[icell]) {
         threadParticlesToRemove.insert(threadParticlesToRemove.end(),
                                        particles.begin() + _maxParticles,
                                        particles.end());
@@ -438,6 +457,7 @@ void ParticleLevelSet3::reseedParticles() {
 void ParticleLevelSet3::sortParticles() {
   auto h = getH();
 
+  _particlesInCell.clear();
 // Loop over particles computing their cell index
 #pragma omp parallel
   {
@@ -462,7 +482,17 @@ void ParticleLevelSet3::sortParticles() {
     }
 
 #pragma omp critical
-    { _particlesInCell.insert(threadMap.begin(), threadMap.end()); }
+    {
+      for (auto value : threadMap) {
+        int cellId = value.first;
+        if (_particlesInCell.find(cellId) == _particlesInCell.end()) {
+          _particlesInCell[cellId] = std::vector<int>();
+        }
+        _particlesInCell[cellId].insert(_particlesInCell[cellId].end(),
+                                        value.second.begin(),
+                                        value.second.end());
+      }
+    }
   }
 }
 

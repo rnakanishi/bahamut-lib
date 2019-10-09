@@ -45,34 +45,45 @@ int ParticleSystem3::seedParticles(BoundingBox3 region) {
   return id;
 }
 
+void ParticleSystem3::preAllocateParticles(int nparticles) {
+  if (_totalIds < _count + nparticles) {
+    _active.resize(_count + nparticles, true);
+    for (auto &dataFieldId : _scalarMap)
+      _scalarData[dataFieldId.second].resize(_count + nparticles, 0);
+    for (auto &arrayFieldId : _arrayMap)
+      _arrayData[arrayFieldId.second].resize(_count + nparticles,
+                                             Eigen::Array3d(0));
+  }
+}
+
 std::vector<int> ParticleSystem3::seedParticles(BoundingBox3 region, int n) {
   auto &_positions = getParticleArrayData(_particlePositionsId);
   std::vector<int> ids(n);
 
-  if (_totalIds < _count + n) {
-    _active.resize(_count + n, true);
-    for (auto &dataFieldId : _scalarMap)
-      _scalarData[dataFieldId.second].resize(_count + n, 0);
-    for (auto &arrayFieldId : _arrayMap)
-      _arrayData[arrayFieldId.second].resize(_count + n, Eigen::Array3d(0));
+  if (_count + n >= _scalarData[0].size()) {
+    std::cerr << "\033[21;33m[WARNING]: \033[0mData not preallocated!\n";
   }
 
   for (size_t i = 0; i < n; i++) {
-    if (_idQueue.empty()) {
-      ids[i] = _totalIds++;
-    } else {
-      ids[i] = _idQueue.front();
-      _idQueue.pop();
-      _active[ids[i]] = true;
-    }
-
     Eigen::Array3d position;
-    position[0] = std::rand() % 100000;
-    position[1] = std::rand() % 100000;
-    position[2] = std::rand() % 100000;
-    position =
-        region.getMin() + position.cwiseProduct(region.getSize()) / 100000;
-    _positions[ids[i]] = position;
+#pragma omp critical(insertion)
+    {
+      if (_idQueue.empty()) {
+        ids[i] = _totalIds++;
+      } else {
+        ids[i] = _idQueue.front();
+        _idQueue.pop();
+        _active[ids[i]] = true;
+      }
+
+      position[0] = std::rand() % 100000;
+      position[1] = std::rand() % 100000;
+      position[2] = std::rand() % 100000;
+      position =
+          region.getMin() + position.cwiseProduct(region.getSize()) / 100000;
+      _positions[ids[i]] = position;
+    }
+#pragma omp atomic
     _count++;
   }
 
@@ -89,8 +100,7 @@ bool ParticleSystem3::isActive(int pid) { return _active[pid]; }
 
 void ParticleSystem3::removeParticle(int pid) {
   if (_active[pid]) {
-#pragma omp critical
-    { _idQueue.push(pid); }
+    _idQueue.push(pid);
     _count--;
   }
   _active[pid] = false;
