@@ -1,6 +1,7 @@
 #include <utils/timer.hpp>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 
 namespace Ramuh {
 
@@ -43,10 +44,12 @@ double Timer::registerTime(const std::string &name, bool silence) {
   if (it == _components.end()) {
     _components[name] = 0.0;
     _cumulative[name] = 0.0;
+    _log[name] = std::vector<double>();
     _calls[name] = 0;
   }
   _components[name] += timeInterval;
   _cumulative[name] += timeInterval;
+  _log[name].emplace_back(timeInterval);
   _calls[name]++;
   if (name.length() > _longestName)
     _longestName = name.length();
@@ -90,6 +93,31 @@ void Timer::evaluateComponentsAverageTime() {
   }
   std::cout << "Average time: " << getTotalTime() / _resetTimes << std::endl;
   std::cout << "===============================\n";
+}
+
+void Timer::logToFile(std::string filename) {
+
+  static int count = 0;
+  std::ofstream file;
+  file.open(filename, std::ofstream::out);
+  if (!file.is_open()) {
+    std::cerr << "\033[1;31mError\033[0m Timer::logToFile: Failed to open "
+              << filename << std::endl;
+    return;
+  }
+  for (auto field : _log) {
+    file << field.first << ", ";
+    for (size_t i = 0; i < field.second.size(); i++) {
+      double timestamp = field.second[i];
+      file << timestamp;
+      if (i < field.second.size() - 1)
+        file << ", ";
+      else
+        file << std::endl;
+    }
+  }
+  file.close();
+  std::cout << "File written: " << filename << std::endl;
 }
 
 } // namespace Ramuh

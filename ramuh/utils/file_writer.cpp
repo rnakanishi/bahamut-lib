@@ -42,4 +42,20 @@ void FileWriter::writeMeshModel(TriangleMesh model,
   file.close();
 }
 
+void FileWriter::writeArrayToFile(std::string filename,
+                                  std::vector<int> &array) {
+  std::ofstream file;
+  file.open(filename, std::ofstream::out);
+  if (!file.is_open()) {
+    std::cerr << "\033[1;31mError\033[0m Timer::logToFile: Failed to open "
+              << filename << std::endl;
+    return;
+  }
+  for (auto value : array) {
+    file << value << " ";
+  }
+  file.close();
+  std::cout << "File written: " << filename << std::endl;
+}
+
 } // namespace Ramuh

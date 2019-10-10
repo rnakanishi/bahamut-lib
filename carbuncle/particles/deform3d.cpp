@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <utils/timer.hpp>
+#include <utils/file_writer.h>
 
 class PLevelSet3 : public Leviathan::ParticleLevelSet3 {
 public:
@@ -11,6 +12,7 @@ public:
 
   PLevelSet3(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain)
       : ParticleLevelSet3(gridSize, domain) {
+    _maxParticles = 80;
     // _dt = 1 / 30.;
   }
 
@@ -43,7 +45,7 @@ public:
     auto &signal = getParticleScalarData(_particleSignalId);
     auto &radius = getParticleScalarData(_particleRadiusId);
 
-    for (size_t i = 0; i < getTotalParticleCount(); i++) {
+    for (size_t i = 0; i < getTotalParticleCount(); i += 10) {
       if (isActive(i)) {
         auto pos = getParticlePosition(i);
         file << pos[0] << " " << pos[1] << " " << pos[2] << " ";
@@ -120,38 +122,44 @@ public:
   }
 
   void defineVelocity(int i) {
-    double time = _dt * i;
-    double T = 3;
+    double T = 3.0;
+    double time = (double)i * _originalDt / T;
     auto &u = getFaceScalarData(0, _cellVelocityId);
     auto &v = getFaceScalarData(1, _cellVelocityId);
     auto &w = getFaceScalarData(2, _cellVelocityId);
 
-    // u velocities
-    for (size_t i = 0; i < faceCount(0); i++) {
-      auto p = getFacePosition(0, i);
-      u[i] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
-             sin(2 * M_PI * p[2]);
-      u[i] *= cos(M_PI * time / T);
+// u velocities
+#pragma omp parallel
+    {
+#pragma omp for nowait
+      for (size_t i = 0; i < faceCount(0); i++) {
+        auto p = getFacePosition(0, i);
+        u[i] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
+               sin(2 * M_PI * p[2]) * cos(M_PI * time);
+        // u[i] *= ;
 
-      // u[i] = 0;
-    }
+        // u[i] = 0;
+      }
 
-    // v velocities
-    for (size_t j = 0; j < faceCount(1); j++) {
-      auto p = getFacePosition(1, j);
-      v[j] = -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) *
-             sin(2 * M_PI * p[2]);
-      v[j] *= cos(M_PI * time / T);
-      // v[i] = -1;
-    }
+// v velocities
+#pragma omp for nowait
+      for (size_t j = 0; j < faceCount(1); j++) {
+        auto p = getFacePosition(1, j);
+        v[j] = -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) *
+               sin(2 * M_PI * p[2]) * cos(M_PI * time);
+        // v[j] *= ;
+        // v[i] = -1;
+      }
 
-    // w velocities
-    for (size_t k = 0; k < faceCount(2); k++) {
-      auto p = getFacePosition(2, k);
-      w[k] = -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) *
-             sin(2 * M_PI * p[1]);
-      w[k] *= cos(M_PI * time / T);
-      // v[i] = -1;
+// w velocities
+#pragma omp for nowait
+      for (size_t k = 0; k < faceCount(2); k++) {
+        auto p = getFacePosition(2, k);
+        w[k] = -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) *
+               sin(2 * M_PI * p[1]) * cos(M_PI * time);
+        // w[k] *= ;
+        // v[i] = -1;
+      }
     }
   }
 
@@ -162,7 +170,7 @@ protected:
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet3 system(Eigen::Array3i(80), Ramuh::BoundingBox3(0, 1));
+  PLevelSet3 system(Eigen::Array3i(100), Ramuh::BoundingBox3(0, 1));
   system.setBaseFolder("results/particles/3d/pls_deform");
 
   Ramuh::Timer initTimer;
@@ -172,85 +180,93 @@ int main(int argc, char const *argv[]) {
   system.redistance();
   initTimer.registerTime("Redistance");
 
-  // system.computeCellVelocity();
-  // system.computeWenoGradient();
-  // system.trackSurface();
   system.seedParticlesNearSurface();
   initTimer.registerTime("Particles seeding");
-  // system.attractParticles();
+
   system.printParticles();
   system.printLevelSet();
   initTimer.registerTime("printFile");
-  // system.printGradients();
-  // system.printVelocities();
   initTimer.evaluateComponentsTime();
 
   int lastRedistance = 0;
   int pReseed = 0;
+  auto h = system.getH();
+  std::vector<int> particleHistory;
   Ramuh::Timer timer;
   std::cerr << "Starting simulation\n";
-  for (size_t i = 0; i <= 180; i++) {
+  for (int i = 0; i <= 180; i++) {
     timer.clearAll();
     timer.reset();
-    system.defineVelocity(i);
+    timer.registerTime("faceVelocity");
     system.applyCfl();
+    timer.registerTime("cfl");
 
+    system.defineVelocity(i);
     do {
-      system.findSurfaceCells(8);
+      system.findSurfaceCells(4.0 * h[0]);
       timer.registerTime("trackSurface");
 
       {
-        system.computeCellVelocity();
+        // system.computeCellVelocity();
         // system.computeWenoGradient();
         // system.advectUpwind();
-        system.advectSemiLagrangean();
+        // system.advectSemiLagrangean();
       }
-      // system.advectWeno();
+      system.advectWeno();
       timer.registerTime("cellAdvection");
 
-      system.advectParticles((double)i * 3.0);
+      system.advectParticles((double)i / 3.0);
       timer.registerTime("particleAdvect");
 
-      system.correctLevelSetWithParticles();
-      timer.registerTime("correction");
+      if (system.correctLevelSetWithParticles()) {
+        timer.registerTime("correction");
 
-      // lastRedistance = 0;
-      system.redistance();
-      timer.registerTime("redistance");
+        lastRedistance = 0;
+        system.redistance();
+        timer.registerTime("redistance");
 
-      // system.correctLevelSetWithParticles();
-      // timer.registerTime("correction2");
-      // } else timer.registerTime("correction");
+        system.correctLevelSetWithParticles();
+        timer.registerTime("correction2");
+      } else
+        timer.registerTime("correction");
 
       if (lastRedistance >= 5) {
         lastRedistance = 0;
-        std::cerr << "Redistance iteration\n";
         system.redistance();
         timer.registerTime("redistance");
       }
       lastRedistance++;
     } while (!system.advanceTime());
 
-    if (i % 5 == 0) {
-      system.reseedParticles();
-      timer.registerTime("reseed");
+    // if (i % 5 == 0) {
+    system.reseedParticles();
+    timer.registerTime("reseed");
 
-      system.adjustParticleRadius();
-      timer.registerTime("radiusAdjust");
-    }
+    system.adjustParticleRadius();
+    timer.registerTime("radiusAdjust");
+    std::cerr << " Final count: " << system.getParticleCount()
+              << " particles\n";
+    particleHistory.emplace_back(system.getParticleCount());
+
+    // }
 
     // system.printGradients();
     // system.printVelocities();
 
-    // system.printParticles();
+    system.printParticles();
     system.printLevelSet();
     timer.registerTime("print");
-    std::cerr << system.getParticleCount() << " particles\n";
+    // std::cerr << system.getParticleCount() << " particles\n";
 
     timer.evaluateComponentsTime();
     if (i % 5 == 0)
       timer.evaluateComponentsAverageTime();
+
+    timer.logToFile("./results/log_weno.csv");
+    Ramuh::FileWriter::writeArrayToFile("./results/particleCount.txt",
+                                        particleHistory);
   }
+
   timer.evaluateComponentsAverageTime();
 
   return 0;

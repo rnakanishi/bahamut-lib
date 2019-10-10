@@ -125,7 +125,7 @@ public:
    */
   std::vector<int> trackSurface();
 
-  std::vector<int> findSurfaceCells(int distacenToSurface);
+  std::vector<int> findSurfaceCells(double distacenToSurface);
   std::vector<int> findSurfaceCells();
 
 protected:

@@ -251,8 +251,9 @@ void LevelSetFluid3::advectWeno() {
   auto &gradient = getCellArrayData(_cellGradientId);
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
   auto &phi = getCellScalarData(_phiId);
+  auto h = getH();
 
-  findSurfaceCells(8);
+  findSurfaceCells(8.0 * h[0]);
 
   std::vector<double> phiN(phi.begin(), phi.end());
 
@@ -577,26 +578,32 @@ bool LevelSetFluid3::advanceTime() {
 }
 
 void LevelSetFluid3::applyCfl() {
-  Eigen::Vector2d maxVel = Eigen::Vector2d(0.0, 0.0);
+  Eigen::Vector3d maxVel(0., 0., 0.);
   auto &u = getFaceScalarData(0, _cellVelocityId);
   auto &v = getFaceScalarData(1, _cellVelocityId);
   auto &w = getFaceScalarData(2, _cellVelocityId);
   auto h = getH();
 
-  for (int id = 0; id < cellCount(); id++) {
-    auto ijk = idToijk(id);
-    int i, j, k;
-    i = ijk[0];
-    j = ijk[1];
-    k = ijk[2];
+#pragma omp parallel
+  {
+    Eigen::Vector3d threadMax(0., 0., 0.);
+#pragma omp for
+    for (int id = 0; id < cellCount(); id++) {
+      auto ijk = idToijk(id);
+      int i, j, k;
+      i = ijk[0];
+      j = ijk[1];
+      k = ijk[2];
 
-    Eigen::Vector2d vel;
-    vel[0] = (u[id] + u[faceijkToid(0, i + 1, j, k)]) / 2.0;
-    vel[1] = (v[id] + v[faceijkToid(1, i, j + 1, k)]) / 2.0;
-    vel[1] = (w[id] + w[faceijkToid(2, i, j, k + 1)]) / 2.0;
+      Eigen::Vector3d vel;
+      vel[0] = (u[id] + u[faceijkToid(0, i + 1, j, k)]) / 2.0;
+      vel[1] = (v[id] + v[faceijkToid(1, i, j + 1, k)]) / 2.0;
+      vel[2] = (w[id] + w[faceijkToid(2, i, j, k + 1)]) / 2.0;
 
-    if (maxVel.norm() < vel.norm())
-      maxVel = vel;
+      threadMax = (threadMax.norm() < vel.norm()) ? vel : threadMax;
+    }
+#pragma omp critical
+    { maxVel = (maxVel.norm() < threadMax.norm()) ? threadMax : maxVel; }
   }
   // Check if cfl condition applies
   // Half timestep if so
@@ -610,8 +617,6 @@ std::vector<int> LevelSetFluid3::trackSurface() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
   double eps = h[0], error = 1e8, dt = 0.5 * h[0];
-  std::vector<double> cellSignal(cellCount());
-  std::vector<bool> isInterface(cellCount(), false);
   std::vector<int> surface;
 
   std::fill(_isSurfaceCell.begin(), _isSurfaceCell.end(), false);
@@ -644,57 +649,30 @@ std::vector<int> LevelSetFluid3::trackSurface() {
 }
 
 std::vector<int> LevelSetFluid3::findSurfaceCells() {
-  return findSurfaceCells(1);
+  auto h = getH();
+  return findSurfaceCells(h[0]);
 }
 
-std::vector<int> LevelSetFluid3::findSurfaceCells(int surfaceDistance) {
-  std::vector<int> distanceToSurface(cellCount(), 1e8);
-  std::vector<int> visited(cellCount(), false);
+std::vector<int> LevelSetFluid3::findSurfaceCells(double surfaceDistance) {
   std::set<int> toSeed;
+  auto &phi = getCellScalarData(_phiId);
 
-  std::queue<int> cellQueue;
-  auto surfaceCells = trackSurface();
-  for (auto cell : surfaceCells) {
-    distanceToSurface[cell] = 0;
-    cellQueue.push(cell);
-  }
-
-  // For every cell surface tracked before, compute bfs and mark those cells
-  // that are at most 3 cells away from surface
-  while (!cellQueue.empty()) {
-    int cell = cellQueue.front();
-    toSeed.insert(cell);
-
-    cellQueue.pop();
-    if (!visited[cell]) {
-      visited[cell] = true;
-      auto ijk = idToijk(cell);
-      int i = ijk[0], j = ijk[1], k = ijk[2];
-      int distance = distanceToSurface[cell];
-
-      // All neighbors are taken into consideration
-      int neighbors[6];
-      neighbors[0] = ijkToid(std::max(0, i - 1), j, k);
-      neighbors[1] =
-          ijkToid(std::min(LevelSetFluid3::_gridSize[0] - 1, i + 1), j, k);
-      neighbors[2] = ijkToid(i, std::max(0, j - 1), k);
-      neighbors[3] =
-          ijkToid(i, std::min(LevelSetFluid3::_gridSize[1] - 1, j + 1), k);
-      neighbors[4] = ijkToid(i, j, std::max(0, k - 1));
-      neighbors[5] =
-          ijkToid(i, j, std::min(LevelSetFluid3::_gridSize[2] - 1, k + 1));
-      for (auto neighbor : neighbors) {
-        distanceToSurface[neighbor] =
-            std::min(distanceToSurface[neighbor], distance + 1);
-        if (!visited[neighbor]) {
-          if (distanceToSurface[neighbor] <= surfaceDistance)
-            cellQueue.push(neighbor);
-        }
-      }
+  _surfaceCellIds.clear();
+// For every cell, check their distance to the surface (phi)
+#pragma omp parallel
+  {
+    std::vector<int> threadBand;
+#pragma omp for nowait
+    for (size_t cellId = 0; cellId < cellCount(); cellId++) {
+      if (phi[cellId] < surfaceDistance)
+        threadBand.emplace_back(cellId);
+    }
+#pragma omp critical
+    {
+      _surfaceCellIds.insert(_surfaceCellIds.end(), threadBand.begin(),
+                             threadBand.end());
     }
   }
-  _surfaceCellIds.clear();
-  _surfaceCellIds.insert(_surfaceCellIds.begin(), toSeed.begin(), toSeed.end());
   return _surfaceCellIds;
 }
 

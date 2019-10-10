@@ -47,7 +47,7 @@ int ParticleSystem3::seedParticles(BoundingBox3 region) {
 
 void ParticleSystem3::preAllocateParticles(int nparticles) {
   if (_totalIds < _count + nparticles) {
-    _active.resize(_count + nparticles, true);
+    _active.resize(_count + nparticles, false);
     for (auto &dataFieldId : _scalarMap)
       _scalarData[dataFieldId.second].resize(_count + nparticles, 0);
     for (auto &arrayFieldId : _arrayMap)
@@ -73,8 +73,8 @@ std::vector<int> ParticleSystem3::seedParticles(BoundingBox3 region, int n) {
       } else {
         ids[i] = _idQueue.front();
         _idQueue.pop();
-        _active[ids[i]] = true;
       }
+      _active[ids[i]] = true;
 
       position[0] = std::rand() % 100000;
       position[1] = std::rand() % 100000;

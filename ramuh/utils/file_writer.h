@@ -15,6 +15,8 @@ public:
 
   void setDebug(bool out);
 
+  static void writeArrayToFile(std::string filename, std::vector<int> &array);
+
 private:
   bool _stdout;
 };

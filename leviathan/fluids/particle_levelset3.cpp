@@ -31,7 +31,7 @@ void ParticleLevelSet3::advectEuler() {
   auto &velocity = getParticleArrayData(_particleVelocityId);
   auto &position = getParticleArrayData(_particlePositionsId);
 
-#pragma omp parallel for
+#pragma omp for
   for (size_t i = 0; i < _totalIds; i++) {
     if (_active[i]) {
       position[i] = position[i] + _dt * velocity[i];
@@ -43,21 +43,24 @@ void ParticleLevelSet3::advectParticles(double time) {
   auto &position = getParticleArrayData(_particlePositionsId);
   std::vector<Eigen::Array3d> lastPosition(position.begin(), position.end());
 
-  interpolateVelocityToParticles(time * _dt);
-  advectEuler();
-  interpolateVelocityToParticles(time * _dt);
-  advectEuler();
-#pragma omp parallel for
-  for (size_t i = 0; i < _totalIds; i++) {
-    if (_active[i])
-      position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
-  }
-  interpolateVelocityToParticles(time * _dt);
-  advectEuler();
-#pragma omp parallel for
-  for (size_t i = 0; i < _totalIds; i++) {
-    if (_active[i])
-      position[i] = lastPosition[i] / 3 + 2 * position[i] / 3;
+#pragma omp parallel
+  {
+    interpolateVelocityToParticles(time * _originalDt);
+    advectEuler();
+    interpolateVelocityToParticles(time * _originalDt);
+    advectEuler();
+#pragma omp for
+    for (size_t i = 0; i < _totalIds; i++) {
+      if (_active[i])
+        position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
+    }
+    interpolateVelocityToParticles(time * _originalDt);
+    advectEuler();
+#pragma omp for
+    for (size_t i = 0; i < _totalIds; i++) {
+      if (_active[i])
+        position[i] = lastPosition[i] / 3. + 2. * position[i] / 3.;
+    }
   }
 }
 
@@ -66,7 +69,7 @@ void ParticleLevelSet3::interpolateVelocityToParticles(double time) {
   auto &position = getParticleArrayData(_particlePositionsId);
   auto h = getH();
 
-#pragma omp parallel for
+#pragma omp for
   for (size_t pid = 0; pid < _totalIds; pid++) {
     auto p = position[pid];
     if (!_active[pid])
@@ -87,7 +90,8 @@ void ParticleLevelSet3::interpolateVelocityToParticles(double time) {
 }
 
 void ParticleLevelSet3::seedParticlesNearSurface() {
-  auto toSeed = findSurfaceCells(3);
+  auto h = getH();
+  auto toSeed = findSurfaceCells(3.0 * h[0]);
   _seedCells(toSeed);
   std::cerr << "Seeded " << getParticleCount() << " particles\n";
 }
@@ -335,7 +339,7 @@ bool ParticleLevelSet3::correctLevelSetWithParticles() {
       auto particles = it->second;
 
       for (auto pid : particles) {
-        if (!_active[pid])
+        if (!isActive(pid))
           continue;
         if (_hasEscaped(pid)) {
           hasCorrection = true;

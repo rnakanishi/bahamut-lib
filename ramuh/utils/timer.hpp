@@ -2,6 +2,7 @@
 #define __RAMUH_UTILS_TIMER_HPP
 #include <ctime>
 #include <map>
+#include <vector>
 #include <string>
 #include <chrono>
 
@@ -70,6 +71,8 @@ public:
    */
   void evaluateComponentsAverageTime();
 
+  void logToFile(std::string filename = "./results/timelog.csv");
+
 protected:
   std::chrono::time_point<std::chrono::steady_clock,
                           std::chrono::duration<double>>
@@ -77,6 +80,7 @@ protected:
   int _longestName;
   std::map<std::string, double> _components;
   std::map<std::string, double> _cumulative;
+  std::map<std::string, std::vector<double>> _log;
   std::map<std::string, int> _calls;
   int _resetTimes;
   bool _silence;
