@@ -13,3 +13,6 @@ target_link_libraries(rigid3d Ramuh Leviathan)
 
 add_executable(deform3d deform3d.cpp)
 target_link_libraries(deform3d Ramuh Leviathan)
+
+add_executable(runConfig run_from_config.cpp)
+target_link_libraries(runConfig Ramuh Leviathan pugixml)

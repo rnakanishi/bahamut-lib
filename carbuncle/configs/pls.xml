@@ -1,0 +1,6 @@
+<simulation>
+	<type>weno_advection</type>
+	<gridSize>100</gridSize>
+	<timesteps>180</timesteps>
+	<dt>0.02</dt>
+</simulation>
