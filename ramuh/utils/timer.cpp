@@ -49,11 +49,11 @@ double Timer::registerTime(const std::string &name, bool silence) {
   }
   _components[name] += timeInterval;
   _cumulative[name] += timeInterval;
-  _log[name].emplace_back(timeInterval);
   _calls[name]++;
   if (name.length() > _longestName)
     _longestName = name.length();
-  return 0.0; // FIXME: registeTime: fix return value
+
+  return timeInterval;
 }
 
 double Timer::getTotalTime() {
@@ -75,6 +75,7 @@ void Timer::evaluateComponentsTime() {
     std::cout << std::setw(_longestName) << comp.first << ":\t"
               << std::setprecision(4) << comp.second << "\t(" << std::setw(4)
               << std::setprecision(4) << comp.second / total * 100 << "\%)\n";
+    _log[comp.first].emplace_back(comp.second);
   }
   std::cout << "Total time: " << getLapTime() << std::endl;
   std::cout << "===============================\n";
@@ -96,7 +97,6 @@ void Timer::evaluateComponentsAverageTime() {
 }
 
 void Timer::logToFile(std::string filename) {
-
   static int count = 0;
   std::ofstream file;
   file.open(filename, std::ofstream::out);

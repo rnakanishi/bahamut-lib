@@ -124,7 +124,7 @@ public:
 
   void defineVelocity(int i) {
     double T = 3.0;
-    double time = _dt * i / T;
+    double time = (double)i * _originalDt / T;
     auto &u = getFaceScalarData(0, _cellVelocityId);
     auto &v = getFaceScalarData(1, _cellVelocityId);
     auto &w = getFaceScalarData(2, _cellVelocityId);
@@ -136,8 +136,8 @@ public:
       for (size_t i = 0; i < faceCount(0); i++) {
         auto p = getFacePosition(0, i);
         u[i] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
-               sin(2 * M_PI * p[2]);
-        u[i] *= cos(M_PI * time);
+               sin(2 * M_PI * p[2]) * cos(M_PI * time);
+        // u[i] *= ;
 
         // u[i] = 0;
       }
@@ -147,8 +147,8 @@ public:
       for (size_t j = 0; j < faceCount(1); j++) {
         auto p = getFacePosition(1, j);
         v[j] = -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) *
-               sin(2 * M_PI * p[2]);
-        v[j] *= cos(M_PI * time);
+               sin(2 * M_PI * p[2]) * cos(M_PI * time);
+        // v[j] *= ;
         // v[i] = -1;
       }
 
@@ -157,13 +157,12 @@ public:
       for (size_t k = 0; k < faceCount(2); k++) {
         auto p = getFacePosition(2, k);
         w[k] = -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) *
-               sin(2 * M_PI * p[1]);
-        w[k] *= cos(M_PI * time);
+               sin(2 * M_PI * p[1]) * cos(M_PI * time);
+        // w[k] *= ;
         // v[i] = -1;
       }
     }
   }
-
   void setBaseFolder(std::string folder) { baseFolder = folder; }
 
 protected:
@@ -247,22 +246,23 @@ int main(int argc, char const *argv[]) {
   Ramuh::Timer timer;
   std::cerr << "Starting simulation: " << configuration.getSimulationName()
             << "\n";
-  int type = configuration.getSimulationType();
+  int advectionType = configuration.getSimulationType();
 
   for (int i = 0; i <= 180; i++) {
     timer.clearAll();
     timer.reset();
+    system.defineVelocity(i);
     timer.registerTime("faceVelocity");
     system.applyCfl();
     timer.registerTime("cfl");
 
-    system.defineVelocity(i);
     do {
-      if (type == 0) {
+      if (advectionType == 0 || advectionType == 1) {
         system.findSurfaceCells(4.0 * h[0]);
         timer.registerTime("trackSurface");
       }
-      if (type == 2) {
+
+      if (advectionType == 2) {
         system.computeCellVelocity();
         // system.computeWenoGradient();
         // system.advectUpwind();
@@ -271,9 +271,10 @@ int main(int argc, char const *argv[]) {
         system.advectWeno();
       timer.registerTime("cellAdvection");
 
-      if (type == 0) {
+      if (advectionType == 0) {
         system.advectParticles((double)i / 3.0);
         timer.registerTime("particleAdvect");
+        particleHistory.emplace_back(system.getParticleCount());
 
         if (system.correctLevelSetWithParticles()) {
           timer.registerTime("correction");
@@ -296,7 +297,7 @@ int main(int argc, char const *argv[]) {
       // lastRedistance++;
     } while (!system.advanceTime());
 
-    if (type == 0) {
+    if (advectionType == 0) {
       if (i % 5 == 0) {
         system.reseedParticles();
         timer.registerTime("reseed");
@@ -305,7 +306,6 @@ int main(int argc, char const *argv[]) {
         timer.registerTime("radiusAdjust");
         std::cerr << " Final count: " << system.getParticleCount()
                   << " particles\n";
-        particleHistory.emplace_back(system.getParticleCount());
       }
       // system.printParticles();
     }

@@ -73,28 +73,32 @@ void LevelSetFluid3::advectSemiLagrangean() {
   std::vector<double> newPhi;
   newPhi.insert(newPhi.begin(), phi.begin(), phi.end());
 
-#pragma omp parallel for
-  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
-    int id = _surfaceCellIds[sId];
-    Eigen::Array3d position, h, velocity;
-    h = getH();
-    velocity = cellVelocity[id];
+#pragma omp parallel
+  {
+#pragma omp for
+    for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+      int id = _surfaceCellIds[sId];
+      Eigen::Array3d position, h, velocity;
+      h = getH();
+      velocity = cellVelocity[id];
 
-    position = getCellPosition(id);
-    position = position - (velocity * _dt);
-    Eigen::Array3i index = Eigen::floor(position.cwiseQuotient(h)).cast<int>();
-    // Check if inside domain
-    if ((velocity.matrix().norm() > _tolerance) && index[0] >= 0 &&
-        index[1] >= 0 && index[2] >= 0 && index[0] < _gridSize[0] &&
-        index[1] < _gridSize[1] && index[2] < _gridSize[2]) {
-      newPhi[id] = interpolateCellScalarData(_phiId, position);
+      position = getCellPosition(id);
+      position = position - (velocity * _dt);
+      Eigen::Array3i index =
+          Eigen::floor(position.cwiseQuotient(h)).cast<int>();
+      // Check if inside domain
+      if ((velocity.matrix().norm() > _tolerance) && index[0] >= 0 &&
+          index[1] >= 0 && index[2] >= 0 && index[0] < _gridSize[0] &&
+          index[1] < _gridSize[1] && index[2] < _gridSize[2]) {
+        newPhi[id] = interpolateCellScalarData(_phiId, position);
+      }
     }
-  }
 
-#pragma omp parallel for
-  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
-    int id = _surfaceCellIds[sId];
-    phi[id] = newPhi[id];
+#pragma omp for
+    for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+      int id = _surfaceCellIds[sId];
+      phi[id] = newPhi[id];
+    }
   }
 }
 

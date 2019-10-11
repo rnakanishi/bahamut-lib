@@ -5,15 +5,15 @@ timesteps = 100;
 first = dlmread([folder 'ls' num2str(0)]);
 N = (length(first(:, 1)))^(1/3) + 1;
 
-x = linspace(0, 1, N);
-% x = linspace(-5, 5, N);
+% x = linspace(0, 1, N);
+x = linspace(-5, 5, N);
 dx = x(2) - x(1);
 [X, Y, Z] = meshgrid(x, x, x);
 
 az = 0;
 el = -90;
 
-fig = figure('position', [350, 150, 1500, 1500]);
+fig = figure('position', [10, 300, 1900, 1400]);
 % figure/
 hold on;
 
@@ -36,8 +36,12 @@ for t = 0:1:181
     % positives = particles(row, :);
 
     % clf, hold on;
-
-    % plot3(negatives(1:2:end, 1), negatives(1:2:end, 2), negatives(1:2:end, 3), 'markersize', 0.5, 'b.', 'LineStyle', 'none');
+    % % subplot(122);
+    % plot3(negatives(1:1:end, 1), negatives(1:1:end, 2), negatives(1:1:end, 3), 'markersize', 5, 'b.', 'LineStyle', 'none');
+    % view(az, el);
+    % axis(vis)
+    % axis equal;
+    % grid off;
     % plot3(positives(1:10:end, 1), positives(1:10:end, 2), positives(1:10:end, 3), 'markersize', 0.5, 'r.', 'LineStyle', 'none' );
 
     % quiver(particles(:, 1), particles(:, 2), particles(:, 2), -particles(:, 1));
@@ -52,16 +56,18 @@ for t = 0:1:181
     levely = reshape(levelset(:, 1), N, N, N);
     levelz = reshape(levelset(:, 3), N, N, N);
 
+    % subplot(121);
     clf;
     hold on;
     view(az, el);
     [face, vert] = isosurface(levelx, levely, levelz, values, 0);
-    p = patch("Faces", face, "Vertices", vert, "EdgeColor", "none");
+    % p = patch("Faces", face, "Vertices", vert, "EdgeColor", "none", "facealpha", 0.7);
+    p = trisurf(face, vert(:, 1), vert(:, 2), vert(:, 3));
     pbaspect([1 1 1]);
     isonormals(levelx, levely, levelz, values, p);
-    set(p, "FaceColor", "cyan", "FaceLighting", "gouraud");
+    set(p, "facecolor", "cyan", "edgecolor", "none", "FaceLighting", "gouraud");
     material dull
-    light("Position", [3 -.5 .5],  "color", [0.95 0.95 0.95]);
+    light("Position", [3 -.5 .5], "color", [0.95 0.95 0.95]);
     light("Position", [-0.25 1 -.5], "color", [0.6 0.6 0.6]);
     % light("Position", [0 0 10], "color", [0.95 0.95 0.95]);
     % light("Position", [-5 -5 0], "color", [0.6 0.6 0.6]);
@@ -103,17 +109,18 @@ for t = 0:1:181
     axis(vis);
     axis off;
     rotate3d on;
-    pause( );
-    % imagename = sprintf("../results/images/3d/pls_deform_weno/%04d.jpg", t);
-    % print(fig, imagename, "-S1150,1000");
+    pause(0);
+    imagename = sprintf("../results/images/3d/pls_deform_lagrangean/%04d.jpg", t);
+    print(fig, imagename, "-S1150,1000");
+    fprintf("Written: %s\n", imagename);
 
     % pause;
     [az, el] = view();
 end
 
-levelset = dlmread([folder 'ls' num2str(0)]);
-values = reshape(levelset(:, 3), N, N)';
-levelx = reshape(levelset(:, 1), N, N)';
-levely = reshape(levelset(:, 2), N, N)';
-hold on;
-contour(levelx, levely, values, [0, 0], 'k:', 'linewidth', 3);
+% levelset = dlmread([folder 'ls' num2str(0)]);
+% values = reshape(levelset(:, 3), N, N)';
+% levelx = reshape(levelset(:, 1), N, N)';
+% levely = reshape(levelset(:, 2), N, N)';
+% hold on;
+% contour(levelx, levely, values, [0, 0], 'k:', 'linewidth', 3);

@@ -197,11 +197,11 @@ int main(int argc, char const *argv[]) {
   for (int i = 0; i <= 180; i++) {
     timer.clearAll();
     timer.reset();
-    timer.registerTime("faceVelocity");
     system.applyCfl();
     timer.registerTime("cfl");
 
     system.defineVelocity(i);
+    timer.registerTime("faceVelocity");
     do {
       system.findSurfaceCells(4.0 * h[0]);
       timer.registerTime("trackSurface");
