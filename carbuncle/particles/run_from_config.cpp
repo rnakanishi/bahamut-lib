@@ -6,6 +6,8 @@
 #include <utils/timer.hpp>
 #include <utils/file_writer.h>
 #include <pugixml.hpp>
+#include <iterator>
+#include <cstdio>
 
 class PLevelSet3 : public Leviathan::ParticleLevelSet3 {
 public:
@@ -14,6 +16,7 @@ public:
   PLevelSet3(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain)
       : ParticleLevelSet3(gridSize, domain) {
     _maxParticles = 80;
+    lscount = 0;
     // _dt = 1 / 30.;
   }
 
@@ -60,10 +63,9 @@ public:
 
   void printLevelSet() {
     auto &phi = getCellScalarData(_phiId);
-    static int count = 0;
     std::ofstream file;
     std::stringstream filename;
-    filename << baseFolder << "/ls" << count++;
+    filename << baseFolder << "ls" << lscount++;
     file.open(filename.str().c_str(), std::ofstream::out);
     if (!file.is_open()) {
       std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
@@ -166,6 +168,7 @@ public:
   void setBaseFolder(std::string folder) { baseFolder = folder; }
 
 protected:
+  int lscount;
   std::string baseFolder;
 };
 
@@ -174,155 +177,338 @@ public:
   Setup() { _simulationType = -1; }
 
   Setup(std::string filename) : Setup() {
-    pugi::xml_document xmlDoc;
-    _parseResult = xmlDoc.load_file(filename.c_str());
+    auto parseResult = _document.load_file(filename.c_str());
+    auto root = _document.children("simulation");
+
+    _numberOfSimulations = std::distance(root.begin(), root.end());
+    _currentSimulation = 0;
+
+    getSimulationType();
+  }
+
+  void nextSimulation() {
+    // TODO: ALL STRUCTURES: implement proper destructor for poiners
+    _currentSimulation++;
+
+    // Check simulation type
+    getSimulationType();
+
+    // Configure simulations parameters
+
+    // run and save values
+  }
+
+  void prepareSimulation() {
+    // Read parameters
     pugi::xml_node node;
-    node = xmlDoc.child("simulation");
+    node = _document.child("simulation");
+    for (int siblings = 0; siblings < _currentSimulation; siblings++)
+      node = node.next_sibling();
+
+    node = node.child("parameters");
+
+    // Simulatino parameters
+    int size;
+    double domainMin, domainMax, dt = 1 / 60.;
+    int maxParticles;
+
+    sscanf(node.child("gridSize").child_value(), "%d", &size);
+    sscanf(node.child("domain").child_value(), "%lf %lf", &domainMin,
+           &domainMax);
+    sscanf(node.child("frames").child_value(), "%d", &_frames);
+    sscanf(node.child("dt").child_value(), "%lf", &dt);
+
+    maxParticles = 80;
+    if (!node.child("maxParticles").empty())
+      sscanf(node.child("maxParticles").child_value(), "%d", &maxParticles);
+
+    Eigen::Array3i gridSize(size);
+    Ramuh::BoundingBox3 domain(domainMin, domainMax);
+
+    _simulation = PLevelSet3(gridSize, domain);
+
+    // Simulation output data
+    std::string baseFolder(node.parent().child("baseFolder").child_value());
+    _simulation.setBaseFolder(baseFolder);
+    _logFilename =
+        baseFolder + std::string(node.parent().child("logfile").child_value());
+
+    // Confirming read data
+    std::cout << "\n\n";
+    std::cout << "**************************************\n";
+    std::cout << "**************************************\n";
+    std::cout << "Read the following data from xml file:\n";
+    std::cout << "gridSize: " << size << std::endl;
+    std::cout << "Frames: " << _frames << std::endl;
+    std::cout << "dt: " << dt << std::endl;
+    std::cout << "Base folder for results:  " << baseFolder << std::endl;
+
+    // Initalizing domain
+    Ramuh::Timer initTimer;
+
+    _simulation.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
+    _simulation.setMaxParticles(maxParticles);
+    _simulation.setDt(dt);
+    initTimer.registerTime("Initialization");
+    _simulation.redistance();
+    initTimer.registerTime("Redistance");
+
+    _simulation.seedParticlesNearSurface();
+    initTimer.registerTime("Particles seeding");
+    _simulation.printParticles();
+    _simulation.printLevelSet();
+    initTimer.registerTime("printFile");
+    initTimer.evaluateComponentsTime();
+  }
+
+  int getSimulationCount() { return _numberOfSimulations; }
+
+  int getSimulationType() {
+    pugi::xml_node node = _document.child("simulation");
+    for (int siblings = 0; siblings < _currentSimulation; siblings++)
+      node = node.next_sibling();
+
+    node = node.child("parameters");
     node = node.child("type");
 
-    std::string type(node.child_value());
-    if (!type.compare("particle_level_set"))
+    _simulationTypeString = node.child_value();
+    if (!_simulationTypeString.compare("particle_level_set"))
       _simulationType = 0;
-    if (!type.compare("weno_advection"))
+    if (!_simulationTypeString.compare("weno_advection"))
       _simulationType = 1;
-    if (!type.compare("semi_lagrangean"))
+    if (!_simulationTypeString.compare("semi_lagrangean"))
       _simulationType = 2;
 
     if (_simulationType < 0)
       std::cerr << "\033[1;31m[ERROR]\033[0m"
-                << " Parser failed on checking simulation type " << filename
-                << std::endl;
+                << " Parser failed on checking simulation type "
+                << _document.name() << std::endl;
 
-    std::cerr << " Got " << type << " type " << _simulationType << "\n";
-  }
+    std::cout << " Got " << _simulationTypeString
+              << " type: " << _simulationType << "\n";
 
-  int getSimulationType() {
-    // 0 Particle levelset
-    // 1 weno Advection
-    // 2 Semi lagrangean advection
     return _simulationType;
   }
 
-  std::string getSimulationName() {
-    if (_simulationType == 0)
-      return "Particle Level Set";
-    if (_simulationType == 1)
-      return "WENO advection scheme";
-    if (_simulationType == 2)
-      return "Semi Lagrangean scheme";
-    return "";
+  void runAllSimulations() {
+    for (size_t sim = 0; sim < _numberOfSimulations; sim++) {
+      prepareSimulation();
+      run();
+      nextSimulation();
+    }
   }
 
   void configureSimulation(PLevelSet3 &simulation) {}
 
+  void run() {
+
+    pugi::xml_node node;
+    node = _document.child("simulation");
+    for (int siblings = 0; siblings < _currentSimulation; siblings++)
+      node = node.next_sibling();
+    std::string baseFolder(node.child("baseFolder").child_value());
+
+    int lastRedistance = 0;
+    int pReseed = 0;
+    auto h = _simulation.getH();
+    std::vector<int> particleHistory;
+    int advectionType = getSimulationType();
+
+    Ramuh::Timer timer;
+    for (int i = 0; i <= _frames; i++) {
+      timer.clearAll();
+      timer.reset();
+      _simulation.defineVelocity(i);
+      timer.registerTime("faceVelocity");
+      _simulation.applyCfl();
+      timer.registerTime("cfl");
+
+      do {
+        if (advectionType == 0 || advectionType == 2) {
+          _simulation.findSurfaceCells(4.0 * h[0]);
+          timer.registerTime("trackSurface");
+        }
+
+        if (advectionType == 2) {
+          _simulation.computeCellVelocity();
+          // _simulation.computeWenoGradient();
+          // _simulation.advectUpwind();
+          _simulation.advectSemiLagrangean();
+        } else
+          _simulation.advectWeno();
+        timer.registerTime("cellAdvection");
+
+        if (advectionType == 0) {
+          _simulation.advectParticles((double)i / 3.0);
+          timer.registerTime("particleAdvect");
+          particleHistory.emplace_back(_simulation.getParticleCount());
+
+          if (_simulation.correctLevelSetWithParticles()) {
+            timer.registerTime("correction");
+
+            lastRedistance = 0;
+            _simulation.redistance();
+            timer.registerTime("redistance");
+
+            _simulation.correctLevelSetWithParticles();
+            timer.registerTime("correction2");
+          } else
+            timer.registerTime("correction");
+        }
+
+        // if (lastRedistance >= 5) {
+        lastRedistance = 0;
+        _simulation.redistance();
+        timer.registerTime("redistance");
+        // }
+        // lastRedistance++;
+      } while (!_simulation.advanceTime());
+
+      if (advectionType == 0) {
+        if (i % 5 == 0) {
+          _simulation.reseedParticles();
+          timer.registerTime("reseed");
+
+          _simulation.adjustParticleRadius();
+          timer.registerTime("radiusAdjust");
+          std::cout << " Final count: " << _simulation.getParticleCount()
+                    << " particles\n";
+        }
+        // _simulation.printParticles();
+      }
+
+      _simulation.printLevelSet();
+      timer.registerTime("print");
+
+      timer.evaluateComponentsTime();
+      if (i % 5 == 0)
+        timer.evaluateComponentsAverageTime();
+
+      timer.logToFile(_logFilename);
+      Ramuh::FileWriter::writeArrayToFile(baseFolder + "particleCount.txt",
+                                          particleHistory);
+    }
+
+    timer.evaluateComponentsAverageTime();
+  }
+
 private:
   int _simulationType;
-  pugi::xml_parse_result _parseResult;
+  pugi::xml_document _document;
+  int _numberOfSimulations, _currentSimulation;
+  std::string _simulationTypeString;
+
+  PLevelSet3 _simulation;
+  int _frames;
+  std::string _logFilename;
 };
 
 int main(int argc, char const *argv[]) {
-  PLevelSet3 system(Eigen::Array3i(100), Ramuh::BoundingBox3(0, 1));
+  // PLevelSet3 system(Eigen::Array3i(100), Ramuh::BoundingBox3(0, 1));
   Setup configuration("./carbuncle/configs/pls.xml");
-  system.setBaseFolder("results/particles/3d/pls_deform");
+  configuration.runAllSimulations();
+  return 1;
 
-  Ramuh::Timer initTimer;
+  // return 1;
+  // system.setBaseFolder("results/particles/3d/pls_deform");
 
-  system.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
-  initTimer.registerTime("Initialization");
-  system.redistance();
-  initTimer.registerTime("Redistance");
+  // Ramuh::Timer initTimer;
 
-  system.seedParticlesNearSurface();
-  initTimer.registerTime("Particles seeding");
-  system.printParticles();
-  system.printLevelSet();
-  initTimer.registerTime("printFile");
-  initTimer.evaluateComponentsTime();
+  // system.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
+  // initTimer.registerTime("Initialization");
+  // system.redistance();
+  // initTimer.registerTime("Redistance");
 
-  int lastRedistance = 0;
-  int pReseed = 0;
-  auto h = system.getH();
-  std::vector<int> particleHistory;
-  Ramuh::Timer timer;
-  std::cerr << "Starting simulation: " << configuration.getSimulationName()
-            << "\n";
-  int advectionType = configuration.getSimulationType();
+  // system.seedParticlesNearSurface();
+  // initTimer.registerTime("Particles seeding");
+  // system.printParticles();
+  // system.printLevelSet();
+  // initTimer.registerTime("printFile");
+  // initTimer.evaluateComponentsTime();
 
-  for (int i = 0; i <= 180; i++) {
-    timer.clearAll();
-    timer.reset();
-    system.defineVelocity(i);
-    timer.registerTime("faceVelocity");
-    system.applyCfl();
-    timer.registerTime("cfl");
+  // int lastRedistance = 0;
+  // int pReseed = 0;
+  // auto h = system.getH();
+  // std::vector<int> particleHistory;
+  // Ramuh::Timer timer;
 
-    do {
-      if (advectionType == 0 || advectionType == 1) {
-        system.findSurfaceCells(4.0 * h[0]);
-        timer.registerTime("trackSurface");
-      }
+  // int advectionType = configuration.getSimulationType();
 
-      if (advectionType == 2) {
-        system.computeCellVelocity();
-        // system.computeWenoGradient();
-        // system.advectUpwind();
-        system.advectSemiLagrangean();
-      } else
-        system.advectWeno();
-      timer.registerTime("cellAdvection");
+  // for (int i = 0; i <= 180; i++) {
+  //   timer.clearAll();
+  //   timer.reset();
+  //   system.defineVelocity(i);
+  //   timer.registerTime("faceVelocity");
+  //   system.applyCfl();
+  //   timer.registerTime("cfl");
 
-      if (advectionType == 0) {
-        system.advectParticles((double)i / 3.0);
-        timer.registerTime("particleAdvect");
-        particleHistory.emplace_back(system.getParticleCount());
+  //   do {
+  //     if (advectionType == 0 || advectionType == 2) {
+  //       system.findSurfaceCells(4.0 * h[0]);
+  //       timer.registerTime("trackSurface");
+  //     }
 
-        if (system.correctLevelSetWithParticles()) {
-          timer.registerTime("correction");
+  //     if (advectionType == 2) {
+  //       system.computeCellVelocity();
+  //       // system.computeWenoGradient();
+  //       // system.advectUpwind();
+  //       system.advectSemiLagrangean();
+  //     } else
+  //       system.advectWeno();
+  //     timer.registerTime("cellAdvection");
 
-          lastRedistance = 0;
-          system.redistance();
-          timer.registerTime("redistance");
+  //     if (advectionType == 0) {
+  //       system.advectParticles((double)i / 3.0);
+  //       timer.registerTime("particleAdvect");
+  //       particleHistory.emplace_back(system.getParticleCount());
 
-          system.correctLevelSetWithParticles();
-          timer.registerTime("correction2");
-        } else
-          timer.registerTime("correction");
-      }
+  //       if (system.correctLevelSetWithParticles()) {
+  //         timer.registerTime("correction");
 
-      // if (lastRedistance >= 5) {
-      lastRedistance = 0;
-      system.redistance();
-      timer.registerTime("redistance");
-      // }
-      // lastRedistance++;
-    } while (!system.advanceTime());
+  //         lastRedistance = 0;
+  //         system.redistance();
+  //         timer.registerTime("redistance");
 
-    if (advectionType == 0) {
-      if (i % 5 == 0) {
-        system.reseedParticles();
-        timer.registerTime("reseed");
+  //         system.correctLevelSetWithParticles();
+  //         timer.registerTime("correction2");
+  //       } else
+  //         timer.registerTime("correction");
+  //     }
 
-        system.adjustParticleRadius();
-        timer.registerTime("radiusAdjust");
-        std::cerr << " Final count: " << system.getParticleCount()
-                  << " particles\n";
-      }
-      // system.printParticles();
-    }
+  //     // if (lastRedistance >= 5) {
+  //     lastRedistance = 0;
+  //     system.redistance();
+  //     timer.registerTime("redistance");
+  //     // }
+  //     // lastRedistance++;
+  //   } while (!system.advanceTime());
 
-    system.printLevelSet();
-    timer.registerTime("print");
+  //   if (advectionType == 0) {
+  //     if (i % 5 == 0) {
+  //       system.reseedParticles();
+  //       timer.registerTime("reseed");
 
-    timer.evaluateComponentsTime();
-    if (i % 5 == 0)
-      timer.evaluateComponentsAverageTime();
+  //       system.adjustParticleRadius();
+  //       timer.registerTime("radiusAdjust");
+  //       std::cout << " Final count: " << system.getParticleCount()
+  //                 << " particles\n";
+  //     }
+  //     // system.printParticles();
+  //   }
 
-    timer.logToFile("./results/log_weno.csv");
-    Ramuh::FileWriter::writeArrayToFile("./results/particleCount.txt",
-                                        particleHistory);
-  }
+  //   system.printLevelSet();
+  //   timer.registerTime("print");
 
-  timer.evaluateComponentsAverageTime();
+  //   timer.evaluateComponentsTime();
+  //   if (i % 5 == 0)
+  //     timer.evaluateComponentsAverageTime();
+
+  //   timer.logToFile("./results/log_weno.csv");
+  //   Ramuh::FileWriter::writeArrayToFile("./results/particleCount.txt",
+  //                                       particleHistory);
+  // }
+
+  // timer.evaluateComponentsAverageTime();
 
   return 0;
 }

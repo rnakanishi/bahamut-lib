@@ -29,6 +29,11 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
   _isSurfaceCell.resize(cellCount(), false);
 }
 
+void LevelSetFluid3::setDt(double dt) {
+  _originalDt = _dt = dt;
+  _ellapsedDt = 0;
+}
+
 void LevelSetFluid3::computeCellsGradient() {
   auto &phi = getCellScalarData("phi");
   auto &gradient = getCellArrayData("cellGradient");

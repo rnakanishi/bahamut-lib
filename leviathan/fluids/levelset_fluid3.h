@@ -12,6 +12,8 @@ public:
   LevelSetFluid3();
   LevelSetFluid3(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain);
 
+  void setDt(double dt);
+
   /**
    * @brief compute semi Lagrangean advection for levelset values: compute
    * inverse time integration and then interpolate value where the cell position

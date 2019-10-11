@@ -13,6 +13,10 @@ public:
 
   ParticleLevelSet3(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain);
 
+  ~ParticleLevelSet3();
+
+  void setMaxParticles(int maxParticles);
+
   /**
    * @brief Compute Euler advection scheme to the particles. This method does
    * not set velocities values to the particles, so this step should be called

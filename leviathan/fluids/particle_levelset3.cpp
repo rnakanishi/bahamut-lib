@@ -27,6 +27,8 @@ ParticleLevelSet3::ParticleLevelSet3(Eigen::Array3i gridSize,
   _maxParticles = 128;
 }
 
+ParticleLevelSet3::~ParticleLevelSet3() {}
+
 void ParticleLevelSet3::advectEuler() {
   auto &velocity = getParticleArrayData(_particleVelocityId);
   auto &position = getParticleArrayData(_particlePositionsId);
@@ -37,6 +39,10 @@ void ParticleLevelSet3::advectEuler() {
       position[i] = position[i] + _dt * velocity[i];
     }
   }
+}
+
+void ParticleLevelSet3::setMaxParticles(int maxParticles) {
+  _maxParticles = maxParticles;
 }
 
 void ParticleLevelSet3::advectParticles(double time) {

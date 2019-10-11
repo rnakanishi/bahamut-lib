@@ -11,6 +11,8 @@ Timer::Timer() {
   _resetTimes = 1;
   _silence = false;
   std::cout << "\033[21;32m===[Timer created]=== \033[0m\n";
+
+  _log["total"] = std::vector<double>();
 }
 
 void Timer::setLogging(bool silence) { _silence = silence; }
@@ -77,7 +79,8 @@ void Timer::evaluateComponentsTime() {
               << std::setprecision(4) << comp.second / total * 100 << "\%)\n";
     _log[comp.first].emplace_back(comp.second);
   }
-  std::cout << "Total time: " << getLapTime() << std::endl;
+  _log["total"].emplace_back(total);
+  std::cout << "Total time: " << total << std::endl;
   std::cout << "===============================\n";
 }
 
