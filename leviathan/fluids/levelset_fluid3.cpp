@@ -27,7 +27,10 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
 
   _cellGradientId = newCellArrayLabel("cellGradient");
   _isSurfaceCell.resize(cellCount(), false);
+  _surfaceCellCount = 0;
 }
+
+int LevelSetFluid3::getSurfaceCellCount() { return _surfaceCellCount; }
 
 void LevelSetFluid3::setDt(double dt) {
   _originalDt = _dt = dt;
@@ -682,6 +685,8 @@ std::vector<int> LevelSetFluid3::findSurfaceCells(double surfaceDistance) {
                              threadBand.end());
     }
   }
+
+  _surfaceCellCount = _surfaceCellIds.size();
   return _surfaceCellIds;
 }
 

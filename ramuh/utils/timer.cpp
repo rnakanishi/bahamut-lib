@@ -1,6 +1,7 @@
 #include <utils/timer.hpp>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <fstream>
 
 namespace Ramuh {
@@ -20,11 +21,13 @@ void Timer::setLogging(bool silence) { _silence = silence; }
 void Timer::reset() {
   _start = _lastLap = std::chrono::steady_clock::now();
   _resetTimes++;
+  clearAll();
 }
 
 void Timer::clearAll() {
   for (auto &comp : _components) {
     comp.second = 0.0;
+    _callsBeforeReset[comp.first] = 0;
   }
 }
 
@@ -48,10 +51,12 @@ double Timer::registerTime(const std::string &name, bool silence) {
     _cumulative[name] = 0.0;
     _log[name] = std::vector<double>();
     _calls[name] = 0;
+    _callsBeforeReset[name] = 0;
   }
   _components[name] += timeInterval;
   _cumulative[name] += timeInterval;
   _calls[name]++;
+  _callsBeforeReset[name]++;
   if (name.length() > _longestName)
     _longestName = name.length();
 
@@ -77,7 +82,9 @@ void Timer::evaluateComponentsTime() {
     std::cout << std::setw(_longestName) << comp.first << ":\t"
               << std::setprecision(4) << comp.second << "\t(" << std::setw(4)
               << std::setprecision(4) << comp.second / total * 100 << "\%)\n";
-    _log[comp.first].emplace_back(comp.second);
+
+    int ncalls = _callsBeforeReset[comp.first];
+    _log[comp.first].emplace_back(comp.second / (double)ncalls);
   }
   _log["total"].emplace_back(total);
   std::cout << "Total time: " << total << std::endl;
@@ -102,22 +109,35 @@ void Timer::evaluateComponentsAverageTime() {
 void Timer::logToFile(std::string filename) {
   static int count = 0;
   std::ofstream file;
+
   file.open(filename, std::ofstream::out);
   if (!file.is_open()) {
     std::cerr << "\033[1;31mError\033[0m Timer::logToFile: Failed to open "
               << filename << std::endl;
     return;
   }
+
+  std::ostringstream buffer;
+  int steps = 0;
   for (auto field : _log) {
-    file << field.first << ", ";
-    for (size_t i = 0; i < field.second.size(); i++) {
-      double timestamp = field.second[i];
-      file << timestamp;
-      if (i < field.second.size() - 1)
-        file << ", ";
-      else
-        file << std::endl;
+    buffer << field.first << ", ";
+    steps = (steps < field.second.size()) ? field.second.size() : steps;
+  }
+  buffer.seekp(-2, buffer.cur);
+  buffer << std::endl;
+  file << buffer.str();
+
+  for (size_t i = 0; i < steps; i++) {
+    buffer = std::ostringstream("");
+    for (auto field : _log) {
+      if (field.second.size() >= steps - 1) {
+        double timestamp = field.second[i];
+        buffer << timestamp << ", ";
+      }
     }
+    buffer.seekp(-2, buffer.cur);
+    buffer << std::endl;
+    file << buffer.str();
   }
   file.close();
   std::cout << "File written: " << filename << std::endl;

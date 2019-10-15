@@ -298,8 +298,6 @@ public:
     }
   }
 
-  void configureSimulation(PLevelSet3 &simulation) {}
-
   void run() {
 
     pugi::xml_node node;
@@ -312,6 +310,7 @@ public:
     int pReseed = 0;
     auto h = _simulation.getH();
     std::vector<int> particleHistory;
+    std::vector<int> cellHistory;
     int advectionType = getSimulationType();
 
     Ramuh::Timer timer;
@@ -341,7 +340,6 @@ public:
         if (advectionType == 0) {
           _simulation.advectParticles((double)i / 3.0);
           timer.registerTime("particleAdvect");
-          particleHistory.emplace_back(_simulation.getParticleCount());
 
           if (_simulation.correctLevelSetWithParticles()) {
             timer.registerTime("correction");
@@ -365,15 +363,16 @@ public:
       } while (!_simulation.advanceTime());
 
       if (advectionType == 0) {
-        if (i % 5 == 0) {
-          _simulation.reseedParticles();
-          timer.registerTime("reseed");
+        // if (i % 5 == 0) {
+        _simulation.reseedParticles();
+        particleHistory.emplace_back(_simulation.getParticleCount());
+        timer.registerTime("reseed");
 
-          _simulation.adjustParticleRadius();
-          timer.registerTime("radiusAdjust");
-          std::cout << " Final count: " << _simulation.getParticleCount()
-                    << " particles\n";
-        }
+        _simulation.adjustParticleRadius();
+        timer.registerTime("radiusAdjust");
+        std::cout << " Final count: " << _simulation.getParticleCount()
+                  << " particles\n";
+        // }
         // _simulation.printParticles();
       }
 
@@ -387,6 +386,10 @@ public:
       timer.logToFile(_logFilename);
       Ramuh::FileWriter::writeArrayToFile(baseFolder + "particleCount.txt",
                                           particleHistory);
+
+      cellHistory.emplace_back(_simulation.getSurfaceCellCount());
+      Ramuh::FileWriter::writeArrayToFile(baseFolder + "cellCount.txt",
+                                          cellHistory);
     }
 
     timer.evaluateComponentsAverageTime();

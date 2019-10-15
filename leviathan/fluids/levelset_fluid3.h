@@ -12,6 +12,8 @@ public:
   LevelSetFluid3();
   LevelSetFluid3(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain);
 
+  int getSurfaceCellCount();
+
   void setDt(double dt);
 
   /**
@@ -140,6 +142,7 @@ protected:
   /// All cells that are part of the interface are marked as true
   std::vector<bool> _isSurfaceCell;
   std::vector<int> _surfaceCellIds;
+  int _surfaceCellCount;
 };
 
 } // namespace Leviathan

@@ -77,7 +77,7 @@ void ParticleLevelSet3::interpolateVelocityToParticles(double time) {
 
 #pragma omp for
   for (size_t pid = 0; pid < _totalIds; pid++) {
-    auto p = position[pid];
+    Eigen::Array3d p = position[pid];
     if (!_active[pid])
       continue;
 

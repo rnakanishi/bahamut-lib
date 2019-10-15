@@ -1,6 +1,64 @@
+<!-- 
 <simulation>
-	<type>weno_advection</type>
-	<gridSize>100</gridSize>
-	<timesteps>180</timesteps>
-	<dt>0.02</dt>
+	<parameters>
+		<type>semi_lagrangean</type>
+		<gridSize>100</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+	</parameters>
+	<baseFolder>results/particles/3d/semiL/enright/</baseFolder>
+	<logfile>semiL_log.csv</logfile>
+</simulation>
+ -->
+<!-- 
+<simulation>
+	<parameters>
+		<type>weno_advection</type>
+		<gridSize>100</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+	</parameters>
+	<logfile>weno_log.csv</logfile>
+	<baseFolder>results/particles/3d/weno/enright/</baseFolder>
+</simulation>
+ -->
+<simulation>
+	<parameters>
+		<type>particle_level_set</type>
+		<gridSize>100</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>20</maxParticles>
+	</parameters>
+	<logfile>pls_log20.csv</logfile>
+	<baseFolder>results/particles/3d/pls/enright/20/</baseFolder>
+</simulation>
+
+<simulation>
+	<parameters>
+		<type>particle_level_set</type>
+		<gridSize>100</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>40</maxParticles>
+	</parameters>
+	<logfile>pls_log40.csv</logfile>
+	<baseFolder>results/particles/3d/pls/enright/40/</baseFolder>
+</simulation>
+
+<simulation>
+	<parameters>
+		<type>particle_level_set</type>
+		<gridSize>100</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>80</maxParticles>
+	</parameters>
+	<logfile>pls_log80.csv</logfile>
+	<baseFolder>results/particles/3d/pls/enright/80/</baseFolder>
 </simulation>

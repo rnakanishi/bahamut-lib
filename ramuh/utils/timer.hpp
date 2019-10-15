@@ -81,7 +81,7 @@ protected:
   std::map<std::string, double> _components;
   std::map<std::string, double> _cumulative;
   std::map<std::string, std::vector<double>> _log;
-  std::map<std::string, int> _calls;
+  std::map<std::string, int> _calls, _callsBeforeReset;
   int _resetTimes;
   bool _silence;
 };

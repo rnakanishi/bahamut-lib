@@ -1,6 +1,6 @@
 clear;
 
-folder = '~/git/bahamut-lib/results/particles/3d/pls_deform/';
+folder = '/home/rnakanishi/git/bahamut-lib/results/particles/3d/weno/enright/';
 timesteps = 100;
 first = dlmread([folder 'ls' num2str(0)]);
 N = (length(first(:, 1)))^(1/3) + 1;
@@ -22,7 +22,7 @@ vis = [0 1 0 1 0 1];
 
 print("Starting loop")
 
-for t = 0:1:181
+for t = 120:1:181
     title([num2str(t) "..."]);
     drawnow;
     % for t = [100 150 200]
@@ -110,9 +110,9 @@ for t = 0:1:181
     axis off;
     rotate3d on;
     pause(0);
-    imagename = sprintf("../results/images/3d/pls_deform_lagrangean/%04d.jpg", t);
-    print(fig, imagename, "-S1150,1000");
-    fprintf("Written: %s\n", imagename);
+    % imagename = sprintf("../results/images/3d/pls_deform_lagrangean/%04d.jpg", t);
+    % print(fig, imagename, "-S1150,1000");
+    % fprintf("Written: %s\n", imagename);
 
     % pause;
     [az, el] = view();
