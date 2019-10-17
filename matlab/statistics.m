@@ -4,14 +4,14 @@ folder = "../results/statistics/enright/";
 files = [
     folder "pls_log20.csv";
     folder "pls_log40.csv";
-    folder "pls_log80.csv";
+    % folder "pls_log80.csv";
     folder "weno_log.csv";
     folder "semiL_log.csv"
     ];
 labels = [
     'Particle Levelset 20';
     'Particle Levelset 40';
-    'Particle Levelset 80';
+    % 'Particle Levelset 80';
     'Weno advection';
     'Semi Lagrangean'];
 
@@ -36,8 +36,8 @@ hold on;
 title(deblank(titles(4, :)), 'fontsize', 14)
 
 for index = 1:nfiles
-    totaltime = data{index}(:, 2:end);
-    totaltime = sum(totaltime) - totaltime(end - 1, :);
+    totaltime = data{index}(2:end, :);
+    totaltime = sum(totaltime,2) - totaltime(:, end - 1);
     h = plot((1:length(totaltime)), totaltime);
     set(h, 'color', colors(index, :));
     set(h, 'linewidth', 1.5);
@@ -61,7 +61,7 @@ hold on;
 title(deblank(titles(1, :)), 'fontsize', 14)
 
 for index = 1:nfiles
-    h = plot((1:length(data{index}(1, 2:end))), data{index}(1, 2:end));
+    h = plot((1:length(data{index}(2:end, 1))), data{index}(2:end, 1));
     set(h, 'color', colors(index, :));
     set(h, 'linewidth', 1.5);
 end
@@ -82,11 +82,13 @@ subplot(223); % figure;
 hold on;
 title(deblank(titles(2, :)), 'fontsize', 14)
 
-cells = ['20'; '40'; '80'; 'weno'; 'semilagrangean'];
+cells = ['20'; '40'; 
+% '80';
+ 'weno'; 'semilagrangean'];
 
 for index = 1:nfiles
 
-    cAdvection = data{index}(1, 2:end);
+    cAdvection = data{index}(2:end, 1);
     cCount = dlmread([folder 'cellCount_' deblank(cells(index, :)) '.txt']);
 
     [ax, h1, h2] = plotyy(1:length(cAdvection), cAdvection, (1:length(cCount)), cCount);
@@ -118,11 +120,11 @@ subplot(224); % figure;
 hold on;
 title(deblank(titles(3, :)), 'fontsize', 14)
 
-particles = ['20'; '40'; '80'];
+particles = ['20'; '40'];
 
 for index = 1:3
 
-    pAdvection = data{index}(6, 2:end);
+    pAdvection = data{index}(2:end, 6);
     pCount = dlmread([folder 'particleCount' particles(index, :) '.txt']);
 
     [~, ids] = unique(pCount);
