@@ -1,64 +1,64 @@
-<!-- 
+
 <simulation>
 	<parameters>
 		<type>semi_lagrangean</type>
-		<gridSize>100</gridSize>
+		<gridSize>128</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
 	</parameters>
-	<baseFolder>results/particles/3d/semiL/enright/</baseFolder>
+	<baseFolder>results/particles/3d/enright/semiL/</baseFolder>
 	<logfile>semiL_log.csv</logfile>
 </simulation>
- -->
-<!-- 
+
+
 <simulation>
 	<parameters>
 		<type>weno_advection</type>
-		<gridSize>100</gridSize>
+		<gridSize>128</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
 	</parameters>
 	<logfile>weno_log.csv</logfile>
-	<baseFolder>results/particles/3d/weno/enright/</baseFolder>
+	<baseFolder>results/particles/3d/enright/weno/</baseFolder>
 </simulation>
- -->
+
 <simulation>
 	<parameters>
 		<type>particle_level_set</type>
-		<gridSize>100</gridSize>
+		<gridSize>128</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
 		<maxParticles>20</maxParticles>
 	</parameters>
 	<logfile>pls_log20.csv</logfile>
-	<baseFolder>results/particles/3d/pls/enright/20/</baseFolder>
+	<baseFolder>results/particles/3d/enright/pls20/</baseFolder>
 </simulation>
 
 <simulation>
 	<parameters>
 		<type>particle_level_set</type>
-		<gridSize>100</gridSize>
+		<gridSize>128</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
 		<maxParticles>40</maxParticles>
 	</parameters>
 	<logfile>pls_log40.csv</logfile>
-	<baseFolder>results/particles/3d/pls/enright/40/</baseFolder>
+	<baseFolder>results/particles/3d/enright/pls40/</baseFolder>
 </simulation>
 
 <simulation>
 	<parameters>
 		<type>particle_level_set</type>
-		<gridSize>100</gridSize>
+		<gridSize>128</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
 		<maxParticles>80</maxParticles>
 	</parameters>
 	<logfile>pls_log80.csv</logfile>
-	<baseFolder>results/particles/3d/pls/enright/80/</baseFolder>
+	<baseFolder>results/particles/3d/enright/pls80/</baseFolder>
 </simulation>

@@ -11,6 +11,18 @@ CellCenteredGrid3::CellCenteredGrid3(BoundingBox3 domain,
                                      Eigen::Array3i gridSize)
     : _domain(domain), _gridSize(gridSize) {}
 
+void CellCenteredGrid3::setDomain(BoundingBox3 domain) { _domain = domain; }
+
+void CellCenteredGrid3::setGridSize(Eigen::Array3i gridsize) {
+  _gridSize = gridsize;
+}
+
+Eigen::Array3i CellCenteredGrid3::getGridSize() { return _gridSize; }
+
+Eigen::Array3i CellCenteredGrid3::getResolution() { return _gridSize; }
+
+BoundingBox3 CellCenteredGrid3::getDomain() { return _domain; }
+
 size_t CellCenteredGrid3::ijkToid(size_t i, size_t j, size_t k) {
   return k * _gridSize[0] * _gridSize[1] + j * _gridSize[0] + i;
 }

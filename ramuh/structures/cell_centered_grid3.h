@@ -18,6 +18,16 @@ public:
 
   size_t ijkToid(size_t i, size_t j, size_t k);
 
+  void setGridSize(Eigen::Array3i gridSize);
+
+  void setDomain(BoundingBox3 domain);
+
+  Eigen::Array3i getGridSize();
+
+  Eigen::Array3i getResolution();
+
+  BoundingBox3 getDomain();
+
   std::vector<int> idToijk(size_t id);
 
   /**

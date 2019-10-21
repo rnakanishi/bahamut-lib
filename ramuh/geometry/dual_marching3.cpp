@@ -12,8 +12,28 @@ DualMarching3::DualMarching3(Eigen::Array3i resolution) {
   _resolution = resolution;
 }
 
+Eigen::Array3i DualMarching3::convertKey(int index) {
+  Eigen::Array3i indices(3);
+  indices[2] = index / (_resolution[0] * _resolution[1]);
+  indices[1] = (index % (_resolution[0] * _resolution[1])) / _resolution[0];
+  indices[0] = (index % (_resolution[0] * _resolution[1])) % _resolution[0];
+  return indices;
+}
+
+int DualMarching3::convertKey(Eigen::Array3i index) {
+  int i, j, k;
+  i = index[0];
+  j = index[1];
+  k = index[2];
+  return k * _resolution[0] * _resolution[1] + j * _resolution[0] + i;
+}
+
+int DualMarching3::convertKey(int i, int j, int k) {
+  return k * _resolution[0] * _resolution[1] + j * _resolution[0] + i;
+}
+
 Eigen::Array3d
-DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
+DualMarching3::evaluateCube(Eigen::Array3i pointIndices,
                             std::vector<Eigen::Array3d> normalLocation,
                             std::vector<Eigen::Vector3d> normals) {
   return evaluateCube(pointIndices, normalLocation, normals,
@@ -21,54 +41,68 @@ DualMarching3::evaluateCube(std::tuple<int, int, int> pointIndices,
                                    Eigen::Array3d(1e8, 1e8, 1e8)));
 }
 
-Eigen::Array3d
-DualMarching3::evaluateCube(std::tuple<int, int, int> cellIndex,
-                            std::vector<Eigen::Array3d> normalLocation,
-                            std::vector<Eigen::Vector3d> normals,
-                            BoundingBox3 cubeLimits) {
-  if (_idMap.find(cellIndex) != _idMap.end())
-    return _points[_idMap[cellIndex]];
+Eigen::Array3d DualMarching3::evaluateCube(
+    Eigen::Array3i cellIndex, std::vector<Eigen::Array3d> normalLocation,
+    std::vector<Eigen::Vector3d> normals, BoundingBox3 cubeLimits) {
+  if (_idMap.find(convertKey(cellIndex)) != _idMap.end())
+    return _points[_idMap[convertKey(cellIndex)]];
 
   int nsize = normals.size();
-  Eigen::MatrixXd A(normals.size() + 3, 3);
-  Eigen::VectorXd b(normals.size() + 3);
+  Eigen::MatrixXd A(normals.size(), 3);
+  Eigen::VectorXd b(normals.size());
+  Eigen::MatrixXd Full(normals.size(), 4);
   Eigen::Vector3d normalAvg(0, 0, 0);
   Eigen::Array3d posAvg(0, 0, 0);
 
   for (int i = 0; i < normals.size(); i++) {
     A.row(i) << normals[i][0], normals[i][1], normals[i][2];
     b[i] = normals[i].dot(normalLocation[i].matrix());
-    b[i] = 0;
+    // b[i] = 0;
+    Full.row(i) << A.row(i), b[i];
+
     posAvg += normalLocation[i];
     normalAvg += normals[i];
   }
   // posAvg = cubeLimits.center();
   posAvg /= normalLocation.size();
-  normalAvg /= normals.size();
 
-  // Bias
-  // Adding more vectors so it enforces the new point to be inside the cube
-  A.row(nsize + 0) << 1e-1, 0., 0.;
-  A.row(nsize + 1) << 0., 1e-1, 0.;
-  A.row(nsize + 2) << 0., 0., 1e-1;
-  b[nsize + 0] = Eigen::Vector3d(1e-1, 0., 0.).dot(posAvg.matrix());
-  b[nsize + 1] = Eigen::Vector3d(0., 1e-1, 0.).dot(posAvg.matrix());
-  b[nsize + 2] = Eigen::Vector3d(0., 0., 1e-1).dot(posAvg.matrix());
-
-  // Check boundaries so the point remains inside, even if the ouside result is
-  // correct
-
-  Eigen::Vector3d x = (A).colPivHouseholderQr().solve(b);
+  // Eigen::Vector3d x = (A).colPivHouseholderQr().solve(b);
   // (A.transpose() * A).colPivHouseholderQr().solve(A.transpose() * b);
+  Eigen::HouseholderQR<Eigen::MatrixXd> qr(Full.rows(), Full.cols());
+  qr.compute(Full);
+  Eigen::MatrixXd Q = qr.householderQ();
+  Eigen::MatrixXd R = qr.matrixQR().triangularView<Eigen::Upper>();
 
-  if (!cubeLimits.contains(x)) {
-    // x = cubeLimits.clamp(x);
-    x = posAvg;
-    // TODO: implement constrained QEF solver
+  A = R.block<3, 3>(0, 0);
+  b = R.block<3, 1>(0, 3);
+
+  // Pseudo Inverse Computation
+  auto svd =
+      (A.adjoint() * A).jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
+  auto &singularValues = svd.singularValues();
+  Eigen::MatrixXd dInv(3, 3);
+  dInv.setZero();
+  for (size_t i = 0; i < 3; i++) {
+    if (singularValues(i) > 0.1)
+      dInv(i, i) = 1. / singularValues(i);
+    else
+      dInv(i, i) = 0.;
   }
+  Eigen::Matrix3d pseudoInv = svd.matrixV() * dInv * svd.matrixU().adjoint();
+
+  Eigen::Vector3d x;
+  x = pseudoInv * (A.adjoint() * b - A.adjoint() * A * posAvg.matrix());
+  x = x + posAvg.matrix();
+
+  // if (!cubeLimits.contains(x)) {
+  // std::cerr << "Clamp: " << x.transpose() << " -> " << posAvg.transpose()
+  // << std::endl;
+  // x = cubeLimits.clamp(x);
+  // x = posAvg;
+  // }
 
   int currIndex = _points.size();
-  _idMap[cellIndex] = currIndex;
+  _idMap[convertKey(cellIndex)] = currIndex;
   _points.emplace_back(x);
   _normals.emplace_back(normalAvg);
 
@@ -105,11 +139,10 @@ bool DualMarching3::_consistentNormals(std::vector<int> ids) {
 
 void DualMarching3::reconstruct() {
 
-  reconstruct(std::vector<std::pair<_Trio, _Trio>>());
+  reconstruct(std::vector<std::pair<int, int>>());
 }
 
-void DualMarching3::reconstruct(
-    std::vector<std::pair<_Trio, _Trio>> connections) {
+void DualMarching3::reconstruct(std::vector<std::pair<int, int>> connections) {
   _buildConnectionMap(connections);
 
   std::ofstream file;
@@ -141,27 +174,27 @@ void DualMarching3::reconstruct(
   for (int i = 0; i < _resolution[0]; i++)
     for (int j = 0; j < _resolution[1]; j++)
       for (int k = 0; k < _resolution[2]; k++) {
-        if (_idMap.find(std::make_tuple(i, j, k)) != _idMap.end()) {
+        if (_idMap.find(convertKey(i, j, k)) != _idMap.end()) {
           // Verify all directions
           // Right top
-          if (_idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i + 1, j + 1, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end()) {
-            if (_hasConnection(std::make_tuple(i, j, k),
-                               std::make_tuple(i + 1, j, k)) &&
-                _hasConnection(std::make_tuple(i + 1, j, k),
-                               std::make_tuple(i + 1, j + 1, k)) &&
-                _hasConnection(std::make_tuple(i + 1, j + 1, k),
-                               std::make_tuple(i, j + 1, k)) &&
-                _hasConnection(std::make_tuple(i, j + 1, k),
-                               std::make_tuple(i, j, k))) {
+          if (_idMap.find(convertKey(i + 1, j, k)) != _idMap.end() &&
+              _idMap.find(convertKey(i + 1, j + 1, k)) != _idMap.end() &&
+              _idMap.find(convertKey(i, j + 1, k)) != _idMap.end()) {
+            if (_hasConnection(Eigen::Array3i(i, j, k),
+                               Eigen::Array3i(i + 1, j, k)) &&
+                _hasConnection(Eigen::Array3i(i + 1, j, k),
+                               Eigen::Array3i(i + 1, j + 1, k)) &&
+                _hasConnection(Eigen::Array3i(i + 1, j + 1, k),
+                               Eigen::Array3i(i, j + 1, k)) &&
+                _hasConnection(Eigen::Array3i(i, j + 1, k),
+                               Eigen::Array3i(i, j, k))) {
 
               fCount++;
               std::vector<int> pIds;
-              pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i + 1, j + 1, k)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
+              pIds.emplace_back(_idMap[convertKey(i, j, k)]);
+              pIds.emplace_back(_idMap[convertKey(i + 1, j, k)]);
+              pIds.emplace_back(_idMap[convertKey(i + 1, j + 1, k)]);
+              pIds.emplace_back(_idMap[convertKey(i, j + 1, k)]);
               if (!_consistentNormals(pIds))
                 std::swap(pIds[0], pIds[2]);
               file << "f ";
@@ -172,23 +205,23 @@ void DualMarching3::reconstruct(
             }
           }
           // Front right
-          if (_idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i + 1, j, k + 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i + 1, j, k)) != _idMap.end()) {
-            if (_hasConnection(std::make_tuple(i, j, k),
-                               std::make_tuple(i, j, k + 1)) &&
-                _hasConnection(std::make_tuple(i, j, k + 1),
-                               std::make_tuple(i + 1, j, k + 1)) &&
-                _hasConnection(std::make_tuple(i + 1, j, k + 1),
-                               std::make_tuple(i + 1, j, k)) &&
-                _hasConnection(std::make_tuple(i + 1, j, k),
-                               std::make_tuple(i, j, k))) {
+          if (_idMap.find(convertKey(i, j, k + 1)) != _idMap.end() &&
+              _idMap.find(convertKey(i + 1, j, k + 1)) != _idMap.end() &&
+              _idMap.find(convertKey(i + 1, j, k)) != _idMap.end()) {
+            if (_hasConnection(Eigen::Array3i(i, j, k),
+                               Eigen::Array3i(i, j, k + 1)) &&
+                _hasConnection(Eigen::Array3i(i, j, k + 1),
+                               Eigen::Array3i(i + 1, j, k + 1)) &&
+                _hasConnection(Eigen::Array3i(i + 1, j, k + 1),
+                               Eigen::Array3i(i + 1, j, k)) &&
+                _hasConnection(Eigen::Array3i(i + 1, j, k),
+                               Eigen::Array3i(i, j, k))) {
               fCount++;
               std::vector<int> pIds;
-              pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k + 1)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i + 1, j, k)]);
+              pIds.emplace_back(_idMap[convertKey(i, j, k)]);
+              pIds.emplace_back(_idMap[convertKey(i, j, k + 1)]);
+              pIds.emplace_back(_idMap[convertKey(i + 1, j, k + 1)]);
+              pIds.emplace_back(_idMap[convertKey(i + 1, j, k)]);
               if (!_consistentNormals(pIds))
                 std::swap(pIds[0], pIds[2]);
               file << "f ";
@@ -199,23 +232,23 @@ void DualMarching3::reconstruct(
             }
           }
           // top front
-          if (_idMap.find(std::make_tuple(i, j + 1, k)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j + 1, k + 1)) != _idMap.end() &&
-              _idMap.find(std::make_tuple(i, j, k + 1)) != _idMap.end()) {
-            if (_hasConnection(std::make_tuple(i, j, k),
-                               std::make_tuple(i, j + 1, k)) &&
-                _hasConnection(std::make_tuple(i, j + 1, k),
-                               std::make_tuple(i, j + 1, k + 1)) &&
-                _hasConnection(std::make_tuple(i, j + 1, k + 1),
-                               std::make_tuple(i, j, k + 1)) &&
-                _hasConnection(std::make_tuple(i, j, k + 1),
-                               std::make_tuple(i, j, k))) {
+          if (_idMap.find(convertKey(i, j + 1, k)) != _idMap.end() &&
+              _idMap.find(convertKey(i, j + 1, k + 1)) != _idMap.end() &&
+              _idMap.find(convertKey(i, j, k + 1)) != _idMap.end()) {
+            if (_hasConnection(Eigen::Array3i(i, j, k),
+                               Eigen::Array3i(i, j + 1, k)) &&
+                _hasConnection(Eigen::Array3i(i, j + 1, k),
+                               Eigen::Array3i(i, j + 1, k + 1)) &&
+                _hasConnection(Eigen::Array3i(i, j + 1, k + 1),
+                               Eigen::Array3i(i, j, k + 1)) &&
+                _hasConnection(Eigen::Array3i(i, j, k + 1),
+                               Eigen::Array3i(i, j, k))) {
               fCount++;
               std::vector<int> pIds;
-              pIds.emplace_back(_idMap[std::make_tuple(i, j, k)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i, j + 1, k + 1)]);
-              pIds.emplace_back(_idMap[std::make_tuple(i, j, k + 1)]);
+              pIds.emplace_back(_idMap[convertKey(i, j, k)]);
+              pIds.emplace_back(_idMap[convertKey(i, j + 1, k)]);
+              pIds.emplace_back(_idMap[convertKey(i, j + 1, k + 1)]);
+              pIds.emplace_back(_idMap[convertKey(i, j, k + 1)]);
               if (!_consistentNormals(pIds))
                 std::swap(pIds[0], pIds[2]);
               file << "f ";
@@ -235,9 +268,7 @@ std::vector<Eigen::Array3d> &DualMarching3::getPoints() { return _points; }
 
 std::vector<Eigen::Vector3d> &DualMarching3::getNormals() { return _normals; }
 
-std::map<std::tuple<int, int, int>, int> &DualMarching3::getIdMap() {
-  return _idMap;
-}
+std::map<int, int> &DualMarching3::getIdMap() { return _idMap; }
 
 void DualMarching3::merge(DualMarching3 cube) {
   auto &points = cube.getPoints();
@@ -254,21 +285,21 @@ void DualMarching3::merge(DualMarching3 cube) {
   _idMap.insert(map.begin(), map.end());
 }
 
-bool DualMarching3::_hasConnection(std::tuple<int, int, int> tuple1,
-                                   std::tuple<int, int, int> tuple2) {
+bool DualMarching3::_hasConnection(Eigen::Array3i tuple1,
+                                   Eigen::Array3i tuple2) {
   if (_connections.empty())
     return true;
 
-  int vertex1 = _idMap[tuple1];
+  int vertex1 = _idMap[convertKey(tuple1)];
   for (auto connection : _connections[vertex1]) {
-    if (connection == _idMap[tuple2])
+    if (connection == _idMap[convertKey(tuple2)])
       return true;
   }
   return false;
 }
 
 void DualMarching3::_buildConnectionMap(
-    std::vector<std::pair<_Trio, _Trio>> connections) {
+    std::vector<std::pair<int, int>> connections) {
 
   for (auto connection : connections) {
     int id1 = _idMap[connection.first];

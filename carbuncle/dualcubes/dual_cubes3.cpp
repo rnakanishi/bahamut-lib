@@ -13,7 +13,7 @@ DualCubes3::DualCubes3(Eigen::Array3i resolution)
 
 DualCubes3::DualCubes3(Eigen::Array3i resolution, Ramuh::BoundingBox3 domain)
     : Leviathan::LevelSetFluid3(resolution, domain) {
-  _h = _domain.size().cwiseQuotient(resolution.cast<double>());
+  _h = _domain.getSize().cwiseQuotient(resolution.cast<double>());
   newFaceArrayLabel("faceNormal");
   newFaceArrayLabel("facePosition");
 }
@@ -24,8 +24,8 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius) {
 
 void DualCubes3::initialize(Eigen::Array3d center, double radius,
                             DualCubes3::ParametricSurface surface) {
-  Eigen::Array3d domainMin = _domain.min();
-  auto &_phi = getScalarData("phi");
+  Eigen::Array3d domainMin = _domain.getMin();
+  auto &_phi = getCellScalarData("phi");
 
   // ====== Initialize cell surfaces
   for (int k = 0; k < _gridSize[2]; k++)
@@ -94,8 +94,8 @@ void DualCubes3::initialize(Eigen::Array3d center, double radius,
 
 void DualCubes3::analyticNormals(Eigen::Array3d center, double radius,
                                  DualCubes3::ParametricSurface surface) {
-  Eigen::Array3d domainMin = _domain.min();
-  auto &phi = getScalarData("phi");
+  Eigen::Array3d domainMin = _domain.getMin();
+  auto &phi = getCellScalarData("phi");
   auto &ufacePosition = getFaceArrayData(0, "facePosition");
   auto &vfacePosition = getFaceArrayData(1, "facePosition");
   auto &wfacePosition = getFaceArrayData(2, "facePosition");
@@ -124,7 +124,7 @@ void DualCubes3::analyticNormals(Eigen::Array3d center, double radius,
         case DualCubes3::ParametricSurface::CUBE:
           neighSign = (phi[ijkToid(i - 1, j, k)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
-            intersec = facePosition(0, i, j, k);
+            intersec = getFacePosition(0, i, j, k);
             double theta = phi[ijkToid(i, j, k)] - phi[ijkToid(i - 1, j, k)];
             intersec[0] = domainMin[0] +
                           -_h[0] * phi[ijkToid(i - 1, j, k)] / (theta) +
@@ -140,7 +140,7 @@ void DualCubes3::analyticNormals(Eigen::Array3d center, double radius,
 
           neighSign = (phi[ijkToid(i, j - 1, k)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
-            intersec = facePosition(1, i, j, k);
+            intersec = getFacePosition(1, i, j, k);
             double theta = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j - 1, k)];
             intersec[1] = domainMin[1] +
                           -_h[1] * phi[ijkToid(i, j - 1, k)] / (theta) +
@@ -156,7 +156,7 @@ void DualCubes3::analyticNormals(Eigen::Array3d center, double radius,
 
           neighSign = (phi[ijkToid(i, j, k - 1)] < 0) ? -1 : 1;
           if (centerSign != neighSign) {
-            intersec = facePosition(2, i, j, k);
+            intersec = getFacePosition(2, i, j, k);
             double theta = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j, k - 1)];
             intersec[2] = domainMin[2] +
                           -_h[2] * phi[ijkToid(i, j, k - 1)] / (theta) +
@@ -177,7 +177,7 @@ void DualCubes3::analyticNormals(Eigen::Array3d center, double radius,
 }
 
 void DualCubes3::computeNormals() {
-  auto &_phi = getScalarData("phi");
+  auto &_phi = getCellScalarData("phi");
   auto &_ufaceNormals = getFaceArrayData(0, "faceNormal");
   auto &_vfaceNormals = getFaceArrayData(1, "faceNormal");
   auto &_wfaceNormals = getFaceArrayData(2, "faceNormal");
@@ -420,8 +420,8 @@ void DualCubes3::computeNormals() {
 }
 
 void DualCubes3::computeIntersectionAndNormals() {
-  auto &phi = getScalarData("phi");
-  auto &gradient = getArrayData("cellGradient");
+  auto &phi = getCellScalarData("phi");
+  auto &gradient = getCellArrayData("cellGradient");
   auto &ufaceLocation = getFaceArrayData(0, "facePosition");
   auto &vfaceLocation = getFaceArrayData(1, "facePosition");
   auto &wfaceLocation = getFaceArrayData(2, "facePosition");
@@ -429,8 +429,8 @@ void DualCubes3::computeIntersectionAndNormals() {
   auto &vfaceNormals = getFaceArrayData(1, "faceNormal");
   auto &wfaceNormals = getFaceArrayData(2, "faceNormal");
 
-  Eigen::Array3d domainMin = _domain.min();
-#pragma omp parallel for
+  Eigen::Array3d domainMin = _domain.getMin();
+  // #pragma omp parallel for
   for (int k = 0; k < _gridSize[2]; k++)
     for (int j = 0; j < _gridSize[1]; j++)
       for (int i = 0; i < _gridSize[0]; i++) {
@@ -491,12 +491,12 @@ void DualCubes3::computeIntersectionAndNormals() {
 }
 
 void DualCubes3::computeIntersection() {
-  auto &_phi = getScalarData("phi");
+  auto &_phi = getCellScalarData("phi");
   auto &_ufaceLocation = getFaceArrayData(0, "facePosition");
   auto &_vfaceLocation = getFaceArrayData(1, "facePosition");
   auto &_wfaceLocation = getFaceArrayData(2, "facePosition");
 
-  Eigen::Array3d domainMin = _domain.min();
+  Eigen::Array3d domainMin = _domain.getMin();
   for (int k = 0; k < _gridSize[2]; k++)
     for (int j = 0; j < _gridSize[1]; j++)
       for (int i = 0; i < _gridSize[0]; i++) {
@@ -586,7 +586,7 @@ void DualCubes3::computeIntersection() {
 Eigen::Array3d DualCubes3::computeNormal(int cellId) {
   Eigen::Vector3d normal;
   auto h = getH();
-  auto &phi = getScalarData(_phiId);
+  auto &phi = getCellScalarData(_phiId);
   double cell = phi[cellId];
   auto ijk = idToijk(cellId);
   int i = ijk[0], j = ijk[1], k = ijk[2];
@@ -619,32 +619,32 @@ Eigen::Array3d DualCubes3::computeNormal(int cellId) {
 }
 
 void DualCubes3::defineVelocity() {
-  auto &_u = getFaceScalarData(0, _velocityId);
-  auto &_v = getFaceScalarData(1, _velocityId);
-  auto &_w = getFaceScalarData(2, _velocityId);
+  auto &_u = getFaceScalarData(0, _faceVelocityId);
+  auto &_v = getFaceScalarData(1, _faceVelocityId);
+  auto &_w = getFaceScalarData(2, _faceVelocityId);
   // u velocities
   for (int id = 0; id < faceCount(0); id++) {
-    auto p = facePosition(0, id);
+    auto p = getFacePosition(0, id);
     _u[id] = p[1];
   }
 
   // v velocities
   for (int id = 0; id < faceCount(1); id++) {
-    auto p = facePosition(1, id);
+    auto p = getFacePosition(1, id);
     _v[id] = -p[0];
   }
 
   // w velocities
   for (int id = 0; id < faceCount(2); id++) {
-    auto p = facePosition(2, id);
+    auto p = getFacePosition(2, id);
     _w[id] = 0;
   }
 }
 
 void DualCubes3::extractSurface() {
   Ramuh::DualMarching3 surface(_gridSize);
-  auto &_phi = getScalarData("phi");
-  auto &cellGradient = getArrayData("cellGradient");
+  auto &_phi = getCellScalarData("phi");
+  auto &cellGradient = getCellArrayData("cellGradient");
   auto &_ufaceLocation = getFaceArrayData(0, "facePosition");
   auto &_vfaceLocation = getFaceArrayData(1, "facePosition");
   auto &_wfaceLocation = getFaceArrayData(2, "facePosition");
@@ -655,7 +655,7 @@ void DualCubes3::extractSurface() {
   std::vector<Ramuh::DualMarching3> surfaces(omp_get_max_threads(),
                                              Ramuh::DualMarching3(_gridSize));
 
-  std::vector<std::pair<Ramuh::_Trio, Ramuh::_Trio>> connections;
+  std::vector<std::pair<int, int>> connections;
   // #pragma omp parallel for
   for (int k = 0; k < _gridSize[2] - 1; k++) {
     for (int j = 0; j < _gridSize[1] - 1; j++) {
@@ -672,14 +672,14 @@ void DualCubes3::extractSurface() {
           normalPosition.emplace_back(
               _ufaceLocation[faceijkToid(0, i + 1, j, k)]);
 
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j, k), std::make_tuple(i, j, k - 1)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j, k), std::make_tuple(i, j - 1, k)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j, k - 1), std::make_tuple(i, j - 1, k - 1)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j - 1, k), std::make_tuple(i, j - 1, k - 1)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j, k), ijkToid(i, j, k - 1)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j, k), ijkToid(i, j - 1, k)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j, k - 1), ijkToid(i, j - 1, k - 1)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j - 1, k), ijkToid(i, j - 1, k - 1)));
         }
         if (signChange(_phi[ijkToid(i + 1, j + 1, k)],
                        _phi[ijkToid(i, j + 1, k)])) {
@@ -718,14 +718,14 @@ void DualCubes3::extractSurface() {
           normalPosition.emplace_back(
               _vfaceLocation[faceijkToid(1, i, j + 1, k)]);
 
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j, k), std::make_tuple(i, j, k - 1)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j, k), std::make_tuple(i - 1, j, k)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j, k - 1), std::make_tuple(i - 1, j, k - 1)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i - 1, j, k), std::make_tuple(i - 1, j, k - 1)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j, k), ijkToid(i, j, k - 1)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j, k), ijkToid(i - 1, j, k)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j, k - 1), ijkToid(i - 1, j, k - 1)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i - 1, j, k), ijkToid(i - 1, j, k - 1)));
         }
         if (signChange(_phi[ijkToid(i + 1, j, k + 1)],
                        _phi[ijkToid(i + 1, j + 1, k + 1)])) {
@@ -750,14 +750,14 @@ void DualCubes3::extractSurface() {
           normalPosition.emplace_back(
               _wfaceLocation[faceijkToid(2, i, j, k + 1)]);
 
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j, k), std::make_tuple(i - 1, j, k)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j, k), std::make_tuple(i, j - 1, k)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i - 1, j, k), std::make_tuple(i - 1, j - 1, k)));
-          connections.emplace_back(std::make_pair(
-              std::make_tuple(i, j - 1, k), std::make_tuple(i - 1, j - 1, k)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j, k), ijkToid(i - 1, j, k)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j, k), ijkToid(i, j - 1, k)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i - 1, j, k), ijkToid(i - 1, j - 1, k)));
+          connections.emplace_back(
+              std::make_pair(ijkToid(i, j - 1, k), ijkToid(i - 1, j - 1, k)));
         }
         if (signChange(_phi[ijkToid(i + 1, j, k)],
                        _phi[ijkToid(i + 1, j, k + 1)])) {
@@ -784,14 +784,14 @@ void DualCubes3::extractSurface() {
         // Solve quadratic function
         if (isSurface) {
           Eigen::Array3d cubeMin =
-              _domain.min() +
+              _domain.getMin() +
               _h.cwiseProduct(Eigen::Array3d(i + 0.5, j + 0.5, k + 0.5));
           Eigen::Array3d cubeMax =
-              _domain.min() +
+              _domain.getMin() +
               _h.cwiseProduct(Eigen::Array3d(i + 1.5, j + 1.5, k + 1.5));
           int thread = omp_get_thread_num();
           auto x = surfaces[thread].evaluateCube(
-              std::make_tuple(i, j, k), normalPosition, normal,
+              Eigen::Array3i(i, j, k), normalPosition, normal,
               Ramuh::BoundingBox3(cubeMin, cubeMax));
           // std::cout << x[0] << " " << x[1] << " " << x[2] <<
           // std::endl;
@@ -800,6 +800,7 @@ void DualCubes3::extractSurface() {
     }
   }
   for (size_t i = 0; i < omp_get_max_threads(); i++) {
+    ;
     surface.merge(surfaces[i]);
   }
 

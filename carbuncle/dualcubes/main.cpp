@@ -10,7 +10,7 @@ int main(int argc, char const *argv[]) {
       Eigen::Array3i(40, 40, 40),
       Ramuh::BoundingBox3(Eigen::Array3d(-5, -5, -5), Eigen::Array3d(5, 5, 5)));
   cubes.initialize(Eigen::Array3d(0, 0, 0), 3,
-                   Carbuncle::DualCubes3::ParametricSurface::ELLIPSOID);
+                   Carbuncle::DualCubes3::ParametricSurface::CUBE);
   cubes.defineVelocity();
   // cubes.printCells();
 
@@ -26,9 +26,9 @@ int main(int argc, char const *argv[]) {
   cubes.redistance();
   cubes.print();
 
-  return 1;
+  // return 1;
 
-  for (int i = 1; i <= 150; i++) {
+  for (int i = 1; i <= 15; i++) {
     cubes.advectWeno();
     // cubes.advectUpwind();
 
@@ -37,7 +37,7 @@ int main(int argc, char const *argv[]) {
     // cubes.computeIntersection();
     // cubes.computeNormals();
 
-    cubes.computeCellsGradient();
+    cubes.computeWenoGradient();
     cubes.computeIntersectionAndNormals();
     cubes.extractSurface();
     cubes.print();

@@ -1,5 +1,5 @@
-#ifndef __LEVIATHAN_LEVELSET_FLUID_H__
-#define __LEVIATHAN_LEVELSET_FLUID_H__
+#ifndef __LEVIATHAN_LEVELSET_FLUID_3_H__
+#define __LEVIATHAN_LEVELSET_FLUID_3_H__
 
 #include <structures/mac_grid3.h>
 #include <fstream>

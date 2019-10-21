@@ -75,8 +75,8 @@ public:
 
   void extractSurface();
 
-  void print() override {
-    auto &phi = getScalarData(_phiId);
+  void print() {
+    auto &phi = getCellScalarData(_phiId);
     static int count = 0;
     std::ofstream file;
     std::stringstream filename;

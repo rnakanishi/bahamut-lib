@@ -7,13 +7,16 @@
 #include <geometry/bounding_box.h>
 
 namespace Ramuh {
-typedef std::tuple<int, int, int> _Trio;
 
 class DualMarching2 {
 public:
   DualMarching2();
 
-  DualMarching2(int resolution);
+  DualMarching2(Eigen::Array2i resolution);
+
+  int convertKey(Eigen::Array2i index);
+  int convertKey(int i, int j);
+  Eigen::Array2i convertKey(int index);
 
   /**
    * @brief evaluate the 2d square containing levelset Hermite data. Points
@@ -27,22 +30,54 @@ public:
    * @param normals themselves
    * @return Eigen::Array2d least square position of the new point
    **/
-  Eigen::Array2d evaluateSquare(std::pair<int, int> pointIndices,
+  Eigen::Array2d evaluateSquare(Eigen::Array2i pointIndices,
                                 std::vector<Eigen::Array2d> normalLocation,
                                 std::vector<Eigen::Vector2d> normals);
+  Eigen::Array2d evaluateSquare(Eigen::Array2i pointIndices,
+                                std::vector<Eigen::Array2d> normalLocation,
+                                std::vector<Eigen::Vector2d> normals,
+                                BoundingBox2 squareLimits);
 
   void reconstruct();
+  void reconstruct(std::vector<Eigen::Array2i> connections);
+
+  void merge(DualMarching2 square);
+
+  std::vector<Eigen::Array2d> &getPoints();
+
+  std::vector<Eigen::Vector2d> &getNormals();
+
+  std::map<int, int> &getIdMap();
+
+protected:
+  bool _consistentNormals(std::vector<int> ids);
+
+  bool _hasConnection(Eigen::Array2i tuple1, Eigen::Array2i tuple2);
+
+  void _buildConnectionMap(std::vector<Eigen::Array2i> connections);
 
 private:
-  std::map<std::pair<int, int>, Eigen::Array2d> _points;
-  int _resolution;
+  std::map<int, int> _idMap;
+  std::vector<Eigen::Array2d> _points;
+  std::vector<Eigen::Vector2d> _normals;
+  std::map<int, std::vector<int>> _connections;
+  Eigen::Array2i _resolution;
 };
 
+/*************************************************************************
+ *************************************************************************
+ * @brief DualMarching3 class
+ *
+ */
 class DualMarching3 {
 public:
   DualMarching3();
 
   DualMarching3(Eigen::Array3i resolution);
+
+  int convertKey(Eigen::Array3i index);
+  int convertKey(int, int, int);
+  Eigen::Array3i convertKey(int index);
 
   /**
    * @brief This method evaluates a 3D cube containing levelset Hermite data.
@@ -56,7 +91,7 @@ public:
    * @param normals normalLocation correspondent normal vector
    * @return Eigen::Array3d surface point that minimizes QEF function
    **/
-  Eigen::Array3d evaluateCube(_Trio pointIndices,
+  Eigen::Array3d evaluateCube(Eigen::Array3i pointIndices,
                               std::vector<Eigen::Array3d> normalLocation,
                               std::vector<Eigen::Vector3d> normals);
 
@@ -75,7 +110,7 @@ public:
    * @param cubeLimits boundary limiting cube
    * @return Eigen::Array3d surface point that minimizes QEF function
    **/
-  Eigen::Array3d evaluateCube(_Trio cellIndex,
+  Eigen::Array3d evaluateCube(Eigen::Array3i cellIndex,
                               std::vector<Eigen::Array3d> normalLocation,
                               std::vector<Eigen::Vector3d> normals,
                               BoundingBox3 cubeLimits);
@@ -88,7 +123,7 @@ public:
    *
    **/
   void reconstruct();
-  void reconstruct(std::vector<std::pair<_Trio, _Trio>> connections);
+  void reconstruct(std::vector<std::pair<int, int>> connections);
 
   /**
    * @brief merge the contents of a previously instantiated cube into this
@@ -102,17 +137,17 @@ public:
 
   std::vector<Eigen::Vector3d> &getNormals();
 
-  std::map<_Trio, int> &getIdMap();
+  std::map<int, int> &getIdMap();
 
 protected:
   bool _consistentNormals(std::vector<int> ids);
 
-  bool _hasConnection(_Trio tuple1, _Trio tuple2);
+  bool _hasConnection(Eigen::Array3i tuple1, Eigen::Array3i tuple2);
 
-  void _buildConnectionMap(std::vector<std::pair<_Trio, _Trio>> connections);
+  void _buildConnectionMap(std::vector<std::pair<int, int>> connections);
 
 private:
-  std::map<_Trio, int> _idMap;
+  std::map<int, int> _idMap;
   std::vector<Eigen::Array3d> _points;
   std::vector<Eigen::Vector3d> _normals;
   Eigen::Array3i _resolution;
