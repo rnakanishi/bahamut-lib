@@ -5,10 +5,13 @@ set(CMAKE_CXX_STANDARD 17)
 file(GLOB HEADERS 
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/fluids/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/surface/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/fluids/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/surface/*.hpp
         )
 file(GLOB SOURCES 
         ${CMAKE_CURRENT_SOURCE_DIR}/fluids/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/surface/*.cpp
         )
 
 # include_directories(${CMAKE_CURRENT_SOURCE_DIR})

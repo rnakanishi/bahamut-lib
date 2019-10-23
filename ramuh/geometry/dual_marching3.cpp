@@ -94,12 +94,12 @@ Eigen::Array3d DualMarching3::evaluateCube(
   x = pseudoInv * (A.adjoint() * b - A.adjoint() * A * posAvg.matrix());
   x = x + posAvg.matrix();
 
-  // if (!cubeLimits.contains(x)) {
-  // std::cerr << "Clamp: " << x.transpose() << " -> " << posAvg.transpose()
-  // << std::endl;
-  // x = cubeLimits.clamp(x);
-  // x = posAvg;
-  // }
+  if (!cubeLimits.contains(x)) {
+    // std::cerr << "Clamp: " << x.transpose() << " -> " << posAvg.transpose()
+    // << std::endl;
+    x = cubeLimits.clamp(x);
+    // x = posAvg;
+  }
 
   int currIndex = _points.size();
   _idMap[convertKey(cellIndex)] = currIndex;
@@ -148,8 +148,8 @@ void DualMarching3::reconstruct(std::vector<std::pair<int, int>> connections) {
   std::ofstream file;
   static int count = 0;
   std::stringstream filename;
-  filename << "results/dual_marching/" << std::setfill('0') << std::setw(4)
-           << count++ << ".obj";
+  filename << _baseFolder << std::setfill('0') << std::setw(4) << count++
+           << ".obj";
   auto fullpath = filename.str();
   file.open(fullpath.c_str(), std::ofstream::out);
   if (!file.is_open()) {
@@ -315,5 +315,7 @@ void DualMarching3::_buildConnectionMap(
     _connections[id2].emplace_back(id1);
   }
 }
+
+void DualMarching3::setBaseFolder(std::string folder) { _baseFolder = folder; }
 
 } // namespace Ramuh

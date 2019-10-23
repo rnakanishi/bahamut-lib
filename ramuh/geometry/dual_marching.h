@@ -5,6 +5,7 @@
 #include <utility>
 #include <Eigen/Dense>
 #include <geometry/bounding_box.h>
+#include <string>
 
 namespace Ramuh {
 
@@ -139,6 +140,8 @@ public:
 
   std::map<int, int> &getIdMap();
 
+  void setBaseFolder(std::string folder);
+
 protected:
   bool _consistentNormals(std::vector<int> ids);
 
@@ -152,6 +155,8 @@ private:
   std::vector<Eigen::Vector3d> _normals;
   Eigen::Array3i _resolution;
   std::map<int, std::vector<int>> _connections;
+
+  std::string _baseFolder;
 };
 
 } // namespace Ramuh
