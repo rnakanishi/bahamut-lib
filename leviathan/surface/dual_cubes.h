@@ -21,11 +21,17 @@ public:
 
   void setFolder(std::string folder);
 
+  void resetFileCounter();
+
+  void swapLevelSet(LevelSetFluid3 levelset);
+
 protected:
   bool hasSignChange(double valueA, double valueB);
 
   int _faceSurfaceNormalId, _faceSurfacePositionId;
   std::string _baseFolder;
+  int _count;
+  Ramuh::DualMarching3 surface;
 };
 
 } // namespace Leviathan

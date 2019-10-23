@@ -12,10 +12,15 @@ DualCubes::DualCubes(Eigen::Array3i gridSize, Ramuh::BoundingBox3 domain)
 
   newFaceArrayLabel("facePosition");
   newFaceArrayLabel("faceNormal");
+  surface = Ramuh::DualMarching3(_gridSize);
 }
 
 DualCubes::DualCubes(Leviathan::LevelSetFluid3 levelset)
     : DualCubes(levelset.getGridSize(), levelset.getDomain()) {
+  swapLevelSet(levelset);
+}
+
+void DualCubes::swapLevelSet(LevelSetFluid3 levelset) {
   auto &phi = getCellScalarData("phi");
   auto &gradient = getCellArrayData("cellGradient");
   auto &lphi = levelset.getCellScalarData("phi");
@@ -96,7 +101,6 @@ void DualCubes::computeIntersectionAndNormals() {
 }
 
 void DualCubes::extractSurface() {
-  Ramuh::DualMarching3 surface(_gridSize);
   auto &_phi = getCellScalarData("phi");
   auto &cellGradient = getCellArrayData("cellGradient");
   auto &_ufaceLocation = getFaceArrayData(0, "facePosition");
@@ -266,6 +270,8 @@ void DualCubes::extractSurface() {
 }
 
 void DualCubes::setFolder(std ::string folder) { _baseFolder = folder; }
+
+void DualCubes::resetFileCounter() { surface.resetCounter(); }
 
 bool DualCubes::hasSignChange(double valueA, double valueB) {
   int signA = (valueA < 0) ? -1 : 1;

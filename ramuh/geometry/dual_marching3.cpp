@@ -10,6 +10,7 @@ DualMarching3::DualMarching3() : DualMarching3(Eigen::Array3i(16, 16, 16)) {}
 
 DualMarching3::DualMarching3(Eigen::Array3i resolution) {
   _resolution = resolution;
+  count = 0;
 }
 
 Eigen::Array3i DualMarching3::convertKey(int index) {
@@ -146,7 +147,6 @@ void DualMarching3::reconstruct(std::vector<std::pair<int, int>> connections) {
   _buildConnectionMap(connections);
 
   std::ofstream file;
-  static int count = 0;
   std::stringstream filename;
   filename << _baseFolder << std::setfill('0') << std::setw(4) << count++
            << ".obj";
@@ -317,5 +317,7 @@ void DualMarching3::_buildConnectionMap(
 }
 
 void DualMarching3::setBaseFolder(std::string folder) { _baseFolder = folder; }
+
+void DualMarching3::resetCounter() { count = 0; }
 
 } // namespace Ramuh

@@ -142,6 +142,8 @@ public:
 
   void setBaseFolder(std::string folder);
 
+  void resetCounter();
+
 protected:
   bool _consistentNormals(std::vector<int> ids);
 
@@ -156,6 +158,7 @@ private:
   Eigen::Array3i _resolution;
   std::map<int, std::vector<int>> _connections;
 
+  static int count;
   std::string _baseFolder;
 };
 
