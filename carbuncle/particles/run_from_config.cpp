@@ -8,6 +8,7 @@
 #include <pugixml.hpp>
 #include <iterator>
 #include <cstdio>
+#include <surface/dual_cubes.h>
 
 class PLevelSet3 : public Leviathan::ParticleLevelSet3 {
 public:
@@ -36,12 +37,16 @@ public:
 
   void printParticles() {
     static int count = 0;
-    std::ofstream file;
-    std::stringstream filename;
-    filename << baseFolder << "/" << count++;
-    file.open(filename.str().c_str(), std::ofstream::out);
-    if (!file.is_open()) {
-      std::cerr << "\033[1;31mError\033[0m Faile to open " << filename.str()
+    std::ofstream fileneg;
+    std::ofstream filepos;
+    std::stringstream negFile;
+    std::stringstream posFile;
+    negFile << baseFolder << "pneg" << count << ".obj";
+    posFile << baseFolder << "ppos" << count++ << ".obj";
+    fileneg.open(negFile.str().c_str(), std::ofstream::out);
+    filepos.open(posFile.str().c_str(), std::ofstream::out);
+    if (!fileneg.is_open() || !filepos.is_open()) {
+      std::cerr << "\033[1;31mError\033[0m Faile to open " << negFile.str()
                 << std::endl;
       return;
     }
@@ -52,13 +57,24 @@ public:
     for (size_t i = 0; i < getTotalParticleCount(); i++) {
       if (isActive(i)) {
         auto pos = getParticlePosition(i);
-        file << pos[0] << " " << pos[1] << " " << pos[2] << " ";
-        file << vel[i][0] << " " << vel[i][1] << " " << vel[i][2] << " ";
-        file << signal[i] << " " << radius[i] << "\n";
+        if (signal[i] < 0) {
+          fileneg << "v ";
+          fileneg << pos[0] << " " << pos[1] << " " << pos[2] << " ";
+          // fileneg << vel[i][0] << " " << vel[i][1] << " " << vel[i][2] << "
+          // "; fileneg << signal[i]; " " << radius[i];
+          fileneg << std::endl;
+        } else {
+          filepos << "v ";
+          filepos << pos[0] << " " << pos[1] << " " << pos[2] << " ";
+          // filepos << vel[i][0] << " " << vel[i][1] << " " << vel[i][2] << "
+          // "; filepos << signal[i]; " " << radius[i];
+          filepos << std::endl;
+        }
       }
     }
-    std::cout << "File written: " << filename.str() << std::endl;
-    file.close();
+    std::cout << "File written: " << negFile.str() << std::endl;
+    fileneg.close();
+    filepos.close();
   }
 
   void printLevelSet() {
@@ -165,11 +181,16 @@ public:
       }
     }
   }
+
   void setBaseFolder(std::string folder) { baseFolder = folder; }
+
+  void setMeshFolder(std::string folder) { meshFolder = folder; }
+
+  std::string getMeshFolder() { return meshFolder; }
 
 protected:
   int lscount;
-  std::string baseFolder;
+  std::string baseFolder, meshFolder;
 };
 
 class Setup {
@@ -201,10 +222,14 @@ public:
   void prepareSimulation() {
     // Read parameters
     pugi::xml_node node;
+    pugi::xml_document configDoc;
+
     node = _document.child("simulation");
     for (int siblings = 0; siblings < _currentSimulation; siblings++)
       node = node.next_sibling();
 
+    auto configNode = configDoc.append_child("simulation");
+    configNode = configNode.append_child("parameter");
     node = node.child("parameters");
 
     // Simulatino parameters
@@ -218,9 +243,26 @@ public:
     sscanf(node.child("frames").child_value(), "%d", &_frames);
     sscanf(node.child("dt").child_value(), "%lf", &dt);
 
+    configNode.append_child("gridSize")
+        .append_child(pugi::node_pcdata)
+        .set_value(node.child("gridSize").child_value());
+    configNode.append_child("domain")
+        .append_child(pugi::node_pcdata)
+        .set_value(node.child("domain").child_value());
+    configNode.append_child("frames")
+        .append_child(pugi::node_pcdata)
+        .set_value(node.child("frames").child_value());
+    configNode.append_child("dt")
+        .append_child(pugi::node_pcdata)
+        .set_value(node.child("dt").child_value());
+
     maxParticles = 80;
-    if (!node.child("maxParticles").empty())
+    if (!node.child("maxParticles").empty()) {
       sscanf(node.child("maxParticles").child_value(), "%d", &maxParticles);
+      configNode.append_child("maxParticles")
+          .append_child(pugi::node_pcdata)
+          .set_value(node.child("maxParticles").child_value());
+    }
 
     Eigen::Array3i gridSize(size);
     Ramuh::BoundingBox3 domain(domainMin, domainMax);
@@ -228,10 +270,44 @@ public:
     _simulation = PLevelSet3(gridSize, domain);
 
     // Simulation output data
-    std::string baseFolder(node.parent().child("baseFolder").child_value());
+    node = node.parent();
+    std::string baseFolder(node.child("baseFolder").child_value());
     _simulation.setBaseFolder(baseFolder);
+    std::string meshFolder(node.child("meshFolder").child_value());
+    _simulation.setMeshFolder(meshFolder);
     _logFilename =
-        baseFolder + std::string(node.parent().child("logfile").child_value());
+        baseFolder + std::string(node.child("logfile").child_value());
+
+    configNode = configNode.parent();
+    configNode.append_child("baseFolder")
+        .append_child(pugi::node_pcdata)
+        .set_value(node.child("baseFolder").child_value());
+    configNode.append_child("meshFolder")
+        .append_child(pugi::node_pcdata)
+        .set_value(node.child("meshFolder").child_value());
+    configNode.append_child("logfile")
+        .append_child(pugi::node_pcdata)
+        .set_value(node.child("logfile").child_value());
+
+    _doReseed = true;
+    node = node.child("meta");
+    if (node) {
+      std::string reseed(node.attribute("reseed").value());
+      if (!reseed.compare("false")) {
+        _doReseed = false;
+        configNode.append_child("meta").append_attribute("reseed").set_value(
+            node.attribute("reseed").value());
+      }
+    }
+    std::ofstream xmlConfigFile;
+    std::string xmlFilename(baseFolder + "config.xml");
+    xmlConfigFile.open(xmlFilename);
+    if (!xmlConfigFile.is_open())
+      std::cerr << "Error opening " << xmlFilename << std::endl;
+    else {
+      configDoc.print(xmlConfigFile);
+      xmlConfigFile.close();
+    }
 
     // Confirming read data
     std::cout << "\n\n";
@@ -242,21 +318,27 @@ public:
     std::cout << "Frames: " << _frames << std::endl;
     std::cout << "dt: " << dt << std::endl;
     std::cout << "Base folder for results:  " << baseFolder << std::endl;
+    if (!_doReseed)
+      std::cout << "Particles won't be reseeded\n";
 
     // Initalizing domain
     Ramuh::Timer initTimer;
 
-    _simulation.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
+    _simulation.initializeLevelSet(Eigen::Array3d(.33, .33, .33), 0.15);
     _simulation.setMaxParticles(maxParticles);
     _simulation.setDt(dt);
     initTimer.registerTime("Initialization");
     _simulation.redistance();
     initTimer.registerTime("Redistance");
 
+    _simulation.computeWenoGradient();
+    initTimer.registerTime("Weno gradient");
     _simulation.seedParticlesNearSurface();
     initTimer.registerTime("Particles seeding");
+    _simulation.attractParticles();
+    initTimer.registerTime("Particles attraction");
     _simulation.printParticles();
-    _simulation.printLevelSet();
+    // _simulation.printLevelSet();
     initTimer.registerTime("printFile");
     initTimer.evaluateComponentsTime();
   }
@@ -274,10 +356,12 @@ public:
     _simulationTypeString = node.child_value();
     if (!_simulationTypeString.compare("particle_level_set"))
       _simulationType = 0;
-    if (!_simulationTypeString.compare("weno_advection"))
+    else if (!_simulationTypeString.compare("weno_advection"))
       _simulationType = 1;
-    if (!_simulationTypeString.compare("semi_lagrangean"))
+    else if (!_simulationTypeString.compare("semi_lagrangean"))
       _simulationType = 2;
+    else if (!_simulationTypeString.compare("particles"))
+      _simulationType = 3;
 
     if (_simulationType < 0)
       std::cerr << "\033[1;31m[ERROR]\033[0m"
@@ -313,34 +397,45 @@ public:
     std::vector<int> cellHistory;
     int advectionType = getSimulationType();
 
+    Leviathan::DualCubes cubes(_simulation);
+    cubes.resetFileCounter();
+    cubes.setFolder(_simulation.getMeshFolder());
+    cubes.computeIntersectionAndNormals();
+    cubes.extractSurface();
+
     Ramuh::Timer timer;
-    for (int i = 0; i <= _frames; i++) {
+    for (int i = 1; i <= _frames; i++) {
       timer.clearAll();
       timer.reset();
+
       _simulation.defineVelocity(i);
       timer.registerTime("faceVelocity");
       _simulation.applyCfl();
       timer.registerTime("cfl");
 
       do {
-        if (advectionType == 0 || advectionType == 2) {
+        if (advectionType != 3) {
           _simulation.findSurfaceCells(4.0 * h[0]);
           timer.registerTime("trackSurface");
         }
 
-        if (advectionType == 2) {
+        if (advectionType == 2 || advectionType == 0) {
           _simulation.computeCellVelocity();
           // _simulation.computeWenoGradient();
           // _simulation.advectUpwind();
           _simulation.advectSemiLagrangean();
-        } else
+          timer.registerTime("cellAdvection");
+        } else if (advectionType == 1) {
           _simulation.advectWeno();
-        timer.registerTime("cellAdvection");
+          timer.registerTime("cellAdvection");
+        }
 
-        if (advectionType == 0) {
+        if (advectionType == 0 || advectionType == 3) {
           _simulation.advectParticles((double)i / 3.0);
           timer.registerTime("particleAdvect");
+        }
 
+        if (advectionType == 0) {
           if (_simulation.correctLevelSetWithParticles()) {
             timer.registerTime("correction");
 
@@ -354,34 +449,36 @@ public:
             timer.registerTime("correction");
         }
 
-        // if (lastRedistance >= 5) {
-        lastRedistance = 0;
-        _simulation.redistance();
-        timer.registerTime("redistance");
-        // }
-        // lastRedistance++;
+        lastRedistance++;
+        if (advectionType != 4) {
+          if (lastRedistance >= 5) {
+            lastRedistance = 0;
+            _simulation.redistance();
+            timer.registerTime("redistance");
+          }
+        }
       } while (!_simulation.advanceTime());
 
-      if (advectionType == 0) {
-        // if (i % 5 == 0) {
-        _simulation.reseedParticles();
-        particleHistory.emplace_back(_simulation.getParticleCount());
-        timer.registerTime("reseed");
+      if (advectionType == 0 && _doReseed) {
+        if (i % 10 == 0) {
+          _simulation.reseedParticles();
+          particleHistory.emplace_back(_simulation.getParticleCount());
+          timer.registerTime("reseed");
 
-        _simulation.adjustParticleRadius();
-        timer.registerTime("radiusAdjust");
-        std::cout << " Final count: " << _simulation.getParticleCount()
-                  << " particles\n";
-        // }
-        // _simulation.printParticles();
+          _simulation.adjustParticleRadius();
+          timer.registerTime("radiusAdjust");
+          std::cout << " Final count: " << _simulation.getParticleCount()
+                    << " particles\n";
+        }
       }
+      if (advectionType == 0 || advectionType == 3)
+        _simulation.printParticles();
 
-      _simulation.printLevelSet();
-      timer.registerTime("print");
-
-      timer.evaluateComponentsTime();
-      if (i % 5 == 0)
-        timer.evaluateComponentsAverageTime();
+      // if (advectionType == 0 || advectionType == 3)
+      //   _simulation.printParticles();
+      // if (advectionType != 3)
+      //   _simulation.printLevelSet();
+      // timer.registerTime("print");
 
       timer.logToFile(_logFilename);
       Ramuh::FileWriter::writeArrayToFile(baseFolder + "particleCount.txt",
@@ -390,6 +487,18 @@ public:
       cellHistory.emplace_back(_simulation.getSurfaceCellCount());
       Ramuh::FileWriter::writeArrayToFile(baseFolder + "cellCount.txt",
                                           cellHistory);
+
+      cubes.swapLevelSet(_simulation);
+      cubes.resetFileCounter(i);
+      cubes.setFolder(_simulation.getMeshFolder());
+      cubes.computeIntersectionAndNormals();
+      cubes.extractSurface();
+      timer.registerTime("extractSurface");
+      timer.evaluateComponentsTime();
+
+      if (i % 5 == 0)
+        timer.evaluateComponentsAverageTime();
+      std::cout << "Finished timestep " << i << std::endl << std::endl;
     }
 
     timer.evaluateComponentsAverageTime();
@@ -402,6 +511,7 @@ private:
   std::string _simulationTypeString;
 
   PLevelSet3 _simulation;
+  bool _doReseed;
   int _frames;
   std::string _logFilename;
 };

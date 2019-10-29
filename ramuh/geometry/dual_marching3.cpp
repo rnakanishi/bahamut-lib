@@ -11,6 +11,10 @@ DualMarching3::DualMarching3() : DualMarching3(Eigen::Array3i(16, 16, 16)) {}
 DualMarching3::DualMarching3(Eigen::Array3i resolution) {
   _resolution = resolution;
   count = 0;
+  _idMap.clear();
+  _points.clear();
+  _normals.clear();
+  _connections.clear();
 }
 
 Eigen::Array3i DualMarching3::convertKey(int index) {
@@ -32,6 +36,8 @@ int DualMarching3::convertKey(Eigen::Array3i index) {
 int DualMarching3::convertKey(int i, int j, int k) {
   return k * _resolution[0] * _resolution[1] + j * _resolution[0] + i;
 }
+
+int DualMarching3::getPointCount() { return _points.size(); }
 
 Eigen::Array3d
 DualMarching3::evaluateCube(Eigen::Array3i pointIndices,
@@ -98,8 +104,8 @@ Eigen::Array3d DualMarching3::evaluateCube(
   if (!cubeLimits.contains(x)) {
     // std::cerr << "Clamp: " << x.transpose() << " -> " << posAvg.transpose()
     // << std::endl;
-    x = cubeLimits.clamp(x);
-    // x = posAvg;
+    // x = cubeLimits.clamp(x);
+    x = posAvg;
   }
 
   int currIndex = _points.size();
@@ -129,11 +135,15 @@ bool DualMarching3::_consistentNormals(std::vector<int> ids) {
   Eigen::Vector3d cross123 = base12.cross(base13);
   Eigen::Vector3d cross130 = base13.cross(base10);
 
-  Eigen::Vector3d avgCross = (cross012 + cross023 + cross123 + cross130) / 4;
-  avgCross.normalize();
+  // Eigen::Vector3d avgCross = (cross012 + cross023 + cross123 + cross130) / 4;
+  cross012.normalize();
+  cross023.normalize();
+  cross123.normalize();
+  cross130.normalize();
   avgNormal.normalize();
 
-  if (avgCross.dot(avgNormal) < 0)
+  if (cross012.dot(avgNormal) < 0 || cross123.dot(avgNormal) < 0 ||
+      cross023.dot(avgNormal) < 0 || cross130.dot(avgNormal) < 0)
     return false;
   return true;
 }
@@ -301,6 +311,7 @@ bool DualMarching3::_hasConnection(Eigen::Array3i tuple1,
 void DualMarching3::_buildConnectionMap(
     std::vector<std::pair<int, int>> connections) {
 
+  _connections.clear();
   for (auto connection : connections) {
     int id1 = _idMap[connection.first];
     int id2 = _idMap[connection.second];
@@ -319,5 +330,7 @@ void DualMarching3::_buildConnectionMap(
 void DualMarching3::setBaseFolder(std::string folder) { _baseFolder = folder; }
 
 void DualMarching3::resetCounter() { count = 0; }
+
+void DualMarching3::resetCounter(int value) { count = value; }
 
 } // namespace Ramuh

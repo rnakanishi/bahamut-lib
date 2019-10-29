@@ -1,4 +1,4 @@
-
+<!-- 
 <simulation>
 	<parameters>
 		<type>semi_lagrangean</type>
@@ -8,26 +8,28 @@
 		<dt>0.0166666666667</dt>
 	</parameters>
 	<baseFolder>results/particles/3d/enright/semiL/</baseFolder>
+	<meshFolder>results/mesh/enright/semiL/</meshFolder>
 	<logfile>semiL_log.csv</logfile>
-</simulation>
-
+</simulation> 
 
 <simulation>
 	<parameters>
 		<type>weno_advection</type>
-		<gridSize>128</gridSize>
+		<gridSize>70</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
 	</parameters>
 	<logfile>weno_log.csv</logfile>
 	<baseFolder>results/particles/3d/enright/weno/</baseFolder>
-</simulation>
+	<meshFolder>results/mesh/enright/weno/</meshFolder>
+</simulation> 
+-->
 
-<simulation>
+<!-- <simulation>
 	<parameters>
 		<type>particle_level_set</type>
-		<gridSize>128</gridSize>
+		<gridSize>100</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
@@ -35,12 +37,104 @@
 	</parameters>
 	<logfile>pls_log20.csv</logfile>
 	<baseFolder>results/particles/3d/enright/pls20/</baseFolder>
+	<meshFolder>results/mesh/enright/pls20/</meshFolder>
+</simulation> -->
+
+<!-- <simulation>
+	<parameters>
+		<type>particle_level_set</type>
+		<gridSize>150</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>50</maxParticles>
+	</parameters>
+	<meta reseed='false' /> 
+	<logfile>pls_log50.csv</logfile>
+	<baseFolder>results/particles/3d/enright/pls50no/</baseFolder>
+	<meshFolder>results/mesh/enright/pls50no/</meshFolder>
+</simulation> -->
+
+<simulation>
+	<parameters>
+		<type>particle_level_set</type>
+		<gridSize>100</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>35</maxParticles>
+	</parameters>
+	<levelset>
+		<center>0.33 0.33 0.33</center>
+		<radius>0.15</radius>
+	</levelset>
+	<meta reseed='false' />
+	<logfile>pls_log35.csv</logfile>
+	<baseFolder>results/particles/3d/enright/pls35no/</baseFolder>
+	<meshFolder>results/particles/3d/enright/pls35no/mesh/</meshFolder>
 </simulation>
 
 <simulation>
 	<parameters>
 		<type>particle_level_set</type>
-		<gridSize>128</gridSize>
+		<gridSize>150</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>32</maxParticles>
+	</parameters>
+	<meta reseed='false' />
+	<logfile>pls_log32.csv</logfile>
+	<baseFolder>results/particles/3d/enright/pls32no/</baseFolder>
+	<meshFolder>results/mesh/enright/pls32no/</meshFolder>
+</simulation>
+
+<simulation>
+	<parameters>
+		<type>particle_level_set</type>
+		<gridSize>256</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>32</maxParticles>
+	</parameters>
+	<logfile>pls_log32.csv</logfile>
+	<baseFolder>results/particles/3d/enright/pls32/</baseFolder>
+	<meshFolder>results/mesh/enright/pls32/</meshFolder>
+</simulation>
+
+<!-- <simulation>
+	<parameters>
+		<type>weno_advection</type>
+		<gridSize>256</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+	</parameters>
+	<logfile>weno_log127.csv</logfile>
+	<baseFolder>results/particles/3d/enright/weno256/</baseFolder>
+	<meshFolder>results/particles/3d/enright/weno256/mesh/</meshFolder>
+</simulation>  -->
+
+<!-- <simulation>
+	<parameters>
+		<type>particles</type>
+		<gridSize>70</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>64</maxParticles>
+	</parameters>
+	<meta reseed='false' />
+	<logfile>parts_log64.csv</logfile>
+	<baseFolder>results/particles/3d/enright/part64/</baseFolder>
+	<meshFolder>results/mesh/enright/part64/</meshFolder>
+</simulation> -->
+
+<!-- <simulation>
+	<parameters>
+		<type>particle_level_set</type>
+		<gridSize>100</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
@@ -48,8 +142,10 @@
 	</parameters>
 	<logfile>pls_log40.csv</logfile>
 	<baseFolder>results/particles/3d/enright/pls40/</baseFolder>
-</simulation>
+	<meshFolder>results/mesh/enright/pls40/</meshFolder>
+</simulation> -->
 
+<!--
 <simulation>
 	<parameters>
 		<type>particle_level_set</type>
@@ -61,4 +157,5 @@
 	</parameters>
 	<logfile>pls_log80.csv</logfile>
 	<baseFolder>results/particles/3d/enright/pls80/</baseFolder>
-</simulation>
+	<meshFolder>results/mesh/enright/pls80/</meshFolder>
+</simulation>  -->

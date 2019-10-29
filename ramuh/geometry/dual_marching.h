@@ -80,6 +80,8 @@ public:
   int convertKey(int, int, int);
   Eigen::Array3i convertKey(int index);
 
+  int getPointCount();
+
   /**
    * @brief This method evaluates a 3D cube containing levelset Hermite data.
    *Points indices are used as a key identifier so every vertex is unique.
@@ -143,6 +145,7 @@ public:
   void setBaseFolder(std::string folder);
 
   void resetCounter();
+  void resetCounter(int value);
 
 protected:
   bool _consistentNormals(std::vector<int> ids);
@@ -158,7 +161,7 @@ private:
   Eigen::Array3i _resolution;
   std::map<int, std::vector<int>> _connections;
 
-  static int count;
+  int count;
   std::string _baseFolder;
 };
 

@@ -2,6 +2,7 @@
 #define __LEVIATHAN_DUAL_CUBES_H__
 
 #include <fluids/levelset_fluid3.h>
+#include <geometry/dual_marching.h>
 #include <string>
 
 namespace Leviathan {
@@ -22,6 +23,7 @@ public:
   void setFolder(std::string folder);
 
   void resetFileCounter();
+  void resetFileCounter(int value);
 
   void swapLevelSet(LevelSetFluid3 levelset);
 

@@ -30,6 +30,8 @@ void DualCubes::swapLevelSet(LevelSetFluid3 levelset) {
   gradient.clear();
   std::copy(lphi.begin(), lphi.end(), std::back_inserter(phi));
   std::copy(lgradient.begin(), lgradient.end(), std::back_inserter(gradient));
+
+  surface = Ramuh::DualMarching3(_gridSize);
 }
 
 void DualCubes::computeIntersectionAndNormals() {
@@ -111,16 +113,16 @@ void DualCubes::extractSurface() {
   auto &_wfaceNormals = getFaceArrayData(2, "faceNormal");
   auto _h = getH();
 
-  findSurfaceCells(_h[0] * 3);
+  findSurfaceCells(_h[0] * 1000);
 
   std::vector<std::pair<int, int>> connections;
-#pragma omp parallel
+#pragma omp parallel num_threads(1)
   {
     Ramuh::DualMarching3 threadSurface(_gridSize);
     std::vector<std::pair<int, int>> threadConnections;
 #pragma omp for
-    for (size_t surfId = 0; surfId < _surfaceCellIds.size(); surfId++) {
-      int cellId = _surfaceCellIds[surfId];
+    for (size_t cellId = 0; cellId < cellCount(); cellId++) {
+      // int cellId = _surfaceCellIds[surfId];
       auto ijk = idToijk(cellId);
       int i = ijk[0], j = ijk[1], k = ijk[2];
 
@@ -258,7 +260,7 @@ void DualCubes::extractSurface() {
         // std::endl;
       }
     }
-#pragma omp critical
+#pragma omp critical(surfaceMerge)
     {
       surface.merge(threadSurface);
       connections.insert(connections.end(), threadConnections.begin(),
@@ -272,6 +274,8 @@ void DualCubes::extractSurface() {
 void DualCubes::setFolder(std ::string folder) { _baseFolder = folder; }
 
 void DualCubes::resetFileCounter() { surface.resetCounter(); }
+
+void DualCubes::resetFileCounter(int value) { surface.resetCounter(value); }
 
 bool DualCubes::hasSignChange(double valueA, double valueB) {
   int signA = (valueA < 0) ? -1 : 1;

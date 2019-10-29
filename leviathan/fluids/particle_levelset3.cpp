@@ -97,7 +97,7 @@ void ParticleLevelSet3::interpolateVelocityToParticles(double time) {
 
 void ParticleLevelSet3::seedParticlesNearSurface() {
   auto h = getH();
-  auto toSeed = findSurfaceCells(3.0 * h[0]);
+  auto toSeed = findSurfaceCells(4.0 * h[0]);
   _seedCells(toSeed);
   std::cerr << "Seeded " << getParticleCount() << " particles\n";
 }
@@ -287,7 +287,7 @@ void ParticleLevelSet3::adjustParticleRadius() {
     std::vector<int> threadRemove;
 #pragma omp for nowait
     for (size_t pid = 0; pid < _totalIds; pid++) {
-      if (isActive(pid)) {
+      if (isActive(pid) && !_hasEscaped(pid)) {
         double particleLevelSet =
             interpolateCellScalarData(_phiId, position[pid]);
         if (std::abs(particleLevelSet) > limit) {

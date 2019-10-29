@@ -133,6 +133,8 @@ public:
   std::vector<int> findSurfaceCells();
 
 protected:
+  void wenoAdvection();
+
   size_t _cellVelocityId, _phiId, _cellGradientId;
   size_t _faceVelocityId;
   bool _isPressure2nd;
