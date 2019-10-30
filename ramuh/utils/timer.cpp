@@ -131,7 +131,11 @@ void Timer::logToFile(std::string filename) {
     buffer = std::ostringstream("");
     for (auto field : _log) {
       if (field.second.size() >= steps - 1) {
-        double timestamp = field.second[i];
+        double timestamp;
+        if (field.second.empty())
+          timestamp = 0.0;
+        else
+          timestamp = field.second[i];
         buffer << timestamp << ", ";
       }
     }

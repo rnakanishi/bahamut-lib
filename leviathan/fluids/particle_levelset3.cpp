@@ -9,6 +9,8 @@
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
+#include <queue>
+#include <utility>
 
 namespace Leviathan {
 
@@ -102,18 +104,19 @@ void ParticleLevelSet3::seedParticlesNearSurface() {
   std::cerr << "Seeded " << getParticleCount() << " particles\n";
 }
 
-void ParticleLevelSet3::_seedCells(std::set<int> &toSeed) {
+std::vector<int> ParticleLevelSet3::_seedCells(std::set<int> &toSeed) {
   std::vector<int> cells(toSeed.begin(), toSeed.end());
-  _seedCells(cells);
+  return _seedCells(cells);
 }
 
-void ParticleLevelSet3::_seedCells(std::vector<int> &toSeed) {
+std::vector<int> ParticleLevelSet3::_seedCells(std::vector<int> &toSeed) {
   std::vector<int> particlesNumber(toSeed.size(), _maxParticles);
-  _seedCells(toSeed, particlesNumber);
+  return _seedCells(toSeed, particlesNumber);
 }
 
-void ParticleLevelSet3::_seedCells(std::vector<int> &toSeed,
-                                   std::vector<int> &particleNumber) {
+std::vector<int>
+ParticleLevelSet3::_seedCells(std::vector<int> &toSeed,
+                              std::vector<int> &particleNumber) {
   // For marked cells, fill them with particles
   auto &particleSignal = getParticleScalarData(_particleSignalId);
   auto &radiuses = getParticleScalarData(_particleRadiusId);
@@ -183,6 +186,7 @@ void ParticleLevelSet3::_seedCells(std::vector<int> &toSeed,
     }
   }
   removeParticle(toRemoveParticles);
+  return std::vector<int>(allSeededParticles.begin(), allSeededParticles.end());
 }
 
 bool ParticleLevelSet3::_hasEscaped(int pid) {
@@ -211,6 +215,14 @@ bool ParticleLevelSet3::_hasEscaped(int pid) {
 }
 
 void ParticleLevelSet3::attractParticles() {
+  std::vector<int> allIndices(_totalIds, 0);
+  for (size_t i = 0; i < _totalIds; i++) {
+    allIndices.emplace_back(i);
+  }
+  attractParticles(allIndices);
+}
+
+void ParticleLevelSet3::attractParticles(std::vector<int> particles) {
   auto &psignal = getParticleScalarData(_particleSignalId);
   auto &position = getParticleArrayData(_particlePositionsId);
   auto &radius = getParticleScalarData(_particleRadiusId);
@@ -223,9 +235,11 @@ void ParticleLevelSet3::attractParticles() {
   band[0] = radiusLimits[0];
   band[1] = 3.0 * getH().maxCoeff();
 
-// Set a goal levelset for each particle
+  // Set a goal levelset for each particle
+
 #pragma omp parallel for
-  for (size_t pid = 0; pid < _totalIds; pid++) {
+  for (size_t _pid = 0; _pid < particles.size(); _pid++) {
+    int pid = particles[_pid];
     if (!isActive(pid))
       continue;
     double goal;
@@ -419,6 +433,7 @@ int ParticleLevelSet3::findCellIdByCoordinate(Eigen::Array3d position) {
 
 void ParticleLevelSet3::reseedParticles() {
   auto &signals = getParticleScalarData(_particleSignalId);
+  auto &radius = getParticleScalarData(_particleRadiusId);
   std::vector<int> nParticles, seedingCells, particlesToRemove;
 
   trackSurface();
@@ -439,14 +454,38 @@ void ParticleLevelSet3::reseedParticles() {
       auto particles = it->second;
 
       int pCount = particles.size();
+      // Particles are inserted if a cell has too few particles
+      // All inserted particles are attracted to the levelset
       if (pCount < 0.75 * _maxParticles) {
         threadNparticles.emplace_back(_maxParticles - pCount);
         threadCells.emplace_back(icell);
       }
+      // To remove particles: create particle difference heap. If interpolated
+      // value to the particle is too different from its original value, remove
       if (pCount > 1.25 * _maxParticles && !_isSurfaceCell[icell]) {
-        threadParticlesToRemove.insert(threadParticlesToRemove.end(),
-                                       particles.begin() + _maxParticles,
-                                       particles.end());
+        std::priority_queue<std::pair<double, int>> further;
+        for (size_t pid = 0; pid < particles.size(); pid++) {
+          if (_hasEscaped(pid))
+            continue;
+          double distance;
+          double value =
+              interpolateCellScalarData(_phiId, getParticlePosition(pid));
+          distance = std::abs(std::abs(value) - std::abs(radius[pid]));
+          if (further.size() < _maxParticles) {
+            further.push(std::make_pair(distance, pid));
+          } else {
+            auto top = further.top();
+            int remove;
+            if (distance < top.first) {
+              further.pop();
+              further.push(std::make_pair(distance, pid));
+              remove = top.second;
+            } else {
+              remove = pid;
+            }
+            threadParticlesToRemove.emplace_back(remove);
+          }
+        }
       }
     }
 #pragma omp critical
@@ -461,7 +500,8 @@ void ParticleLevelSet3::reseedParticles() {
     }
   }
   removeParticle(particlesToRemove);
-  _seedCells(seedingCells, nParticles);
+  auto newParticles = _seedCells(seedingCells, nParticles);
+  attractParticles(newParticles);
 }
 
 void ParticleLevelSet3::sortParticles() {

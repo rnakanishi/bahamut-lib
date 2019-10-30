@@ -9,6 +9,7 @@
 #include <iterator>
 #include <cstdio>
 #include <surface/dual_cubes.h>
+#include <omp.h>
 
 class PLevelSet3 : public Leviathan::ParticleLevelSet3 {
 public:
@@ -18,6 +19,8 @@ public:
       : ParticleLevelSet3(gridSize, domain) {
     _maxParticles = 80;
     lscount = 0;
+    pfileCount = 0;
+
     // _dt = 1 / 30.;
   }
 
@@ -36,13 +39,12 @@ public:
   }
 
   void printParticles() {
-    static int count = 0;
     std::ofstream fileneg;
     std::ofstream filepos;
     std::stringstream negFile;
     std::stringstream posFile;
-    negFile << baseFolder << "pneg" << count << ".obj";
-    posFile << baseFolder << "ppos" << count++ << ".obj";
+    negFile << baseFolder << "pneg" << pfileCount << ".obj";
+    posFile << baseFolder << "ppos" << pfileCount++ << ".obj";
     fileneg.open(negFile.str().c_str(), std::ofstream::out);
     filepos.open(posFile.str().c_str(), std::ofstream::out);
     if (!fileneg.is_open() || !filepos.is_open()) {
@@ -190,6 +192,7 @@ public:
 
 protected:
   int lscount;
+  int pfileCount;
   std::string baseFolder, meshFolder;
 };
 
@@ -324,7 +327,7 @@ public:
     // Initalizing domain
     Ramuh::Timer initTimer;
 
-    _simulation.initializeLevelSet(Eigen::Array3d(.33, .33, .33), 0.15);
+    _simulation.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
     _simulation.setMaxParticles(maxParticles);
     _simulation.setDt(dt);
     initTimer.registerTime("Initialization");
@@ -421,16 +424,14 @@ public:
 
         if (advectionType == 2 || advectionType == 0) {
           _simulation.computeCellVelocity();
-          // _simulation.computeWenoGradient();
-          // _simulation.advectUpwind();
-          _simulation.advectSemiLagrangean();
+          _simulation.advectSemiLagrangeanThirdOrder();
           timer.registerTime("cellAdvection");
         } else if (advectionType == 1) {
           _simulation.advectWeno();
           timer.registerTime("cellAdvection");
         }
 
-        if (advectionType == 0 || advectionType == 3) {
+        if (advectionType == 0) {
           _simulation.advectParticles((double)i / 3.0);
           timer.registerTime("particleAdvect");
         }
@@ -471,8 +472,8 @@ public:
                     << " particles\n";
         }
       }
-      if (advectionType == 0 || advectionType == 3)
-        _simulation.printParticles();
+      // if (advectionType == 0 || advectionType == 3)
+      //   _simulation.printParticles();
 
       // if (advectionType == 0 || advectionType == 3)
       //   _simulation.printParticles();
@@ -517,6 +518,7 @@ private:
 };
 
 int main(int argc, char const *argv[]) {
+  omp_set_num_threads(14);
   // PLevelSet3 system(Eigen::Array3i(100), Ramuh::BoundingBox3(0, 1));
   Setup configuration("./carbuncle/configs/pls.xml");
   configuration.runAllSimulations();

@@ -51,6 +51,7 @@ public:
    *
    */
   void attractParticles();
+  void attractParticles(std::vector<int> particles);
 
   void reseedParticles();
 
@@ -65,9 +66,9 @@ public:
 protected:
   bool _hasEscaped(int pid);
 
-  void _seedCells(std::vector<int> &toSeed, std::vector<int> &n);
-  void _seedCells(std::vector<int> &toSeed);
-  void _seedCells(std::set<int> &toSeed);
+  std::vector<int> _seedCells(std::vector<int> &toSeed, std::vector<int> &n);
+  std::vector<int> _seedCells(std::vector<int> &toSeed);
+  std::vector<int> _seedCells(std::set<int> &toSeed);
 
   int _maxParticles;
 

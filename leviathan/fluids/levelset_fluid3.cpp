@@ -110,6 +110,36 @@ void LevelSetFluid3::advectSemiLagrangean() {
   }
 }
 
+void LevelSetFluid3::advectSemiLagrangeanThirdOrder() {
+  auto &gradient = getCellArrayData(_cellGradientId);
+  auto &cellVelocity = getCellArrayData(_cellVelocityId);
+  auto &phi = getCellScalarData(_phiId);
+  auto h = getH();
+
+  findSurfaceCells(8.0 * h[0]);
+
+  std::vector<double> phiN(phi.begin(), phi.end());
+
+  computeCellVelocity();
+  advectSemiLagrangean();
+
+  advectSemiLagrangean();
+
+#pragma omp parellel for
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int i = _surfaceCellIds[sId];
+    phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
+  }
+
+  advectSemiLagrangean();
+
+#pragma omp parallel for
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int i = _surfaceCellIds[sId];
+    phi[i] = phiN[i] / 3 + 2 * phi[i] / 3;
+  }
+}
+
 void LevelSetFluid3::advectUpwind() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);

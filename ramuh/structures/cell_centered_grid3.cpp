@@ -179,7 +179,7 @@ CellCenteredGrid3::interpolateCellArrayData(int dataId,
   }
 
   std::vector<Eigen::Array3d> points;
-  std::vector<double> values(4);
+  std::vector<double> values(8);
 
   // cell Stencil for linear interpolation
   points.emplace_back(cellPos);

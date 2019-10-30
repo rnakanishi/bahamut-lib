@@ -27,6 +27,7 @@ public:
    * those values are not updated.
    */
   void advectSemiLagrangean();
+  void advectSemiLagrangeanThirdOrder();
 
   void advectEuler();
 
