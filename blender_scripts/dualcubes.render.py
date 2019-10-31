@@ -9,7 +9,8 @@ dull = bpy.data.materials.get("dull_surface")
 for f in range(scn.frame_start, scn.frame_end+1):
     fpath = bpy.path.abspath(
         # '/home/rnakanishi/git/bahamut-lib/results/redistance_cube/{:04d}.obj'.format(f))
-        '/home/rnakanishi/git/bahamut-lib/results/mesh/3d/enright/pls80/{:04d}.obj'.format(f))
+        '/home/rnakanishi/git/bahamut-lib/results/particles/3d/enright/cip/mesh/{:04d}.obj'.format(f))
+    # '/home/rnakanishi/git/bahamut-lib/results/mesh/3d/enright/pls80/{:04d}.obj'.format(f))
     objname = '{:04d}'.format(f)
     # fpath = bpy.path.abspath('/home/rnakanishi/git/bahamut-lib/obj/{:04d}.obj'.format(f))
     bpy.ops.import_scene.obj(filepath=fpath)
@@ -46,10 +47,10 @@ for f in range(scn.frame_start, scn.frame_end+1):
     # mod.thickness = 0.01
 
     bpy.context.scene.render.image_settings.file_format = 'JPEG'
-    bpy.context.scene.render.filepath = "/home/rnakanishi/Documents/blender/enright/pls80/{:04d}.jpg".format(
+    bpy.context.scene.render.filepath = "/home/rnakanishi/Documents/blender/enright/cip/{:04d}.jpg".format(
         f)
     bpy.context.scene.render.engine = "CYCLES"
-    bpy.context.scene.render.resolution_percentage = 80
+    bpy.context.scene.render.resolution_percentage = 50
     bpy.context.scene.render.layers[0].cycles.use_denoising = True
     bpy.ops.render.render(use_viewport=True, write_still=True)
 

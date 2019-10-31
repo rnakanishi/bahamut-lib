@@ -336,11 +336,14 @@ public:
 
     _simulation.computeWenoGradient();
     initTimer.registerTime("Weno gradient");
-    _simulation.seedParticlesNearSurface();
-    initTimer.registerTime("Particles seeding");
-    _simulation.attractParticles();
-    initTimer.registerTime("Particles attraction");
-    _simulation.printParticles();
+    getSimulationType();
+    if (_simulationType == 0 || _simulationType == 3) {
+      _simulation.seedParticlesNearSurface();
+      initTimer.registerTime("Particles seeding");
+      _simulation.attractParticles();
+      initTimer.registerTime("Particles attraction");
+      _simulation.printParticles();
+    }
     // _simulation.printLevelSet();
     initTimer.registerTime("printFile");
     initTimer.evaluateComponentsTime();
@@ -365,6 +368,8 @@ public:
       _simulationType = 2;
     else if (!_simulationTypeString.compare("particles"))
       _simulationType = 3;
+    else if (!_simulationTypeString.compare("cip_advection"))
+      _simulationType = 4;
 
     if (_simulationType < 0)
       std::cerr << "\033[1;31m[ERROR]\033[0m"
@@ -418,16 +423,21 @@ public:
 
       do {
         if (advectionType != 3) {
-          _simulation.findSurfaceCells(4.0 * h[0]);
+          _simulation.findSurfaceCells(8.0 * h[0]);
           timer.registerTime("trackSurface");
         }
 
         if (advectionType == 2 || advectionType == 0) {
           _simulation.computeCellVelocity();
-          _simulation.advectSemiLagrangeanThirdOrder();
+          // _simulation.advectSemiLagrangeanThirdOrder();
+          _simulation.advectSemiLagrangean();
           timer.registerTime("cellAdvection");
         } else if (advectionType == 1) {
           _simulation.advectWeno();
+          timer.registerTime("cellAdvection");
+        } else if (advectionType == 4) {
+          _simulation.computeWenoGradient();
+          _simulation.advectCip();
           timer.registerTime("cellAdvection");
         }
 
@@ -451,7 +461,7 @@ public:
         }
 
         lastRedistance++;
-        if (advectionType != 4) {
+        if (advectionType != 3) {
           if (lastRedistance >= 5) {
             lastRedistance = 0;
             _simulation.redistance();
@@ -478,7 +488,7 @@ public:
       // if (advectionType == 0 || advectionType == 3)
       //   _simulation.printParticles();
       // if (advectionType != 3)
-      //   _simulation.printLevelSet();
+      // _simulation.printLevelSet();
       // timer.registerTime("print");
 
       timer.logToFile(_logFilename);

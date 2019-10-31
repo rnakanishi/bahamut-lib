@@ -17,42 +17,25 @@
 	<meshFolder>results/particles/3d/enright/pls64noweno/mesh/</meshFolder>
 </simulation> -->
 
-<simulation>
-	<parameters>
-		<type>particle_level_set</type>
-		<gridSize>100</gridSize>
-		<frames>180</frames>
-		<domain>0 1</domain>
-		<dt>0.0166666666667</dt>
-		<maxParticles>64</maxParticles>
-	</parameters>
-	<levelset>
-		<center>0.33 0.33 0.33</center>
-		<radius>0.15</radius>
-	</levelset>
-	<!-- <meta reseed='false' /> -->
-	<logfile>pls_log64.csv</logfile>
-	<baseFolder>results/particles/3d/enright/pls64Lagr/</baseFolder>
-	<meshFolder>results/particles/3d/enright/pls64Lagr/mesh/</meshFolder>
-</simulation>
+
 
 <simulation>
 	<parameters>
 		<type>weno_advection</type>
-		<gridSize>100</gridSize>
+		<gridSize>150</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
 	</parameters>
 	<logfile>weno_log.csv</logfile>
-	<baseFolder>results/particles/3d/enright/weno/</baseFolder>
-	<meshFolder>results/particles/3d/enright/weno/mesh/</meshFolder>
+	<baseFolder>results/particles/3d/enright/weno150/</baseFolder>
+	<meshFolder>results/particles/3d/enright/weno150/mesh/</meshFolder>
 </simulation> 
 
-<simulation>
+<!-- <simulation>
 	<parameters>
 		<type>semi_lagrangean</type>
-		<gridSize>100</gridSize>
+		<gridSize>150</gridSize>
 		<frames>180</frames>
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
@@ -60,7 +43,34 @@
 	<baseFolder>results/particles/3d/enright/semiL/</baseFolder>
 	<meshFolder>results/particles/3d/enright/semiL/mesh/</meshFolder>
 	<logfile>semiL_log.csv</logfile>
+</simulation>  -->
+
+<simulation>
+	<parameters>
+		<type>cip_advection</type>
+		<gridSize>150</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+	</parameters>
+	<baseFolder>results/particles/3d/enright/cip150/</baseFolder>
+	<meshFolder>results/particles/3d/enright/cip150/mesh/</meshFolder>
+	<logfile>semiL_log.csv</logfile>
 </simulation> 
+
+<simulation>
+	<parameters>
+		<type>particle_level_set</type>
+		<gridSize>150</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<maxParticles>64</maxParticles>
+	</parameters>
+	<logfile>pls_log64.csv</logfile>
+	<baseFolder>results/particles/3d/enright/pls64Lagr150/</baseFolder>
+	<meshFolder>results/particles/3d/enright/pls64Lagr150/mesh/</meshFolder>
+</simulation>
 
 <!-- <simulation>
 	<parameters>

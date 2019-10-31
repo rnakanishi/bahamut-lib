@@ -45,9 +45,10 @@ void DualCubes::computeIntersectionAndNormals() {
   auto &wfaceNormals = getFaceArrayData(2, "faceNormal");
   auto _h = getH();
 
-  findSurfaceCells(_h[0] * 3);
+  findSurfaceCells(_h[0] * 8);
   Eigen::Array3d domainMin = _domain.getMin();
   // #pragma omp parallel for
+  // for (size_t cellId = 0; cellId < cellCount(); cellId++) {
   for (size_t surfId = 0; surfId < _surfaceCellIds.size(); surfId++) {
     int cellId = _surfaceCellIds[surfId];
     auto ijk = idToijk(cellId);
@@ -55,8 +56,7 @@ void DualCubes::computeIntersectionAndNormals() {
     int centerSign = (phi[ijkToid(i, j, k)] < 0) ? -1 : 1;
     int id = ijkToid(i, j, k);
     if (i < _gridSize[0] - 1) {
-      int neighSign = (phi[ijkToid(i + 1, j, k)] < 0) ? -1 : 1;
-      if (centerSign != neighSign) {
+      if (hasSignChange(phi[cellId], phi[ijkToid(i + 1, j, k)])) {
         // Compute intersection location
         double theta = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i, j, k)];
         double x = domainMin[0] - _h[0] * phi[ijkToid(i, j, k)] / (theta) +
@@ -70,8 +70,9 @@ void DualCubes::computeIntersectionAndNormals() {
       }
     }
     if (j < _gridSize[1] - 1) {
-      int neighSign = (phi[ijkToid(i, j + 1, k)] < 0) ? -1 : 1;
-      if (centerSign != neighSign) {
+      if (i == 52 && j == 23 && k == 29)
+        _h = getH();
+      if (hasSignChange(phi[cellId], phi[ijkToid(i, j + 1, k)])) {
         // Compute intersection location
         double theta = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j, k)];
         double x = domainMin[0] + (i + 0.5) * _h[0];
@@ -85,13 +86,12 @@ void DualCubes::computeIntersectionAndNormals() {
       }
     }
     if (k < _gridSize[2] - 1) {
-      int neighSign = (phi[ijkToid(i, j, k + 1)] < 0) ? -1 : 1;
-      if (centerSign != neighSign) {
+      if (hasSignChange(phi[cellId], phi[ijkToid(i, j, k + 1)])) {
         // Compute intersection location
         double theta = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k)];
         double x = domainMin[0] + (i + 0.5) * _h[0];
         double y = domainMin[1] + (j + 0.5) * _h[1];
-        double z = domainMin[2] + -_h[2] * phi[ijkToid(i, j, k)] / (theta) +
+        double z = domainMin[2] - _h[2] * phi[ijkToid(i, j, k)] / (theta) +
                    (k + 0.5) * _h[2];
         wfaceLocation[faceijkToid(2, i, j, k + 1)] = Eigen::Array3d(x, y, z);
         wfaceNormals[faceijkToid(2, i, j, k + 1)] =
@@ -113,7 +113,7 @@ void DualCubes::extractSurface() {
   auto &_wfaceNormals = getFaceArrayData(2, "faceNormal");
   auto _h = getH();
 
-  findSurfaceCells(_h[0] * 1000);
+  findSurfaceCells(_h[0] * 8);
 
   std::vector<std::pair<int, int>> connections;
 #pragma omp parallel num_threads(1)
@@ -130,6 +130,8 @@ void DualCubes::extractSurface() {
       std::vector<Eigen::Vector3d> normal;
       bool isSurface = false;
       int id = ijkToid(i, j, k);
+      if (i == 52 && j == 23 && k == 29)
+        int a = 0;
 
       // yz-plane
       if (hasSignChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i + 1, j, k)])) {

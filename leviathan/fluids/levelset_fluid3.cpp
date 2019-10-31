@@ -515,11 +515,15 @@ void LevelSetFluid3::advectCip() {
   auto &vVelocity = getFaceScalarData(1, _faceVelocityId);
   auto &wVelocity = getFaceScalarData(2, _faceVelocityId);
   static int count = 0;
-  std::vector<double> newPhi(cellCount(), 0);
+  std::vector<double> newPhi;
   std::vector<Eigen::Array3d> newGrad(cellCount(), Eigen::Array3d(0));
 
+  newPhi.insert(newPhi.begin(), phi.begin(), phi.end());
+
   // #pragma omp parallel for
-  for (size_t id = 0; id < cellCount(); id++) {
+  // for (size_t id = 0; id < cellCount(); id++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int id = _surfaceCellIds[sId];
     auto ijk = idToijk(id);
     int i = ijk[0], j = ijk[1], k = ijk[2];
 
@@ -533,15 +537,15 @@ void LevelSetFluid3::advectCip() {
     double XX = -uCellVelocity * _dt;
     double YY = -vCellVelocity * _dt;
     double ZZ = -wCellVelocity * _dt;
-    int isgn = (uCellVelocity >= 0) ? 1 : -1;
-    int jsgn = (vCellVelocity >= 0) ? 1 : -1;
-    int ksgn = (wCellVelocity >= 0) ? 1 : -1;
+    int isgn = (uCellVelocity < 0) ? 1 : -1;
+    int jsgn = (vCellVelocity < 0) ? 1 : -1;
+    int ksgn = (wCellVelocity < 0) ? 1 : -1;
     double dx = h[0] * isgn;
     double dy = h[1] * jsgn;
     double dz = h[2] * ksgn;
-    int im1 = std::max(0, std::min(_gridSize[0] - 1, i - isgn));
-    int jm1 = std::max(0, std::min(_gridSize[1] - 1, j - jsgn));
-    int km1 = std::max(0, std::min(_gridSize[2] - 1, k - ksgn));
+    int im1 = std::max(0, std::min(_gridSize[0] - 1, i + isgn));
+    int jm1 = std::max(0, std::min(_gridSize[1] - 1, j + jsgn));
+    int km1 = std::max(0, std::min(_gridSize[2] - 1, k + ksgn));
     int idim1 = ijkToid(im1, j, k);
     int idjm1 = ijkToid(i, jm1, k);
     int idkm1 = ijkToid(i, j, km1);
@@ -551,7 +555,7 @@ void LevelSetFluid3::advectCip() {
     B[17] = -phi[id] + phi[idim1] + phi[idkm1] - phi[ijkToid(im1, j, km1)];
     B[18] = -phi[id] + phi[idjm1] + phi[idkm1] - phi[ijkToid(i, jm1, km1)];
     B[0] = (-2 * (phi[idim1] - phi[id]) + (G[idim1][0] + G[id][0]) * dx) /
-           (pow(dx, 3));
+           (dx * dx * dx);
     B[1] = -(B[16] + (G[idjm1][0] - G[id][0]) * dx) / (dx * dx * dy);
     B[2] = -(B[17] + (G[idkm1][0] - G[id][0]) * dx) / (dx * dx * dz);
     B[3] = (3 * (phi[idim1] - phi[id]) - (G[idim1][0] + 2 * G[id][0]) * dx) /
@@ -563,7 +567,7 @@ void LevelSetFluid3::advectCip() {
            (dy * dy * dy);
     B[6] = -(B[18] + (G[idkm1][1] - G[id][1]) * dy) / (dy * dy * dz);
     B[7] = -(B[16] + (G[idim1][1] - G[id][1]) * dy) / (dx * dy * dy);
-    B[8] = (3 * (phi[idjm1] - phi[id]) - (G[idim1][1] + 2 * G[id][1]) * dy) /
+    B[8] = (3 * (phi[idjm1] - phi[id]) - (G[idjm1][1] + 2 * G[id][1]) * dy) /
            (dy * dy);
     B[9] = (B[18] + (G[idkm1][1] - G[id][1]) * dy +
             (G[idjm1][2] - G[id][2]) * dz) /
@@ -581,26 +585,25 @@ void LevelSetFluid3::advectCip() {
              phi[ijkToid(im1, j, km1)] + phi[ijkToid(im1, jm1, km1)]) /
             (dx * dy * dz);
 
-    newPhi[id] = 0;
     newPhi[id] += XX * ((B[0] * XX + B[1] * YY + B[2] * ZZ + B[3]) * XX +
                         B[4] * YY + G[id][0]);
     newPhi[id] += YY * ((B[5] * YY + B[6] * ZZ + B[7] * XX + B[8]) * YY +
                         B[9] * ZZ + G[id][1]);
     newPhi[id] += ZZ * ((B[10] * ZZ + B[11] * XX + B[12] * YY + B[13]) * ZZ +
                         B[14] * XX + G[id][2]);
-    newPhi[id] += B[15] * XX * YY * ZZ + phi[id];
-    newGrad[id][0] =
-        XX * (3 * XX * B[0] + 2 * YY * B[1] + 2 * ZZ * B[2] + 2 * B[3]) +
-        YY * (B[4] + YY * B[7]) + ZZ * (ZZ * B[11] + B[14]) + YY * ZZ * B[15] +
-        G[id][0];
-    newGrad[id][1] =
-        XX * (3 * YY * B[5] + 2 * ZZ * B[6] + 2 * XX * B[7] + 2 * B[8]) +
-        XX * (B[4] + XX * B[1]) + ZZ * (ZZ * B[12] + B[9]) + XX * ZZ * B[15] +
-        G[id][1];
-    newGrad[id][2] =
-        ZZ * (3 * ZZ * B[10] + 2 * XX * B[11] + 2 * YY * B[12] + 2 * B[13]) +
-        XX * (B[14] + XX * B[2]) + YY * (YY * B[6] + B[9]) + XX * ZZ * B[15] +
-        G[id][2];
+    newPhi[id] += B[15] * XX * YY * ZZ;
+    // newGrad[id][0] =
+    //     XX * (3 * XX * B[0] + 2 * YY * B[1] + 2 * ZZ * B[2] + 2 * B[3]) +
+    //     YY * (B[4] + YY * B[7]) + ZZ * (ZZ * B[11] + B[14]) + YY * ZZ * B[15]
+    //     + G[id][0];
+    // newGrad[id][1] =
+    //     XX * (3 * YY * B[5] + 2 * ZZ * B[6] + 2 * XX * B[7] + 2 * B[8]) +
+    //     XX * (B[4] + XX * B[1]) + ZZ * (ZZ * B[12] + B[9]) + XX * ZZ * B[15]
+    //     + G[id][1];
+    // newGrad[id][2] =
+    //     ZZ * (3 * ZZ * B[10] + 2 * XX * B[11] + 2 * YY * B[12] + 2 * B[13]) +
+    //     XX * (B[14] + XX * B[2]) + YY * (YY * B[6] + B[9]) + XX * ZZ * B[15]
+    //     + G[id][2];
   }
   for (size_t id = 0; id < cellCount(); id++) {
     phi[id] = newPhi[id];
