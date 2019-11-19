@@ -33,6 +33,16 @@ void Timer::clearAll() {
 
 void Timer::lap() { _lastLap = std::chrono::steady_clock::now(); }
 
+double Timer::getComponentTime(const std::string &name) {
+  auto it = _components.find(name);
+  if (it == _components.end()) {
+    std::cout << "\033[21;33m[Warning]: \033[0mTimer['" << name
+              << "'] not found.\n";
+    return 0.0;
+  }
+  return it->second;
+}
+
 double Timer::getEllapsedTime() {
   auto timeNow = std::chrono::steady_clock::now();
   std::chrono::duration<double> duration = timeNow - _lastLap;
@@ -87,6 +97,7 @@ void Timer::evaluateComponentsTime() {
     _log[comp.first].emplace_back(comp.second / (double)ncalls);
   }
   _log["total"].emplace_back(total);
+  _components["total"] = total;
   std::cout << "Total time: " << total << std::endl;
   std::cout << "===============================\n";
 }

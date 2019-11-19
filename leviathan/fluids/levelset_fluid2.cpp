@@ -360,8 +360,6 @@ void LevelSetFluid2::advectCip() {
   std::vector<double> newPhi(cellCount(), 0);
   std::vector<Eigen::Array2d> newGrad(cellCount(), Eigen::Array2d(0));
 
-  // TODO: Max velocity for cfl
-
   for (size_t id = 0; id < cellCount(); id++) {
     auto ij = idToij(id);
     int i = ij[0], j = ij[1];
@@ -392,7 +390,11 @@ void LevelSetFluid2::advectCip() {
         (3 * (phi[ijToid(im1, j)] - phi[id]) +
          (gradient[ijToid(im1, j)][0] + 2 * gradient[id][0]) * h[0] * isgn) /
         (h[0] * h[0]);
-    double A4 = (A2 * h[0] * h[0] - tmp) / (h[0] * isgn);
+    // double A4 = (A2 * h[0] * h[0] - tmp) / (h[0] * isgn);
+    double A4 =
+        (-A8 - (gradient[ijToid(i, jm1)][0] - gradient[id][0]) * h[0] * isgn -
+         (gradient[ijToid(im1, j)][1] - gradient[id][1]) * h[1] * jsgn) /
+        (h[0] * h[1] * isgn * jsgn);
     double A5 =
         (-2 * (phi[id] - phi[ijToid(i, jm1)]) +
          (gradient[ijToid(i, jm1)][1] + gradient[id][1]) * h[1] * jsgn) /
@@ -402,6 +404,7 @@ void LevelSetFluid2::advectCip() {
         (3 * (phi[ijToid(i, jm1)] - phi[id]) +
          (gradient[ijToid(i, jm1)][1] + 2 * gradient[id][1]) * h[1] * jsgn) /
         (h[1] * h[1]);
+
     newPhi[id] =
         ((A1 * XX + A2 * YY + A3) * XX + A4 * YY + gradient[id][0]) * XX +
         ((A5 * YY + A6 * XX + A7) * YY + gradient[id][1]) * YY + phi[id];

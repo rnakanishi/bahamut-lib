@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <chrono>
+#include <utils/statistics.hpp>
 
 namespace Ramuh {
 class Timer {
@@ -34,6 +35,8 @@ public:
    * @return double
    */
   double getEllapsedTime();
+
+  double getComponentTime(const std::string &name);
 
   /**
    * @brief Register a new label to evaluate. If the label already exists, then

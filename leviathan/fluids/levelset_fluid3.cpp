@@ -25,16 +25,31 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
   _ellapsedDt = 0;
   _tolerance = 1e-10;
 
+  _cflTolerance = .8;
   _cellGradientId = newCellArrayLabel("cellGradient");
   _isSurfaceCell.resize(cellCount(), false);
   _surfaceCellCount = 0;
+  _redistanceIterations = 15;
 }
 
 int LevelSetFluid3::getSurfaceCellCount() { return _surfaceCellCount; }
 
+void LevelSetFluid3::setCflCondition(double cfl) { _cflTolerance = cfl; }
+
 void LevelSetFluid3::setDt(double dt) {
   _originalDt = _dt = dt;
   _ellapsedDt = 0;
+}
+
+int LevelSetFluid3::fluidCellCount() {
+  auto phi = getCellScalarData(_phiId);
+  int fluidCells = 0;
+#pragma omp parallel reduction(+ : fluidCells)
+  for (size_t i = 0; i < cellCount(); i++) {
+    if (phi[i] < 0)
+      fluidCells++;
+  }
+  return fluidCells;
 }
 
 void LevelSetFluid3::computeCellsGradient() {
@@ -292,7 +307,6 @@ void LevelSetFluid3::computeWenoGradient() {
 void LevelSetFluid3::wenoAdvection() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
-  auto &gradient = getCellArrayData(_cellGradientId);
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
 
   std::vector<double> newphi;
@@ -307,7 +321,6 @@ void LevelSetFluid3::wenoAdvection() {
     std::vector<double> values(6);
     auto ijk = idToijk(id);
     int i = ijk[0], j = ijk[1], k = ijk[2];
-    gradient[id] = 0;
 
     double dPhi = 0.0;
     for (size_t coord = 0; coord < 3; coord++) {
@@ -343,7 +356,7 @@ void LevelSetFluid3::wenoAdvection() {
             values[ival] =
                 (phi[ijkToid(index, j, k)] - phi[ijkToid(index1, j, k)]) /
                 h[coord];
-            velocity = cellVelocity[ijkToid(index1, j, k)][coord];
+            // velocity = cellVelocity[ijkToid(index1, j, k)][coord];
             break;
           case 1:
             index = std::min(_gridSize[coord] - 1, std::max(1, j + inc));
@@ -352,7 +365,7 @@ void LevelSetFluid3::wenoAdvection() {
             values[ival] =
                 (phi[ijkToid(i, index, k)] - phi[ijkToid(i, index1, k)]) /
                 h[coord];
-            velocity = cellVelocity[ijkToid(i, index1, k)][coord];
+            // velocity = cellVelocity[ijkToid(i, index1, k)][coord];
             break;
           case 2:
             index = std::min(_gridSize[coord] - 1, std::max(1, k + inc));
@@ -361,10 +374,10 @@ void LevelSetFluid3::wenoAdvection() {
             values[ival] =
                 (phi[ijkToid(i, j, index)] - phi[ijkToid(i, j, index1)]) /
                 h[coord];
-            velocity = cellVelocity[ijkToid(i, j, index1)][coord];
+            // velocity = cellVelocity[ijkToid(i, j, index1)][coord];
             break;
           }
-          values[ival] *= velocity;
+          // values[ival] *= velocity;
         }
         // Boundary conditions. This ensure weno doesnt use outside values
         if (cellijk <= 1)
@@ -390,7 +403,7 @@ void LevelSetFluid3::wenoAdvection() {
             values[ival] =
                 (phi[ijkToid(index, j, k)] - phi[ijkToid(index1, j, k)]) /
                 h[coord];
-            velocity = cellVelocity[ijkToid(index, j, k)][coord];
+            // velocity = cellVelocity[ijkToid(index, j, k)][coord];
             break;
           case 1:
             index = std::min(_gridSize[coord] - 1, std::max(1, j + inc + 1));
@@ -400,7 +413,7 @@ void LevelSetFluid3::wenoAdvection() {
             values[ival] =
                 (phi[ijkToid(i, index, k)] - phi[ijkToid(i, index1, k)]) /
                 h[coord];
-            velocity = cellVelocity[ijkToid(i, index, k)][coord];
+            // velocity = cellVelocity[ijkToid(i, index, k)][coord];
             break;
           case 2:
             index = std::min(_gridSize[coord] - 1, std::max(1, k + inc + 1));
@@ -410,10 +423,10 @@ void LevelSetFluid3::wenoAdvection() {
             values[ival] =
                 (phi[ijkToid(i, j, index)] - phi[ijkToid(i, j, index1)]) /
                 h[coord];
-            velocity = cellVelocity[ijkToid(i, j, index)][coord];
+            // velocity = cellVelocity[ijkToid(i, j, index)][coord];
             break;
           }
-          values[ival] *= velocity;
+          // values[ival] *= velocity;
         }
         if (cellijk <= 1)
           values[0] = 1e4;
@@ -425,9 +438,8 @@ void LevelSetFluid3::wenoAdvection() {
           values[4] = 1e4;
       }
 
-      dPhi += Ramuh::Weno::evaluate(values, h[coord], false);
       // Summing up all gradients to obtain flux
-      // gradient[id][coord] = dPhi;
+      dPhi += Ramuh::Weno::evaluate(values, h[coord], false) * velocity;
     }
     newphi[id] = phi[id] - dPhi * _dt;
   }
@@ -441,8 +453,6 @@ void LevelSetFluid3::advectWeno() {
   auto &phi = getCellScalarData(_phiId);
   auto h = getH();
 
-  findSurfaceCells(8.0 * h[0]);
-
   std::vector<double> phiN(phi.begin(), phi.end());
 
   computeCellVelocity();
@@ -455,7 +465,7 @@ void LevelSetFluid3::advectWeno() {
   // advectUpwind();
   wenoAdvection();
 
-#pragma omp parellel for
+#pragma omp parallel for
   for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
     int i = _surfaceCellIds[sId];
     phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
@@ -519,99 +529,278 @@ void LevelSetFluid3::advectCip() {
   std::vector<Eigen::Array3d> newGrad(cellCount(), Eigen::Array3d(0));
 
   newPhi.insert(newPhi.begin(), phi.begin(), phi.end());
+  findSurfaceCells((2 * _gridSize[0]) * h[0]);
 
-  // #pragma omp parallel for
-  // for (size_t id = 0; id < cellCount(); id++) {
-  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
-    int id = _surfaceCellIds[sId];
-    auto ijk = idToijk(id);
-    int i = ijk[0], j = ijk[1], k = ijk[2];
+#pragma omp parallel num_threads(1)
+  {
+#pragma omp for
+    for (size_t id = 0; id < cellCount(); id++) {
+      // for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+      // int id = _surfaceCellIds[sId];
+      auto ijk = idToijk(id);
+      int i = ijk[0], j = ijk[1], k = ijk[2];
 
-    double uCellVelocity = 0.5 * (uVelocity[faceijkToid(0, i, j, k)] +
-                                  uVelocity[faceijkToid(0, i + 1, j, k)]);
-    double vCellVelocity = 0.5 * (vVelocity[faceijkToid(1, i, j, k)] +
-                                  vVelocity[faceijkToid(1, i, j + 1, k)]);
-    double wCellVelocity = 0.5 * (wVelocity[faceijkToid(2, i, j, k)] +
-                                  wVelocity[faceijkToid(2, i, j, k + 1)]);
+      double uCellVelocity = 0.5 * (uVelocity[faceijkToid(0, i, j, k)] +
+                                    uVelocity[faceijkToid(0, i + 1, j, k)]);
+      double vCellVelocity = 0.5 * (vVelocity[faceijkToid(1, i, j, k)] +
+                                    vVelocity[faceijkToid(1, i, j + 1, k)]);
+      double wCellVelocity = 0.5 * (wVelocity[faceijkToid(2, i, j, k)] +
+                                    wVelocity[faceijkToid(2, i, j, k + 1)]);
 
-    double XX = -uCellVelocity * _dt;
-    double YY = -vCellVelocity * _dt;
-    double ZZ = -wCellVelocity * _dt;
-    int isgn = (uCellVelocity < 0) ? 1 : -1;
-    int jsgn = (vCellVelocity < 0) ? 1 : -1;
-    int ksgn = (wCellVelocity < 0) ? 1 : -1;
-    double dx = h[0] * isgn;
-    double dy = h[1] * jsgn;
-    double dz = h[2] * ksgn;
-    int im1 = std::max(0, std::min(_gridSize[0] - 1, i + isgn));
-    int jm1 = std::max(0, std::min(_gridSize[1] - 1, j + jsgn));
-    int km1 = std::max(0, std::min(_gridSize[2] - 1, k + ksgn));
-    int idim1 = ijkToid(im1, j, k);
-    int idjm1 = ijkToid(i, jm1, k);
-    int idkm1 = ijkToid(i, j, km1);
+      double XX = -uCellVelocity * _dt;
+      double YY = -vCellVelocity * _dt;
+      double ZZ = -wCellVelocity * _dt;
+      int isgn = (uCellVelocity >= 0) ? 1 : -1;
+      int jsgn = (vCellVelocity >= 0) ? 1 : -1;
+      int ksgn = (wCellVelocity >= 0) ? 1 : -1;
+      double dx = h[0] * isgn;
+      double dy = h[1] * jsgn;
+      double dz = h[2] * ksgn;
+      int im1 = std::max(0, std::min(_gridSize[0] - 1, i - isgn));
+      int jm1 = std::max(0, std::min(_gridSize[1] - 1, j - jsgn));
+      int km1 = std::max(0, std::min(_gridSize[2] - 1, k - ksgn));
+      int idim1 = ijkToid(im1, j, k);
+      int idjm1 = ijkToid(i, jm1, k);
+      int idkm1 = ijkToid(i, j, km1);
 
-    double B[19];
-    B[16] = -phi[id] + phi[idim1] + phi[idjm1] - phi[ijkToid(im1, jm1, k)];
-    B[17] = -phi[id] + phi[idim1] + phi[idkm1] - phi[ijkToid(im1, j, km1)];
-    B[18] = -phi[id] + phi[idjm1] + phi[idkm1] - phi[ijkToid(i, jm1, km1)];
-    B[0] = (-2 * (phi[idim1] - phi[id]) + (G[idim1][0] + G[id][0]) * dx) /
-           (dx * dx * dx);
-    B[1] = -(B[16] + (G[idjm1][0] - G[id][0]) * dx) / (dx * dx * dy);
-    B[2] = -(B[17] + (G[idkm1][0] - G[id][0]) * dx) / (dx * dx * dz);
-    B[3] = (3 * (phi[idim1] - phi[id]) - (G[idim1][0] + 2 * G[id][0]) * dx) /
-           (dx * dx);
-    B[4] = (B[16] + (G[idjm1][0] - G[id][0]) * dx +
-            (G[idim1][1] - G[id][1]) * dy) /
-           (dx * dy);
-    B[5] = (-2 * (phi[idjm1] - phi[id]) + (G[idjm1][1] + G[id][1]) * dy) /
-           (dy * dy * dy);
-    B[6] = -(B[18] + (G[idkm1][1] - G[id][1]) * dy) / (dy * dy * dz);
-    B[7] = -(B[16] + (G[idim1][1] - G[id][1]) * dy) / (dx * dy * dy);
-    B[8] = (3 * (phi[idjm1] - phi[id]) - (G[idjm1][1] + 2 * G[id][1]) * dy) /
-           (dy * dy);
-    B[9] = (B[18] + (G[idkm1][1] - G[id][1]) * dy +
-            (G[idjm1][2] - G[id][2]) * dz) /
-           (dy * dz);
-    B[10] = (-2 * (phi[idkm1] - phi[id]) + (G[idkm1][2] + G[id][2]) * dz) /
-            (dz * dz * dz);
-    B[11] = -(B[17] + (G[idim1][2] - G[id][2]) * dz) / (dx * dz * dz);
-    B[12] = -(B[18] + (G[idjm1][2] - G[id][2]) * dz) / (dy * dz * dz);
-    B[13] = (3 * (phi[idkm1] - phi[id]) - (G[idkm1][2] + 2 * G[id][2]) * dz) /
-            (dz * dz);
-    B[14] = (B[17] + (G[idim1][2] - G[id][2]) * dz +
-             (G[idkm1][0] - G[id][0]) * dx) /
-            (dx * dz);
-    B[15] = (B[16] + phi[idkm1] - phi[ijkToid(i, jm1, km1)] -
-             phi[ijkToid(im1, j, km1)] + phi[ijkToid(im1, jm1, km1)]) /
-            (dx * dy * dz);
+      double B[19];
+      B[16] = -phi[id] + phi[idim1] + phi[idjm1] - phi[ijkToid(im1, jm1, k)];
+      B[17] = -phi[id] + phi[idim1] + phi[idkm1] - phi[ijkToid(im1, j, km1)];
+      B[18] = -phi[id] + phi[idjm1] + phi[idkm1] - phi[ijkToid(i, jm1, km1)];
+      B[0] = (-2 * (phi[id] - phi[idim1]) + (G[idim1][0] + G[id][0]) * dx) /
+             (dx * dx * dx);
+      B[1] = (B[16] - (G[idjm1][0] - G[id][0]) * dx) / (dx * dx * dy);
+      B[2] = (B[17] - (G[idkm1][0] - G[id][0]) * dx) / (dx * dx * dz);
+      B[3] = (3 * (phi[idim1] - phi[id]) + (G[idim1][0] + 2 * G[id][0]) * dx) /
+             (dx * dx);
+      B[4] = (B[1] * dx * dx - (G[idim1][1] - G[id][1])) / dx;
+      B[5] = (-2 * (phi[id] - phi[idjm1]) + (G[idjm1][1] + G[id][1]) * dy) /
+             (dy * dy * dy);
+      B[6] = (B[18] - (G[idkm1][1] - G[id][1]) * dy) / (dy * dy * dz);
+      B[7] = (B[16] - (G[idim1][1] - G[id][1]) * dy) / (dx * dy * dy);
+      B[8] = (3 * (phi[idjm1] - phi[id]) + (G[idjm1][1] + 2 * G[id][1]) * dy) /
+             (dy * dy);
+      B[9] = (B[6] * dy * dy - (G[idjm1][2] - G[id][2])) / (dy);
+      B[10] = (-2 * (phi[id] - phi[idkm1]) + (G[idkm1][2] + G[id][2]) * dz) /
+              (dz * dz * dz);
+      B[11] = (B[17] - (G[idim1][2] - G[id][2]) * dz) / (dx * dz * dz);
+      B[12] = (B[18] - (G[idjm1][2] - G[id][2]) * dz) / (dy * dz * dz);
+      B[13] = (3 * (phi[idkm1] - phi[id]) + (G[idkm1][2] + 2 * G[id][2]) * dz) /
+              (dz * dz);
+      B[14] = (B[11] * dz * dz - (G[idkm1][0] - G[id][0])) / dz;
+      B[15] = -(B[16] + phi[idkm1] - phi[ijkToid(i, jm1, km1)] -
+                phi[ijkToid(im1, j, km1)] + phi[ijkToid(im1, jm1, km1)]) /
+              (dx * dy * dz);
 
-    newPhi[id] += XX * ((B[0] * XX + B[1] * YY + B[2] * ZZ + B[3]) * XX +
-                        B[4] * YY + G[id][0]);
-    newPhi[id] += YY * ((B[5] * YY + B[6] * ZZ + B[7] * XX + B[8]) * YY +
-                        B[9] * ZZ + G[id][1]);
-    newPhi[id] += ZZ * ((B[10] * ZZ + B[11] * XX + B[12] * YY + B[13]) * ZZ +
-                        B[14] * XX + G[id][2]);
-    newPhi[id] += B[15] * XX * YY * ZZ;
-    // newGrad[id][0] =
-    //     XX * (3 * XX * B[0] + 2 * YY * B[1] + 2 * ZZ * B[2] + 2 * B[3]) +
-    //     YY * (B[4] + YY * B[7]) + ZZ * (ZZ * B[11] + B[14]) + YY * ZZ * B[15]
-    //     + G[id][0];
-    // newGrad[id][1] =
-    //     XX * (3 * YY * B[5] + 2 * ZZ * B[6] + 2 * XX * B[7] + 2 * B[8]) +
-    //     XX * (B[4] + XX * B[1]) + ZZ * (ZZ * B[12] + B[9]) + XX * ZZ * B[15]
-    //     + G[id][1];
-    // newGrad[id][2] =
-    //     ZZ * (3 * ZZ * B[10] + 2 * XX * B[11] + 2 * YY * B[12] + 2 * B[13]) +
-    //     XX * (B[14] + XX * B[2]) + YY * (YY * B[6] + B[9]) + XX * ZZ * B[15]
-    //     + G[id][2];
-  }
-  for (size_t id = 0; id < cellCount(); id++) {
-    phi[id] = newPhi[id];
-    G[id] = newGrad[id];
+      newPhi[id] = phi[id];
+      newPhi[id] += XX * ((B[0] * XX + B[1] * YY + B[2] * ZZ + B[3]) * XX +
+                          B[4] * YY + G[id][0]);
+      newPhi[id] += YY * ((B[5] * YY + B[6] * ZZ + B[7] * XX + B[8]) * YY +
+                          B[9] * ZZ + G[id][1]);
+      newPhi[id] += ZZ * ((B[10] * ZZ + B[11] * XX + B[12] * YY + B[13]) * ZZ +
+                          B[14] * XX + G[id][2]);
+      newPhi[id] += B[15] * XX * YY * ZZ;
+      newGrad[id][0] =
+          XX * (3 * XX * B[0] + 2 * YY * B[1] + 2 * ZZ * B[2] + 2 * B[3]) +
+          YY * (B[4] + YY * B[7]) + ZZ * (ZZ * B[11] + B[14]) +
+          YY * ZZ * B[15] + G[id][0];
+      // newGrad[id][0] = XX * (B[2] * ZZ + B[1] * YY + 2 * B[0] * XX + B[3]) +
+      //                  XX * (B[2] * ZZ + B[1] * YY + B[0] * XX + B[3]) +
+      //                  ZZ * (B[11] * ZZ + B[14]) + B[15] * YY * ZZ +
+      //                  B[7] * YY * YY + B[4] * YY + G[id][0];
+      newGrad[id][1] =
+          YY * (3 * YY * B[5] + 2 * ZZ * B[6] + 2 * XX * B[7] + 2 * B[8]) +
+          XX * (B[4] + XX * B[1]) + ZZ * (ZZ * B[12] + B[9]) + XX * ZZ * B[15] +
+          G[id][1];
+      // newGrad[id][1] =
+      //     B[12] * ZZ + YY * (B[6] * ZZ + 2 * B[5] * YY + B[7] * XX + B[8]) +
+      //     YY * (B[6] * ZZ + B[5] * YY + B[7] * XX + B[8]) + B[15] * XX * ZZ +
+      //     B[9] * ZZ + XX * (B[1] * XX + B[4]) + G[id][1];
+      newGrad[id][2] =
+          ZZ * (3 * ZZ * B[10] + 2 * XX * B[11] + 2 * YY * B[12] + 2 * B[13]) +
+          XX * (B[14] + XX * B[2]) + YY * (YY * B[6] + B[9]) + XX * YY * B[15] +
+          G[id][2];
+      // newGrad[id][2] = ZZ * (2 * B[10] * ZZ + B[12] * YY + B[11] * XX +
+      // B[13]) +
+      //                  ZZ * (B[10] * ZZ + B[12] * YY + B[11] * XX + B[13]) +
+      //                  YY * (B[6] * YY + B[9]) + B[15] * XX * YY +
+      //                  B[2] * XX * XX + B[14] * XX + G[id][2];
+
+      // newGrad[id] = newGrad[id].matrix().normalized().array();
+      if (phi[id] < 0)
+        newPhi[id] = newPhi[id] + 0;
+    }
+#pragma omp for
+    for (size_t id = 0; id < cellCount(); id++) {
+      // if (std::abs(newPhi[id]) > 1)
+      //   std::cerr << "BIG PHI\n";
+      phi[id] = newPhi[id];
+      G[id] = newGrad[id];
+    }
   }
 }
+void LevelSetFluid3::setMaxRedistanceIterations(int iterations) {
+  _redistanceIterations = iterations;
+}
 
-void LevelSetFluid3::redistance() {
+void LevelSetFluid3::redistance(bool moveSurface) {
+  auto h = getH();
+  auto &phi = getCellScalarData(_phiId);
+  double eps = h[0];
+  double dt = 0.5 * h[0];
+  std::vector<double> gradient(cellCount());
+  std::vector<double> cellSignal(cellCount());
+  std::vector<double> initialPhi(cellCount());
+  std::vector<double> interfaceFactor(cellCount());
+  std::vector<bool> isInterface(cellCount(), false);
+
+  double totalError;
+  int iterations = 0;
+  bool shouldStop = false;
+#pragma omp parallel
+  {
+#pragma omp for schedule(static) nowait
+    for (int id = 0; id < cellCount(); id++) {
+      initialPhi[id] = phi[id];
+      if (!moveSurface) {
+        if (phi[id] > 0)
+          cellSignal[id] = 1;
+        else if (phi[id] < 0)
+          cellSignal[id] = -1;
+        else
+          cellSignal[id] = 0;
+
+        auto ijk = idToijk(id);
+        isInterface[id] = false;
+        int i = ijk[0], j = ijk[1], k = ijk[2];
+        interfaceFactor[id] = 0;
+        if ((i > 0 && i < _gridSize[0] - 1) &&
+            (j > 0 && j < _gridSize[1] - 1) &&
+            (k > 0 && k < _gridSize[2] - 1)) {
+          if (phi[id] * phi[ijkToid(i - 1, j, k)] <= 0 ||
+              phi[id] * phi[ijkToid(i + 1, j, k)] <= 0 ||
+              phi[id] * phi[ijkToid(i, j - 1, k)] <= 0 ||
+              phi[id] * phi[ijkToid(i, j + 1, k)] <= 0 ||
+              phi[id] * phi[ijkToid(i, j, k - 1)] <= 0 ||
+              phi[id] * phi[ijkToid(i, j, k + 1)] <= 0) {
+            isInterface[id] = true;
+            interfaceFactor[id] = h[0] * phi[id];
+
+            // These differential values are used to improbe robustness when
+            // redistancing levelsets that may suffer too much from topological
+            // changes
+            double Dphi, dCentral[3], dUp[3], dDown[3];
+            dCentral[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i - 1, j, k)];
+            dCentral[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j - 1, k)];
+            dCentral[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k - 1)];
+            dDown[0] = phi[ijkToid(i, j, k)] - phi[ijkToid(i - 1, j, k)];
+            dDown[1] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j - 1, k)];
+            dDown[2] = phi[ijkToid(i, j, k)] - phi[ijkToid(i, j, k - 1)];
+            dUp[0] = phi[ijkToid(i + 1, j, k)] - phi[ijkToid(i, j, k)];
+            dUp[1] = phi[ijkToid(i, j + 1, k)] - phi[ijkToid(i, j, k)];
+            dUp[2] = phi[ijkToid(i, j, k + 1)] - phi[ijkToid(i, j, k)];
+
+            for (size_t d = 0; d < 3; d++) {
+              dCentral[d] = dCentral[d] * dCentral[d];
+              dUp[d] = dUp[d] * dUp[d];
+              dDown[d] = dDown[d] * dDown[d];
+            }
+
+            Dphi = std::max(
+                h[0],
+                std::max(sqrt(dCentral[0] + dCentral[1] + dCentral[2]) / 2,
+                         std::max(sqrt(dUp[0] + dUp[1] + dUp[2]),
+                                  sqrt(dDown[0] + dDown[1] + dDown[2]))));
+            interfaceFactor[id] /= Dphi;
+          }
+        }
+      } else {
+        cellSignal[id] = phi[id] / sqrt(phi[id] * phi[id] + eps * eps);
+      }
+    }
+    for (int t = 0; t < _redistanceIterations && !shouldStop; t++) {
+      double error = 0.;
+#pragma omp single nowait
+      {
+        totalError = 0;
+        iterations++;
+      }
+#pragma omp for schedule(static)
+      for (int id = 0; id < cellCount(); id++) {
+        auto ijk = idToijk(id);
+        int i = ijk[0], j = ijk[1], k = ijk[2];
+        double dx[2], dy[2], dz[2]; // Index 0: Dx-, Index 1: Dx+
+        dx[0] = dx[1] = dy[0] = dy[1] = dz[0] = dz[1] = 0.;
+        {
+          if (i > 0)
+            dx[0] = (phi[id] - phi[ijkToid(i - 1, j, k)]) / h[0];
+          if (i < _gridSize[0] - 1)
+            dx[1] = (phi[ijkToid(i + 1, j, k)] - phi[id]) / h[0];
+
+          if (j > 0)
+            dy[0] = (phi[id] - phi[ijkToid(i, j - 1, k)]) / h[1];
+          if (j < _gridSize[1] - 1)
+            dy[1] = (phi[ijkToid(i, j + 1, k)] - phi[id]) / h[1];
+
+          if (k > 0)
+            dz[0] = (phi[id] - phi[ijkToid(i, j, k - 1)]) / h[2];
+          if (k < _gridSize[2] - 1)
+            dz[1] = (phi[ijkToid(i, j, k + 1)] - phi[id]) / h[2];
+        }
+
+        double gx, gy, gz;
+        if (initialPhi[id] > 0) {
+          double a, b;
+          a = std::max(0., dx[0]);
+          b = std::min(0., dx[1]);
+          gx = std::max(a * a, b * b);
+          a = std::max(0., dy[0]);
+          b = std::min(0., dy[1]);
+          gy = std::max(a * a, b * b);
+          a = std::max(0., dz[0]);
+          b = std::min(0., dz[1]);
+          gz = std::max(a * a, b * b);
+        } else if (initialPhi[id] < 0) {
+          double a, b;
+          a = std::min(0., dx[0]);
+          b = std::max(0., dx[1]);
+          gx = std::max(a * a, b * b);
+          a = std::min(0., dy[0]);
+          b = std::max(0., dy[1]);
+          gy = std::max(a * a, b * b);
+          a = std::min(0., dz[0]);
+          b = std::max(0., dz[1]);
+          gz = std::max(a * a, b * b);
+        } else {
+          gx = gy = gz = 1.0 / 3;
+        }
+        gradient[id] = std::sqrt(gx + gy + gz) - 1;
+        // // Time integration step. Euler method
+        double newPhi = 0.;
+
+        if (!isInterface[id] || moveSurface) {
+          newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
+        } else {
+          newPhi = phi[id] - (dt / h[0]) * (cellSignal[id] * abs(phi[id]) -
+                                            interfaceFactor[id]);
+        }
+        double newError = abs(phi[id] - newPhi);
+        error += newError;
+        phi[id] = newPhi;
+      }
+#pragma omp atomic
+      totalError += error;
+
+#pragma omp single
+      if (totalError / cellCount() < dt * h[0] * h[0]) {
+        shouldStop = true;
+      }
+    }
+  }
+  std::cerr << "Run redistance for " << iterations << " iterations\n";
+}
+
+void LevelSetFluid3::redistanceWithGradient() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
   double eps = h[0];
@@ -771,7 +960,7 @@ bool LevelSetFluid3::advanceTime() {
   return true;
 }
 
-void LevelSetFluid3::applyCfl() {
+int LevelSetFluid3::applyCfl() {
   Eigen::Vector3d maxVel(0., 0., 0.);
   auto &u = getFaceScalarData(0, _cellVelocityId);
   auto &v = getFaceScalarData(1, _cellVelocityId);
@@ -801,10 +990,12 @@ void LevelSetFluid3::applyCfl() {
   }
   // Check if cfl condition applies
   // Half timestep if so
-  if (maxVel.norm() * (_originalDt - _ellapsedDt) > 0.8 * h[0]) {
-    int pieces = std::floor(maxVel.norm() * _dt / (0.9 * h[0])) + 1;
+  int pieces;
+  if (maxVel.norm() * (_originalDt - _ellapsedDt) > _cflTolerance * h[0]) {
+    pieces = std::floor(maxVel.norm() * _dt / (_cflTolerance * h[0])) + 1;
     _dt = _dt / pieces;
   }
+  return pieces;
 }
 
 std::vector<int> LevelSetFluid3::trackSurface() {

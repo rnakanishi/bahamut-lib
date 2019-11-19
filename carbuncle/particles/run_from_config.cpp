@@ -38,6 +38,19 @@ public:
     }
   }
 
+  void initializeGradient(Eigen::Array3d center, double radius) {
+    auto &function = getCellArrayData(_cellGradientId);
+#pragma omp parallel for
+    for (size_t i = 0; i < cellCount(); i++) {
+      auto p = getCellPosition(i);
+      p -= center;
+      for (size_t dim = 0; dim < 3; dim++)
+        function[i][dim] = 2 * p[dim];
+      // function[i] = function[i].matrix().normalized().array();
+      // int a = 0;
+    }
+  }
+
   void printParticles() {
     std::ofstream fileneg;
     std::ofstream filepos;
@@ -157,9 +170,7 @@ public:
         auto p = getFacePosition(0, i);
         u[i] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
                sin(2 * M_PI * p[2]) * cos(M_PI * time);
-        // u[i] *= ;
-
-        // u[i] = 0;
+        // u[i] = p[1];
       }
 
 // v velocities
@@ -168,8 +179,7 @@ public:
         auto p = getFacePosition(1, j);
         v[j] = -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) *
                sin(2 * M_PI * p[2]) * cos(M_PI * time);
-        // v[j] *= ;
-        // v[i] = -1;
+        // v[j] = -p[0];
       }
 
 // w velocities
@@ -178,8 +188,7 @@ public:
         auto p = getFacePosition(2, k);
         w[k] = -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) *
                sin(2 * M_PI * p[1]) * cos(M_PI * time);
-        // w[k] *= ;
-        // v[i] = -1;
+        // w[k] = 0;
       }
     }
   }
@@ -237,7 +246,7 @@ public:
 
     // Simulatino parameters
     int size;
-    double domainMin, domainMax, dt = 1 / 60.;
+    double domainMin, domainMax, dt = 1 / 60., cflCond = -1;
     int maxParticles;
 
     sscanf(node.child("gridSize").child_value(), "%d", &size);
@@ -245,6 +254,8 @@ public:
            &domainMax);
     sscanf(node.child("frames").child_value(), "%d", &_frames);
     sscanf(node.child("dt").child_value(), "%lf", &dt);
+    sscanf(node.child("dt").child_value(), "%lf", &dt);
+    sscanf(node.child("cfl").child_value(), "%lf", &cflCond);
 
     configNode.append_child("gridSize")
         .append_child(pugi::node_pcdata)
@@ -258,6 +269,10 @@ public:
     configNode.append_child("dt")
         .append_child(pugi::node_pcdata)
         .set_value(node.child("dt").child_value());
+    if (cflCond > 0)
+      configNode.append_child("cfl")
+          .append_child(pugi::node_pcdata)
+          .set_value(node.child("cfl").child_value());
 
     maxParticles = 80;
     if (!node.child("maxParticles").empty()) {
@@ -280,6 +295,8 @@ public:
     _simulation.setMeshFolder(meshFolder);
     _logFilename =
         baseFolder + std::string(node.child("logfile").child_value());
+    _statisticsFile =
+        baseFolder + std::string(node.child("statisticsFile").child_value());
 
     configNode = configNode.parent();
     configNode.append_child("baseFolder")
@@ -320,6 +337,8 @@ public:
     std::cout << "gridSize: " << size << std::endl;
     std::cout << "Frames: " << _frames << std::endl;
     std::cout << "dt: " << dt << std::endl;
+    if (cflCond > 0)
+      std::cout << "CFL condition: " << cflCond << std::endl;
     std::cout << "Base folder for results:  " << baseFolder << std::endl;
     if (!_doReseed)
       std::cout << "Particles won't be reseeded\n";
@@ -330,11 +349,18 @@ public:
     _simulation.initializeLevelSet(Eigen::Array3d(.35, .35, .35), 0.15);
     _simulation.setMaxParticles(maxParticles);
     _simulation.setDt(dt);
+    if (cflCond > 0)
+      _simulation.setCflCondition(cflCond);
     initTimer.registerTime("Initialization");
+
+    _simulation.setMaxRedistanceIterations(100);
     _simulation.redistance();
+    _simulation.setMaxRedistanceIterations(15);
     initTimer.registerTime("Redistance");
 
-    _simulation.computeWenoGradient();
+    _simulation.findSurfaceCells(2.0);
+    // _simulation.computeWenoGradient();
+    _simulation.initializeGradient(Eigen::Array3d(.35, .35, .35), 0.15);
     initTimer.registerTime("Weno gradient");
     getSimulationType();
     if (_simulationType == 0 || _simulationType == 3) {
@@ -382,6 +408,41 @@ public:
     return _simulationType;
   }
 
+  void extractStatistics(Ramuh::Statistics &statistics, Ramuh::Timer &timer) {
+    auto h = _simulation.getH();
+    auto surface = _simulation.findSurfaceCells(9.0 * h[0]);
+    statistics.registerComponent("bandCells", (int)surface.size());
+    statistics.registerComponent("fluidCells", _simulation.fluidCellCount());
+
+    std::vector<std::string> fields;
+    fields.emplace_back("faceVelocity");
+    fields.emplace_back("cfl");
+    fields.emplace_back("cellAdvection");
+    fields.emplace_back("extractSurface");
+    fields.emplace_back("total");
+    fields.emplace_back("trackSurface");
+    fields.emplace_back("redistace");
+    switch (_simulationType) {
+    case 0:
+      fields.emplace_back("particleAdvect");
+      fields.emplace_back("correction");
+      fields.emplace_back("correction2");
+      fields.emplace_back("redistance");
+      fields.emplace_back("radiusAdjust");
+      fields.emplace_back("reseed");
+      break;
+    case 1:
+      break;
+    case 2:
+      break;
+    default:
+      break;
+    }
+
+    for (auto &field : fields)
+      statistics.registerComponent(field, timer.getComponentTime(field));
+  }
+
   void runAllSimulations() {
     for (size_t sim = 0; sim < _numberOfSimulations; sim++) {
       prepareSimulation();
@@ -411,6 +472,7 @@ public:
     cubes.computeIntersectionAndNormals();
     cubes.extractSurface();
 
+    Ramuh::Statistics statistics;
     Ramuh::Timer timer;
     for (int i = 1; i <= _frames; i++) {
       timer.clearAll();
@@ -418,27 +480,34 @@ public:
 
       _simulation.defineVelocity(i);
       timer.registerTime("faceVelocity");
-      _simulation.applyCfl();
+      int cflStep = _simulation.applyCfl();
+      statistics.registerComponent("cflSteps", cflStep);
       timer.registerTime("cfl");
 
       do {
-        if (advectionType != 3) {
-          _simulation.findSurfaceCells(8.0 * h[0]);
+        if (advectionType != 3 && advectionType != 4) {
+          auto surface = _simulation.findSurfaceCells(9.0 * h[0]);
           timer.registerTime("trackSurface");
+          // _simulation.computeCellsGradient();
+          // timer.registerTime("cellGradient");
         }
 
-        if (advectionType == 2 || advectionType == 0) {
+        if (advectionType == 2) {
           _simulation.computeCellVelocity();
           // _simulation.advectSemiLagrangeanThirdOrder();
           _simulation.advectSemiLagrangean();
           timer.registerTime("cellAdvection");
-        } else if (advectionType == 1) {
+        } else if (advectionType == 1 || advectionType == 0) {
           _simulation.advectWeno();
           timer.registerTime("cellAdvection");
         } else if (advectionType == 4) {
-          _simulation.computeWenoGradient();
+          // _simulation.findSurfaceCells(2.0);
+          // timer.registerTime("trackSurface");
+          // _simulation.computeWenoGradient();
+          // timer.registerTime("cellGradient");
           _simulation.advectCip();
           timer.registerTime("cellAdvection");
+          // _simulation.computeWenoGradient();
         }
 
         if (advectionType == 0) {
@@ -451,18 +520,21 @@ public:
             timer.registerTime("correction");
 
             lastRedistance = 0;
-            _simulation.redistance();
+            _simulation.redistance(true);
             timer.registerTime("redistance");
 
             _simulation.correctLevelSetWithParticles();
             timer.registerTime("correction2");
+
+            _simulation.adjustParticleRadius();
+            timer.registerTime("radiusAdjust");
           } else
             timer.registerTime("correction");
         }
 
-        lastRedistance++;
-        if (advectionType != 3) {
-          if (lastRedistance >= 5) {
+        if (advectionType != 3 && advectionType != 5) {
+          lastRedistance++;
+          if (lastRedistance >= 6) {
             lastRedistance = 0;
             _simulation.redistance();
             timer.registerTime("redistance");
@@ -471,7 +543,7 @@ public:
       } while (!_simulation.advanceTime());
 
       if (advectionType == 0 && _doReseed) {
-        if (i % 10 == 0) {
+        if (i % 25 == 0) {
           _simulation.reseedParticles();
           particleHistory.emplace_back(_simulation.getParticleCount());
           timer.registerTime("reseed");
@@ -502,10 +574,14 @@ public:
       cubes.swapLevelSet(_simulation);
       cubes.resetFileCounter(i);
       cubes.setFolder(_simulation.getMeshFolder());
+      // cubes.computeWenoGradient();
       cubes.computeIntersectionAndNormals();
       cubes.extractSurface();
       timer.registerTime("extractSurface");
       timer.evaluateComponentsTime();
+
+      extractStatistics(statistics, timer);
+      statistics.writeToFile(_statisticsFile);
 
       if (i % 5 == 0)
         timer.evaluateComponentsAverageTime();
@@ -524,7 +600,7 @@ private:
   PLevelSet3 _simulation;
   bool _doReseed;
   int _frames;
-  std::string _logFilename;
+  std::string _logFilename, _statisticsFile;
 };
 
 int main(int argc, char const *argv[]) {

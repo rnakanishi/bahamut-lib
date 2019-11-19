@@ -5,18 +5,19 @@ first = dlmread([folder num2str(0)]);
 N = sqrt(length(first));
 timesteps = 100;
 
-x = linspace(-5, 5, N);
+% x = linspace(-5, 5, N);
+x = linspace(0, 1, N);
 [X, Y] = meshgrid(x, x);
 dx = x(2) - x(1);
 
 az = 0;
 el = 0;
 
-figure('position', [100, 100, 1200, 600]);
+% figure('position', [100, 100, 1200, 600]);
 % figure/
 hold on;
 
-for t = 0:30:630
+for t = 0:1:178
     % for t = [0:34:1256 1256]
     clf, hold on;
     % view(az, el);
@@ -42,18 +43,18 @@ for t = 0:30:630
     % subplot(122);
     hold on;
     % contour(X, Y, values, -0.2:0.2:0.2);
-    contour(X, Y, values, [0, 0], 'b-.','linewidth',2);
-    set(gca, 'xtick', -5:dx:5);
-    set(gca, 'ytick', -5:dx:5);
+    contour(X, Y, values, [0, 0], 'b', 'linewidth', 2);
+    % set(gca, 'xtick', -5:dx:5);
+    % set(gca, 'ytick', -5:dx:5);
     axis equal;
-    axis([-5 5 -5 5]);
+    axis([0 1 0 1 ]);
     grid on;
     title(num2str(t));
 
     % if (t==0)
     % pause
     % else
-    pause(0.001);
+    pause(0.1);
     % end
 
     % pause;

@@ -104,7 +104,21 @@ Eigen::Array3d DualMarching3::evaluateCube(
   if (!cubeLimits.contains(x)) {
     // std::cerr << "Clamp: " << x.transpose() << " -> " << posAvg.transpose()
     // << std::endl;
-    // x = cubeLimits.clamp(x);
+    if (cubeLimits.contains(posAvg))
+      x = posAvg;
+    else {
+      int count = 0;
+      posAvg = Eigen::Array3d(0);
+      for (int i = 0; i < normals.size(); i++) {
+        if (normalLocation[0].matrix().norm() > 1e-6) {
+          count++;
+          posAvg += normalLocation[i];
+        }
+      }
+      posAvg /= count;
+      if (!cubeLimits.contains(posAvg))
+        posAvg = cubeLimits.clamp(x);
+    }
     x = posAvg;
   }
 
@@ -209,7 +223,7 @@ void DualMarching3::reconstruct(std::vector<std::pair<int, int>> connections) {
                 std::swap(pIds[0], pIds[2]);
               file << "f ";
               for (auto id : pIds) {
-                file << id + 1 << " ";
+                file << id + 1 << "//" << id + 1 << " ";
               }
               file << std::endl;
             }
@@ -236,7 +250,7 @@ void DualMarching3::reconstruct(std::vector<std::pair<int, int>> connections) {
                 std::swap(pIds[0], pIds[2]);
               file << "f ";
               for (auto id : pIds) {
-                file << id + 1 << " ";
+                file << id + 1 << "//" << id + 1 << " ";
               }
               file << std::endl;
             }
@@ -263,7 +277,7 @@ void DualMarching3::reconstruct(std::vector<std::pair<int, int>> connections) {
                 std::swap(pIds[0], pIds[2]);
               file << "f ";
               for (auto id : pIds) {
-                file << id + 1 << " ";
+                file << id + 1 << "//" << id + 1 << " ";
               }
               file << std::endl;
             }

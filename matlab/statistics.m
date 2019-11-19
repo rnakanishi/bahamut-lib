@@ -1,19 +1,22 @@
 addpath("~/matlab/cbrewer/")
 
-folder = "../results/statistics/enright/";
+folder = "../results/statistics/enright128/";
 files = [
-    folder "pls_log20.csv";
-    folder "pls_log40.csv";
-    % folder "pls_log80.csv";
+% folder "pls_log20.csv";
+    folder "pls64_log.csv";
+% folder "pls_log80.csv";
     folder "weno_log.csv";
-    folder "semiL_log.csv"
+    folder "semiL_log.csv";
+    folder "cip_log.csv"
     ];
 labels = [
-    'Particle Levelset 20';
-    'Particle Levelset 40';
-    % 'Particle Levelset 80';
+% 'Particle Levelset 20';
+    'Particle Levelset 64';
+% 'Particle Levelset 80';
     'Weno advection';
-    'Semi Lagrangean'];
+    'Semi Lagrangean';
+    'CIP'
+    ];
 
 titles = ['Cell Advection'; 'Cell advection x Surface cells'; 'Particle advection'; 'Total'];
 
@@ -37,7 +40,7 @@ title(deblank(titles(4, :)), 'fontsize', 14)
 
 for index = 1:nfiles
     totaltime = data{index}(2:end, :);
-    totaltime = sum(totaltime,2) - totaltime(:, end - 1);
+    totaltime = sum(totaltime, 2) - totaltime(:, end - 1);
     h = plot((1:length(totaltime)), totaltime);
     set(h, 'color', colors(index, :));
     set(h, 'linewidth', 1.5);
@@ -82,14 +85,12 @@ subplot(223); % figure;
 hold on;
 title(deblank(titles(2, :)), 'fontsize', 14)
 
-cells = ['20'; '40'; 
-% '80';
- 'weno'; 'semilagrangean'];
+cells = ['weno'; 'semiL'; 'pls'];
 
 for index = 1:nfiles
 
     cAdvection = data{index}(2:end, 1);
-    cCount = dlmread([folder 'cellCount_' deblank(cells(index, :)) '.txt']);
+    cCount = dlmread([folder  deblank(cells(index, :)) 'cellCount.txt']);
 
     [ax, h1, h2] = plotyy(1:length(cAdvection), cAdvection, (1:length(cCount)), cCount);
     set(h1, 'color', colors(index, :));

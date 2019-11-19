@@ -57,7 +57,7 @@ public:
 
   int findCellIdByCoordinate(Eigen::Array3d position);
 
-  void adjustParticleRadius();
+  void adjustParticleRadius(bool remove = true);
 
   bool correctLevelSetWithParticles();
 

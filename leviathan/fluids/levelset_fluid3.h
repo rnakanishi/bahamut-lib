@@ -16,15 +16,19 @@ public:
 
   void setDt(double dt);
 
+  void setCflCondition(double cfl);
+
+  int fluidCellCount();
+
   /**
    * @brief compute semi Lagrangean advection for levelset values: compute
-   * inverse time integration and then interpolate value where the cell position
-   * would be in previous time.
+   * inverse time integration and then interpolate value where the cell
+   * position would be in previous time.
    *
    * This method assumes cell velocity and cell gradient are previously
    * computed.If not, please call computeCellVelocity() method and
-   * computeCellsGradient() method. This method may not perform as expected if
-   * those values are not updated.
+   * computeCellsGradient() method. This method may not perform as expected
+   * if those values are not updated.
    */
   void advectSemiLagrangean();
   void advectSemiLagrangeanThirdOrder();
@@ -98,7 +102,11 @@ public:
    * Smereka, JCP 2000
    *
    */
-  void redistance();
+  void redistance(bool moveSurface = false);
+
+  void setMaxRedistanceIterations(int iterations);
+
+  void redistanceWithGradient();
 
   /**
    * @brief Should be used together with applyCfl() method. After splitting, or
@@ -116,7 +124,7 @@ public:
    * accoding pieces to fit CFL number
    *TODO: implement a variation of this method to take cfl number as parameter
    */
-  void applyCfl();
+  int applyCfl();
 
   /**
    * @brief Find all cells that are close to the interface. This is made
@@ -141,6 +149,8 @@ protected:
   bool _isPressure2nd;
   double _dt, _originalDt, _ellapsedDt;
   double _tolerance;
+  double _cflTolerance;
+  int _redistanceIterations;
 
   /// All cells that are part of the interface are marked as true
   std::vector<bool> _isSurfaceCell;

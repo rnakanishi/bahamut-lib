@@ -9,7 +9,8 @@ dull = bpy.data.materials.get("shiny")
 base = '/home/rnakanishi/git/bahamut-lib/results/particles/3d/enright/'
 folders = [
     # 'pls128_1',
-    'semiL128_2', 'weno128_2', 'pls128_2'
+    # 'semiL128_2', 'weno128_2', 'pls128_2'
+    'cip'
 ]
 bpy.context.scene.render.engine = "BLENDER_EEVEE"
 
@@ -17,7 +18,7 @@ for folder in folders:
     for f in range(scn.frame_start, scn.frame_end+1):
         fpath = bpy.path.abspath(
             # '/home/rnakanishi/git/bahamut-lib/results/redistance_cube/{:04d}.obj'.format(f))
-            base + folder + '/mesh/n{:04d}.obj'.format(f))
+            base + folder + '/mesh/{:04d}.obj'.format(f))
         # '/home/rnakanishi/git/bahamut-lib/results/mesh/3d/enright/pls80/{:04d}.obj'.format(f))
         objname = 'n{:04d}'.format(f)
         # objname = bpy.context.selected_objects[0].name

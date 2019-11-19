@@ -283,7 +283,7 @@ void ParticleLevelSet3::attractParticles(std::vector<int> particles) {
   adjustParticleRadius();
 }
 
-void ParticleLevelSet3::adjustParticleRadius() {
+void ParticleLevelSet3::adjustParticleRadius(bool remove) {
   auto &particleSignal = getParticleScalarData(_particleSignalId);
   auto &particlesLevelSet = getParticleScalarData(_particleLevelSetId);
   auto &position = getParticleArrayData(_particlePositionsId);
@@ -325,7 +325,8 @@ void ParticleLevelSet3::adjustParticleRadius() {
                       threadRemove.end());
     }
   }
-  removeParticle(toRemove);
+  if (remove)
+    removeParticle(toRemove);
 }
 
 bool ParticleLevelSet3::correctLevelSetWithParticles() {
