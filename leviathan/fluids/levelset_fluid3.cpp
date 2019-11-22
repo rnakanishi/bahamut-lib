@@ -529,14 +529,14 @@ void LevelSetFluid3::advectCip() {
   std::vector<Eigen::Array3d> newGrad(cellCount(), Eigen::Array3d(0));
 
   newPhi.insert(newPhi.begin(), phi.begin(), phi.end());
-  findSurfaceCells((2 * _gridSize[0]) * h[0]);
+  // findSurfaceCells((2 * _gridSize[0]) * h[0]);
 
-#pragma omp parallel num_threads(1)
+#pragma omp parallel
   {
 #pragma omp for
-    for (size_t id = 0; id < cellCount(); id++) {
-      // for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
-      // int id = _surfaceCellIds[sId];
+    // for (size_t id = 0; id < cellCount(); id++) {
+    for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+      int id = _surfaceCellIds[sId];
       auto ijk = idToijk(id);
       int i = ijk[0], j = ijk[1], k = ijk[2];
 
@@ -604,27 +604,14 @@ void LevelSetFluid3::advectCip() {
           XX * (3 * XX * B[0] + 2 * YY * B[1] + 2 * ZZ * B[2] + 2 * B[3]) +
           YY * (B[4] + YY * B[7]) + ZZ * (ZZ * B[11] + B[14]) +
           YY * ZZ * B[15] + G[id][0];
-      // newGrad[id][0] = XX * (B[2] * ZZ + B[1] * YY + 2 * B[0] * XX + B[3]) +
-      //                  XX * (B[2] * ZZ + B[1] * YY + B[0] * XX + B[3]) +
-      //                  ZZ * (B[11] * ZZ + B[14]) + B[15] * YY * ZZ +
-      //                  B[7] * YY * YY + B[4] * YY + G[id][0];
       newGrad[id][1] =
           YY * (3 * YY * B[5] + 2 * ZZ * B[6] + 2 * XX * B[7] + 2 * B[8]) +
           XX * (B[4] + XX * B[1]) + ZZ * (ZZ * B[12] + B[9]) + XX * ZZ * B[15] +
           G[id][1];
-      // newGrad[id][1] =
-      //     B[12] * ZZ + YY * (B[6] * ZZ + 2 * B[5] * YY + B[7] * XX + B[8]) +
-      //     YY * (B[6] * ZZ + B[5] * YY + B[7] * XX + B[8]) + B[15] * XX * ZZ +
-      //     B[9] * ZZ + XX * (B[1] * XX + B[4]) + G[id][1];
       newGrad[id][2] =
           ZZ * (3 * ZZ * B[10] + 2 * XX * B[11] + 2 * YY * B[12] + 2 * B[13]) +
           XX * (B[14] + XX * B[2]) + YY * (YY * B[6] + B[9]) + XX * YY * B[15] +
           G[id][2];
-      // newGrad[id][2] = ZZ * (2 * B[10] * ZZ + B[12] * YY + B[11] * XX +
-      // B[13]) +
-      //                  ZZ * (B[10] * ZZ + B[12] * YY + B[11] * XX + B[13]) +
-      //                  YY * (B[6] * YY + B[9]) + B[15] * XX * YY +
-      //                  B[2] * XX * XX + B[14] * XX + G[id][2];
 
       // newGrad[id] = newGrad[id].matrix().normalized().array();
       if (phi[id] < 0)
@@ -990,7 +977,7 @@ int LevelSetFluid3::applyCfl() {
   }
   // Check if cfl condition applies
   // Half timestep if so
-  int pieces;
+  int pieces = 1;
   if (maxVel.norm() * (_originalDt - _ellapsedDt) > _cflTolerance * h[0]) {
     pieces = std::floor(maxVel.norm() * _dt / (_cflTolerance * h[0])) + 1;
     _dt = _dt / pieces;

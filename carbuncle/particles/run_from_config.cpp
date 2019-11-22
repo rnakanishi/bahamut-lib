@@ -421,13 +421,12 @@ public:
     fields.emplace_back("extractSurface");
     fields.emplace_back("total");
     fields.emplace_back("trackSurface");
-    fields.emplace_back("redistace");
+    fields.emplace_back("redistance");
     switch (_simulationType) {
     case 0:
       fields.emplace_back("particleAdvect");
       fields.emplace_back("correction");
       fields.emplace_back("correction2");
-      fields.emplace_back("redistance");
       fields.emplace_back("radiusAdjust");
       fields.emplace_back("reseed");
       break;
@@ -501,8 +500,8 @@ public:
           _simulation.advectWeno();
           timer.registerTime("cellAdvection");
         } else if (advectionType == 4) {
-          // _simulation.findSurfaceCells(2.0);
-          // timer.registerTime("trackSurface");
+          _simulation.findSurfaceCells(8.0 * h[0]);
+          timer.registerTime("trackSurface");
           // _simulation.computeWenoGradient();
           // timer.registerTime("cellGradient");
           _simulation.advectCip();
