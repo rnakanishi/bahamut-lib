@@ -18,19 +18,22 @@ public:
   virtual void buildLaplacian();
 
   void addInitialCondition(int pid, Eigen::Array3d value);
+  void addInitialCondition(int pid, double value);
 
   void resetInitialConditions();
 
-  std::vector<Eigen::Array3d> solve();
+  std::vector<Eigen::Array3d> computeParallelTransport();
 
 protected:
   Eigen::Array3i _resolution;
   BoundingBox3 _domain;
 
   Eigen::SparseMatrix<double> L;
-  Eigen::MatrixXd phi;
+  Eigen::SparseMatrix<double> phi;
+  std::vector<Eigen::Triplet<double>> phiTriplets;
 
-  std::map<int, Eigen::Array3d> _initialValues;
+  std::map<int, Eigen::Array3d> _initialVectorValues;
+  std::map<int, double> _initialScalarValues;
 
   double _dt;
 };

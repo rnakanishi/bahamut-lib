@@ -108,6 +108,8 @@ public:
 
   void redistanceWithGradient();
 
+  void extrapolateGradients();
+
   /**
    * @brief Should be used together with applyCfl() method. After splitting, or
    * not, the timestep into smaller sub steps, verify if all substeps have been

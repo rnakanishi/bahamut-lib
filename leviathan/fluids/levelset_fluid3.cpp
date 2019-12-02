@@ -1,6 +1,7 @@
 #include <fluids/levelset_fluid3.h>
 #include <blas/interpolator.h>
 #include <blas/weno.h>
+#include <blas/grid_heat_kernel.h>
 #include <cmath>
 #include <iostream>
 #include <set>
@@ -787,6 +788,25 @@ void LevelSetFluid3::redistance(bool moveSurface) {
   std::cerr << "Run redistance for " << iterations << " iterations\n";
 }
 
+void LevelSetFluid3::extrapolateGradients() {
+  // Find interface cells
+  auto surface = trackSurface();
+  auto &gradient = getCellArrayData(_cellGradientId);
+
+  Ramuh::GridHeatKernel heat(_gridSize, _domain);
+
+  // Set gradient cells as initial condition (normalize them)
+  for (auto id : surface) {
+    // Considering gradients are correct
+    heat.addInitialCondition(id, gradient[id]);
+  }
+
+  auto result = heat.computeParallelTransport(8, true);
+  gradient.clear();
+
+  gradient.insert(gradient.begin(), result.begin(), result.end());
+}
+
 void LevelSetFluid3::redistanceWithGradient() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
@@ -801,6 +821,10 @@ void LevelSetFluid3::redistanceWithGradient() {
   double totalError;
   int iterations = 0;
   bool shouldStop = false;
+
+  // Extrapolate gradients first, as they will be used for reinitialization
+  extrapolateGradients();
+
 #pragma omp parallel
   {
 #pragma omp for schedule(static) nowait
@@ -819,6 +843,7 @@ void LevelSetFluid3::redistanceWithGradient() {
       interfaceFactor[id] = 0;
       if ((i > 0 && i < _gridSize[0] - 1) && (j > 0 && j < _gridSize[1] - 1) &&
           (k > 0 && k < _gridSize[2] - 1)) {
+        // Values for interfaces
         if (phi[id] * phi[ijkToid(i - 1, j, k)] <= 0 ||
             phi[id] * phi[ijkToid(i + 1, j, k)] <= 0 ||
             phi[id] * phi[ijkToid(i, j - 1, k)] <= 0 ||

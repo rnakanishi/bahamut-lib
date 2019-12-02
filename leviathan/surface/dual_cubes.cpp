@@ -67,6 +67,7 @@ void DualCubes::computeIntersectionAndNormals() {
         ufaceNormals[faceijkToid(0, i + 1, j, k)] =
             (gradient[id] - gradient[ijkToid(i + 1, j, k)]) * phi[id] / theta +
             gradient[id];
+        int ii = 0;
       }
     }
     if (j < _gridSize[1] - 1) {
@@ -83,6 +84,7 @@ void DualCubes::computeIntersectionAndNormals() {
         vfaceNormals[faceijkToid(1, i, j + 1, k)] =
             (gradient[id] - gradient[ijkToid(i, j + 1, k)]) * phi[id] / theta +
             gradient[id];
+        int ii = 0;
       }
     }
     if (k < _gridSize[2] - 1) {
@@ -97,6 +99,7 @@ void DualCubes::computeIntersectionAndNormals() {
         wfaceNormals[faceijkToid(2, i, j, k + 1)] =
             (gradient[id] - gradient[ijkToid(i, j, k + 1)]) * phi[id] / theta +
             gradient[id];
+        int ii = 0;
       }
     }
   }

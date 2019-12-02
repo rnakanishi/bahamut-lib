@@ -17,7 +17,16 @@ public:
 
   void buildLaplacian() override;
 
-  std::vector<Eigen::Array3d> solve();
+  std::vector<Eigen::Array3d> computeParallelTransport(int propagation = 10,
+                                                       bool normalize = false);
+
+  std::vector<double>
+  computeHeatDistance(std::vector<Eigen::Array3d> &gradientField);
+
+  std::vector<double>
+  computeVectorFieldDivergence(std::vector<Eigen::Array3d> &gradient);
+
+  std::vector<Eigen::Array3d> computeScalarFieldGradient(std::vector<double> &field);
 
   ~GridHeatKernel();
 
