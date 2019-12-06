@@ -18,6 +18,8 @@ public:
 
   void setCflCondition(double cfl);
 
+  void setPhiValue(Eigen::Array3i cellijk, double value);
+
   int fluidCellCount();
 
   /**

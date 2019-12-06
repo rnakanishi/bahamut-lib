@@ -247,7 +247,7 @@ public:
     // Simulatino parameters
     int size;
     double domainMin, domainMax, dt = 1 / 60., cflCond = -1;
-    int maxParticles;
+    int maxParticles, extrapGradInt = 1;
 
     sscanf(node.child("gridSize").child_value(), "%d", &size);
     sscanf(node.child("domain").child_value(), "%lf %lf", &domainMin,
@@ -256,6 +256,8 @@ public:
     sscanf(node.child("dt").child_value(), "%lf", &dt);
     sscanf(node.child("dt").child_value(), "%lf", &dt);
     sscanf(node.child("cfl").child_value(), "%lf", &cflCond);
+    sscanf(node.child("extrapolateGrads").child_value(), "%d", &extrapGradInt);
+    _extrapolateGradients = extrapGradInt == 1;
 
     configNode.append_child("gridSize")
         .append_child(pugi::node_pcdata)
@@ -273,6 +275,9 @@ public:
       configNode.append_child("cfl")
           .append_child(pugi::node_pcdata)
           .set_value(node.child("cfl").child_value());
+    configNode.append_child("extrapolateGrads")
+        .append_child(pugi::node_pcdata)
+        .set_value(node.child("extrapolateGrads").child_value());
 
     maxParticles = 80;
     if (!node.child("maxParticles").empty()) {
@@ -531,15 +536,23 @@ public:
             timer.registerTime("correction");
         }
 
-        if (advectionType != 3 && advectionType != 5) {
+        if (advectionType != 3 && advectionType != 4) {
           lastRedistance++;
           if (lastRedistance >= 6) {
             lastRedistance = 0;
             _simulation.redistance();
+            // _simulation.redistanceWithGradient();
             timer.registerTime("redistance");
           }
         }
       } while (!_simulation.advanceTime());
+      if (advectionType == 4) {
+        if (_extrapolateGradients)
+          _simulation.redistanceWithGradient();
+        else
+          _simulation.redistance();
+        timer.registerTime("redistance");
+      }
 
       if (advectionType == 0 && _doReseed) {
         if (i % 25 == 0) {
@@ -600,6 +613,7 @@ private:
   bool _doReseed;
   int _frames;
   std::string _logFilename, _statisticsFile;
+  bool _extrapolateGradients;
 };
 
 int main(int argc, char const *argv[]) {

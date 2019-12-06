@@ -125,25 +125,25 @@ GridHeatKernel::computeParallelTransport(int propagationDistance,
   return result;
 }
 
-std::vector<double> GridHeatKernel::computeHeatDistance(
-    std::vector<Eigen::Array3d> &gradientField) {
+std::vector<double> GridHeatKernel::computeHeatDistance() {
 
   int nCells = _resolution.prod();
   Eigen::Array3d h =
       _domain.getSize().cwiseQuotient(_resolution.cast<double>());
 
-  if (gradientField.size() != nCells) {
-    // TODO: Change to an exception
-    std::cerr
-        << "\033[1;31m[ERROR]\033[0m: "
-        << " GridHeatKernel::computeHeatDistance: "
-        << "gradientField has different size than the specified resolution\n";
-    return std::vector<double>();
-  }
+  // if (gradientField.size() != nCells) {
+  //   // TODO: Change to an exception
+  //   std::cerr
+  //       << "\033[1;31m[ERROR]\033[0m: "
+  //       << " GridHeatKernel::computeHeatDistance: "
+  //       << "gradientField has different size than the specified
+  //       resolution\n";
+  //   return std::vector<double>();
+  // }
   // Diffuse the heat from source points
   Eigen::SparseMatrix<double> Id(nCells, nCells);
   Eigen::SparseVector<double> bHeat(nCells);
-  double dt = h[0] * h[0];
+  double dt = h[0] * h[1];
   Id.setIdentity();
   Eigen::ConjugateGradient<Eigen::SparseMatrix<double>,
                            Eigen::Lower | Eigen::Upper>
@@ -155,7 +155,7 @@ std::vector<double> GridHeatKernel::computeHeatDistance(
   }
   Eigen::VectorXd xDistance = cgGrad.solve(bHeat);
 
-  std::cerr << xDistance;
+  // std::cerr << xDistance << std::endl;
   // Normalize the gradient
   std::vector<double> distance;
   for (size_t cell = 0; cell < nCells; cell++) {
@@ -170,20 +170,23 @@ std::vector<double> GridHeatKernel::computeHeatDistance(
     b[i] = divergence[i];
   }
   // for (auto initCond : _initialScalarValues) {
-  // b[initCond.first] = initCond.second;
-  // L.row(initCond.first) *= 0; // Set entire row to 0
-  // L.coeffRef(initCond.first, initCond.first) = 1;
+  //   b[initCond.first] = initCond.second;
+  //   L.row(initCond.first) *= 0; // Set entire row to 0
+  //   L.coeffRef(initCond.first, initCond.first) = -1;
   // }
-  std::cerr << b << std::endl;
+  std::cerr << L << std::endl;
+  std::cerr << b.transpose() << std::endl;
 
   Eigen::VectorXd x(nCells);
 
   // Laplacian linear system
   // Solving Poisson equation (Acutal distance computation)
-  Eigen::ConjugateGradient<Eigen::SparseMatrix<double>> cg;
-  cg.compute(L / (h[0] * h[1]));
+  Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>, Eigen::Upper> cg;
+  // Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Upper> cg;
+  // cg.compute(-L);
+  cg.analyzePattern(-L);
+  cg.factorize(-L);
   x = cg.solve(b);
-  std::cerr << L;
 
   std::vector<double> result(nCells, 0);
 
@@ -209,14 +212,15 @@ std::vector<double> GridHeatKernel::computeVectorFieldDivergence(
       double up = 0, down = 0, diff = 0;
       Eigen::Array3d direction(0);
       direction[dim] = 1;
-      if (ijk[dim] > 0 && ijk[dim] < _resolution[dim] - 1) {
-        Eigen::Array3d ijkArray(ijk[0], ijk[1], ijk[2]);
-        Eigen::Array3d coords1 = ijkArray - direction;
-        Eigen::Array3d coords2 = ijkArray + direction;
-        diff = gradient[ijkToid(coords2[0], coords2[1], coords2[2])][dim] -
-               gradient[ijkToid(coords1[0], coords1[1], coords1[2])][dim];
-        diff /= 2 * h[dim];
-      } else if (ijk[dim] > 0) {
+      // if (ijk[dim] > 0 && ijk[dim] < _resolution[dim] - 1) {
+      //   Eigen::Array3d ijkArray(ijk[0], ijk[1], ijk[2]);
+      //   Eigen::Array3d coords1 = ijkArray - direction;
+      //   Eigen::Array3d coords2 = ijkArray + direction;
+      //   diff = gradient[ijkToid(coords2[0], coords2[1], coords2[2])][dim] -
+      //          gradient[ijkToid(coords1[0], coords1[1], coords1[2])][dim];
+      //   diff /= 2 * h[dim];
+      // } else
+      if (ijk[dim] > 0) {
         Eigen::Array3d ijkArray(ijk[0], ijk[1], ijk[2]);
         Eigen::Array3d coords = ijkArray - direction;
         diff = gradient[cellId][dim] -
@@ -281,9 +285,15 @@ GridHeatKernel::computeScalarFieldGradient(std::vector<double> &distance) {
       }
       grad[cellId][dim] += diff;
     }
-    grad[cellId] = grad[cellId].matrix().normalized().array();
-    std::cerr << grad[cellId].transpose() << std::endl;
+    // std::cerr << grad[cellId].transpose() << " -> ";
+    grad[cellId] = -grad[cellId].matrix().normalized().array();
   }
+
+  // for (auto initCond : _initialScalarValues) {
+  //   grad[initCond.first] = Eigen::Array3d(0);
+  // }
+  // for (size_t cellId = 0; cellId < nCells; cellId++)
+  //   std::cerr << grad[cellId].transpose() << std::endl;
 
   return grad;
 }

@@ -35,6 +35,11 @@ LevelSetFluid3::LevelSetFluid3(Eigen::Array3i gridSize,
 
 int LevelSetFluid3::getSurfaceCellCount() { return _surfaceCellCount; }
 
+void LevelSetFluid3::setPhiValue(Eigen::Array3i cellijk, double value) {
+  auto &phi = getCellScalarData(_phiId);
+  phi[ijkToid(cellijk[0], cellijk[1], cellijk[2])] = value;
+}
+
 void LevelSetFluid3::setCflCondition(double cfl) { _cflTolerance = cfl; }
 
 void LevelSetFluid3::setDt(double dt) {

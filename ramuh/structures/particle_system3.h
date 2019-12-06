@@ -37,6 +37,25 @@ public:
   std::vector<int> seedParticles(BoundingBox3 region, int n);
 
   /**
+   * @brief Insert a particle into the struture in the given position.
+   *
+   * @param position for the new particle
+   * @return Inserted particle id
+   */
+  int insertParticle(Eigen::Array3d position);
+
+  /**
+   * @brief Given a vector of positions, insert a new particle for each
+   * position.
+   *
+   * @param postions vector containing all the position information for the new
+   * particles
+   * @return std::vector<int> vector containing all the ids for the respective
+   * positions inserted
+   */
+  std::vector<int> insertParticles(std::vector<Eigen::Array3d> postions);
+
+  /**
    * @brief Get the Positions of a single particle. If the required particle is
    * not active, then origin coordinate is returned.
    *

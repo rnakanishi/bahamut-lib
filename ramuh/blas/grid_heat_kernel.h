@@ -22,11 +22,13 @@ public:
 
   std::vector<double>
   computeHeatDistance(std::vector<Eigen::Array3d> &gradientField);
+  std::vector<double> computeHeatDistance();
 
   std::vector<double>
   computeVectorFieldDivergence(std::vector<Eigen::Array3d> &gradient);
 
-  std::vector<Eigen::Array3d> computeScalarFieldGradient(std::vector<double> &field);
+  std::vector<Eigen::Array3d>
+  computeScalarFieldGradient(std::vector<double> &field);
 
   ~GridHeatKernel();
 

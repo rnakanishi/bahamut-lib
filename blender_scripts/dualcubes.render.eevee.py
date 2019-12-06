@@ -10,7 +10,7 @@ base = '/home/rnakanishi/git/bahamut-lib/results/particles/3d/enright/'
 folders = [
     # 'pls128_1',
     # 'semiL128_2', 'weno128_2', 'pls128_2'
-    'cip'
+    'ciptest', 'ciptest2'
 ]
 bpy.context.scene.render.engine = "BLENDER_EEVEE"
 

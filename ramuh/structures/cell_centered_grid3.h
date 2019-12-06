@@ -93,6 +93,11 @@ public:
   std::vector<Eigen::Array3d> &getCellArrayData(std::string label);
   std::vector<Eigen::Array3d> &getCellArrayData(size_t index);
 
+  int getCellScalarLabelId(std::string label);
+
+  int getCellArrayLabelId(std::string label);
+  int get_cell_array_label_id(std::string label);
+
   /**
    * @brief Return the total number of cells present in the grid
    *
@@ -129,7 +134,7 @@ protected:
 
   std::vector<std::vector<double>> _scalarData;
   std::vector<std::vector<Eigen::Array3d>> _arrayData;
-  std::map<std::string, size_t> _dataLabel;
+  std::map<std::string, size_t> _scalarLabel, _arraylabel;
 };
 
 } // namespace Ramuh

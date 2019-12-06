@@ -56,11 +56,31 @@ void ParticleSystem3::preAllocateParticles(int nparticles) {
   }
 }
 
+int ParticleSystem3::insertParticle(Eigen::Array3d position) {
+  int id;
+  if (_idQueue.empty()) {
+    id = _totalIds++;
+    _active.emplace_back(true);
+    for (auto &dataFieldId : _scalarMap)
+      _scalarData[dataFieldId.second].emplace_back(0);
+    for (auto &arrayFieldId : _arrayMap)
+      _arrayData[arrayFieldId.second].emplace_back(Eigen::Array3d(0));
+  } else {
+    id = _idQueue.front();
+    _idQueue.pop();
+    _active[id] = true;
+  }
+  auto &_positions = getParticleArrayData(_particlePositionsId);
+  _positions[id] = position;
+  _count++;
+  return id;
+}
+
 std::vector<int> ParticleSystem3::seedParticles(BoundingBox3 region, int n) {
   auto &_positions = getParticleArrayData(_particlePositionsId);
   std::vector<int> ids(n);
 
-  if (_count + n >= _scalarData[0].size()) {
+  if (_count + n >= _positions.size()) {
     std::cerr << "\033[21;33m[WARNING]: \033[0mData not preallocated!\n";
   }
 

@@ -119,7 +119,7 @@ void DualCubes::extractSurface() {
   findSurfaceCells(_h[0] * 8);
 
   std::vector<std::pair<int, int>> connections;
-#pragma omp parallel num_threads(1)
+#pragma omp parallel
   {
     Ramuh::DualMarching3 threadSurface(_gridSize);
     std::vector<std::pair<int, int>> threadConnections;
@@ -133,11 +133,13 @@ void DualCubes::extractSurface() {
       std::vector<Eigen::Vector3d> normal;
       bool isSurface = false;
       int id = ijkToid(i, j, k);
-      if (i == 52 && j == 23 && k == 29)
-        int a = 0;
+      if (!(i + 1 < _gridSize[0] && j + 1 < _gridSize[1] &&
+            k + 1 < _gridSize[2]))
+        continue;
 
       // yz-plane
-      if (hasSignChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i + 1, j, k)])) {
+      if ((i + 1 < _gridSize[0]) &&
+          hasSignChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i + 1, j, k)])) {
         isSurface = true;
         normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k)]);
         normalPosition.emplace_back(
@@ -152,21 +154,25 @@ void DualCubes::extractSurface() {
         threadConnections.emplace_back(
             std::make_pair(ijkToid(i, j - 1, k), ijkToid(i, j - 1, k - 1)));
       }
-      if (hasSignChange(_phi[ijkToid(i + 1, j + 1, k)],
+      if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1]) &&
+          hasSignChange(_phi[ijkToid(i + 1, j + 1, k)],
                         _phi[ijkToid(i, j + 1, k)])) {
         isSurface = true;
         normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j + 1, k)]);
         normalPosition.emplace_back(
             _ufaceLocation[faceijkToid(0, i + 1, j + 1, k)]);
       }
-      if (hasSignChange(_phi[ijkToid(i, j, k + 1)],
+      if ((i + 1 < _gridSize[0] && k + 1 < _gridSize[2]) &&
+          hasSignChange(_phi[ijkToid(i, j, k + 1)],
                         _phi[ijkToid(i + 1, j, k + 1)])) {
         isSurface = true;
         normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k + 1)]);
         normalPosition.emplace_back(
             _ufaceLocation[faceijkToid(0, i + 1, j, k + 1)]);
       }
-      if (hasSignChange(_phi[ijkToid(i + 1, j + 1, k + 1)],
+      if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1] &&
+           k + 1 < _gridSize[2]) &&
+          hasSignChange(_phi[ijkToid(i + 1, j + 1, k + 1)],
                         _phi[ijkToid(i, j + 1, k + 1)])) {
         isSurface = true;
         normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j + 1, k + 1)]);
@@ -175,14 +181,16 @@ void DualCubes::extractSurface() {
       }
 
       // xz-plane
-      if (hasSignChange(_phi[ijkToid(i + 1, j, k)],
+      if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1]) &&
+          hasSignChange(_phi[ijkToid(i + 1, j, k)],
                         _phi[ijkToid(i + 1, j + 1, k)])) {
         isSurface = true;
         normal.emplace_back(_vfaceNormals[faceijkToid(1, i + 1, j + 1, k)]);
         normalPosition.emplace_back(
             _vfaceLocation[faceijkToid(1, i + 1, j + 1, k)]);
       }
-      if (hasSignChange(_phi[ijkToid(i, j + 1, k)], _phi[ijkToid(i, j, k)])) {
+      if ((j + 1 < _gridSize[1]) &&
+          hasSignChange(_phi[ijkToid(i, j + 1, k)], _phi[ijkToid(i, j, k)])) {
         isSurface = true;
         normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k)]);
         normalPosition.emplace_back(
@@ -197,14 +205,17 @@ void DualCubes::extractSurface() {
         threadConnections.emplace_back(
             std::make_pair(ijkToid(i - 1, j, k), ijkToid(i - 1, j, k - 1)));
       }
-      if (hasSignChange(_phi[ijkToid(i + 1, j, k + 1)],
+      if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1] &&
+           k + 1 < _gridSize[2]) &&
+          hasSignChange(_phi[ijkToid(i + 1, j, k + 1)],
                         _phi[ijkToid(i + 1, j + 1, k + 1)])) {
         isSurface = true;
         normal.emplace_back(_vfaceNormals[faceijkToid(1, i + 1, j + 1, k + 1)]);
         normalPosition.emplace_back(
             _vfaceLocation[faceijkToid(1, i + 1, j + 1, k + 1)]);
       }
-      if (hasSignChange(_phi[ijkToid(i, j + 1, k + 1)],
+      if ((j + 1 < _gridSize[1]) && (k + 1 < _gridSize[2]) &&
+          hasSignChange(_phi[ijkToid(i, j + 1, k + 1)],
                         _phi[ijkToid(i, j, k + 1)])) {
         isSurface = true;
         normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k + 1)]);
@@ -213,7 +224,8 @@ void DualCubes::extractSurface() {
       }
 
       // xy-plane
-      if (hasSignChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i, j, k + 1)])) {
+      if ((k + 1 < _gridSize[2]) &&
+          hasSignChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i, j, k + 1)])) {
         isSurface = true;
         normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j, k + 1)]);
         normalPosition.emplace_back(
@@ -228,21 +240,25 @@ void DualCubes::extractSurface() {
         threadConnections.emplace_back(
             std::make_pair(ijkToid(i, j - 1, k), ijkToid(i - 1, j - 1, k)));
       }
-      if (hasSignChange(_phi[ijkToid(i + 1, j, k)],
+      if ((i + 1 < _gridSize[0]) && (k + 1 < _gridSize[2]) &&
+          hasSignChange(_phi[ijkToid(i + 1, j, k)],
                         _phi[ijkToid(i + 1, j, k + 1)])) {
         isSurface = true;
         normal.emplace_back(_wfaceNormals[faceijkToid(2, i + 1, j, k + 1)]);
         normalPosition.emplace_back(
             _wfaceLocation[faceijkToid(2, i + 1, j, k + 1)]);
       }
-      if (hasSignChange(_phi[ijkToid(i + 1, j + 1, k)],
+      if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1] &&
+           k + 1 < _gridSize[2]) &&
+          hasSignChange(_phi[ijkToid(i + 1, j + 1, k)],
                         _phi[ijkToid(i + 1, j + 1, k + 1)])) {
         isSurface = true;
         normal.emplace_back(_wfaceNormals[faceijkToid(2, i + 1, j + 1, k + 1)]);
         normalPosition.emplace_back(
             _wfaceLocation[faceijkToid(2, i + 1, j + 1, k + 1)]);
       }
-      if (hasSignChange(_phi[ijkToid(i, j + 1, k)],
+      if ((j + 1 < _gridSize[1] && k + 1 < _gridSize[2]) &&
+          hasSignChange(_phi[ijkToid(i, j + 1, k)],
                         _phi[ijkToid(i, j + 1, k + 1)])) {
         isSurface = true;
         normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j + 1, k + 1)]);

@@ -69,11 +69,11 @@ size_t CellCenteredGrid3::newCellScalarLabel(std::string label) {
 }
 
 size_t CellCenteredGrid3::newCellScalarLabel(std::string label, double value) {
-  if (_dataLabel.find(label) == _dataLabel.end()) {
+  if (_scalarLabel.find(label) == _scalarLabel.end()) {
     _scalarData.emplace_back(std::vector<double>(_gridSize.prod(), value));
-    _dataLabel[label] = _scalarData.size() - 1;
+    _scalarLabel[label] = _scalarData.size() - 1;
   }
-  return _dataLabel[label];
+  return _scalarLabel[label];
 }
 
 size_t CellCenteredGrid3::newCellArrayLabel(std::string label) {
@@ -82,17 +82,17 @@ size_t CellCenteredGrid3::newCellArrayLabel(std::string label) {
 
 size_t CellCenteredGrid3::newCellArrayLabel(std::string label,
                                             Eigen::Array3d value) {
-  if (_dataLabel.find(label) == _dataLabel.end()) {
+  if (_arraylabel.find(label) == _arraylabel.end()) {
     _arrayData.emplace_back(
         std::vector<Eigen::Array3d>(_gridSize.prod(), value));
-    _dataLabel[label] = _arrayData.size() - 1;
+    _arraylabel[label] = _arrayData.size() - 1;
   }
-  return _dataLabel[label];
+  return _arraylabel[label];
 }
 
 std::vector<double> &CellCenteredGrid3::getCellScalarData(std::string label) {
-  if (_dataLabel.find(label) != _dataLabel.end())
-    return _scalarData[_dataLabel[label]];
+  if (_scalarLabel.find(label) != _scalarLabel.end())
+    return _scalarData[_scalarLabel[label]];
   std::cerr << "\033[1;31m[ ERROR ]\033[0mLabel not found!\n";
   return _scalarData[0];
 }
@@ -103,7 +103,19 @@ std::vector<double> &CellCenteredGrid3::getCellScalarData(size_t index) {
 
 std::vector<Eigen::Array3d> &
 CellCenteredGrid3::getCellArrayData(std::string label) {
-  return _arrayData[_dataLabel[label]];
+  return _arrayData[_arraylabel[label]];
+}
+
+int CellCenteredGrid3::getCellArrayLabelId(std::string label) {
+  if (_arraylabel.find(label) == _arraylabel.end())
+    return -1;
+  return _arraylabel[label];
+}
+
+int CellCenteredGrid3::getCellScalarLabelId(std::string label) {
+  if (_scalarLabel.find(label) == _scalarLabel.end())
+    return -1;
+  return _scalarLabel[label];
 }
 
 std::vector<Eigen::Array3d> &CellCenteredGrid3::getCellArrayData(size_t index) {
