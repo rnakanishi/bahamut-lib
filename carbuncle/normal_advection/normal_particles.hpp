@@ -14,7 +14,10 @@ public:
 
   int seedParticlesOverSurface(Leviathan::LevelSetFluid3 levelset);
 
-  void print();
+  std::map<int, int> &getPairMap();
+
+  void estimateCellNormals(Leviathan::LevelSetFluid3 &levelset);
+  
 
 protected:
   std::map<int, int> normalPair;

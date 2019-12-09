@@ -84,9 +84,25 @@ public:
   static double shepard(double position, std::vector<double> samples,
                         std::vector<double> values);
 
+  /**
+   * @brief Computes shepard interpolation (aka inverse distance interpolation)
+   * for points in 3D space. This method assumes that points and their values
+   * are passed in the same order.
+   * If a sample point is too close from the query point, the that value is
+   * returned without further computation
+   *
+   * @param position query point for the interpolation
+   * @param samples all points that will be used to interpolate
+   * @param values the respective values to be interpolated
+   * @return double final interpolated value at queried position
+   */
   static double shepard(Eigen::Array3d position,
                         std::vector<Eigen::Array3d> &samples,
                         std::vector<double> values);
+
+  static Eigen::Vector3d shepard(Eigen::Array3d position,
+                                 std::vector<Eigen::Array3d> &samples,
+                                 std::vector<Eigen::Vector3d> vectors);
 
   static double rbf(Eigen::Array3d position,
                     std::vector<Eigen::Array3d> &samples,

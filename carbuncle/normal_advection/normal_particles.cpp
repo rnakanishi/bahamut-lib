@@ -1,10 +1,13 @@
 #include "normal_particles.hpp"
 #include <geometry/bounding_box.h>
+#include <blas/interpolator.h>
 #include <iostream>
 
 namespace Carbuncle {
 
 NormalParticles3::NormalParticles3() {}
+
+std::map<int, int> &NormalParticles3::getPairMap() { return normalPair; }
 
 int NormalParticles3::seedParticlesOverSurface(
     Leviathan::LevelSetFluid3 levelset) {
@@ -73,12 +76,51 @@ int NormalParticles3::seedParticlesOverSurface(
   return surfaceCells.size() * particlesPerCell * 2;
 }
 
-void NormalParticles3::print() {
-  for (auto normal : normalPair) {
-    auto origin = getParticlePosition(normal.first);
-    auto direction = getParticlePosition(normal.second) - origin;
-    std::cerr << origin.transpose() << " " << direction.transpose()
-              << std::endl;
+void NormalParticles3::estimateCellNormals(
+    Leviathan::LevelSetFluid3 &levelset) {
+  auto h = levelset.getH();
+  auto &gradients =
+      levelset.getCellArrayData(levelset.getCellArrayLabelId("cellGradient"));
+  std::map<int, std::vector<int>> cellMap; // store particles id in the cell
+
+  // Iterate through all particles and find their corresponding cell
+  for (auto &particle : normalPair) {
+    // Only need to do it for the origin of the vector
+    int pid = particle.first;
+    auto position = getParticlePosition(pid);
+    Eigen::Array3i cellIjk = (position - levelset.getDomain().getMin())
+                                 .cwiseQuotient(h)
+                                 .floor()
+                                 .cast<int>();
+    int cellId = levelset.ijkToid(cellIjk[0], cellIjk[1], cellIjk[2]);
+
+    if (cellMap.find(cellId) == cellMap.end())
+      cellMap[cellId] = std::vector<int>();
+    cellMap[cellId].emplace_back(pid);
+  }
+
+  // For all cells that contains particles:
+  for (auto cell : cellMap) {
+    // Get the cell center position
+    auto cellCenter = levelset.getCellPosition(cell.first);
+
+    // Compute all vectors for that cell
+    std::vector<Eigen::Vector3d> normalVectors;
+    std::vector<Eigen::Array3d> normalPositions;
+    for (auto pid : cell.second) {
+      Eigen::Array3d origin = getParticlePosition(pid);
+      Eigen::Array3d ending = getParticlePosition(normalPair[pid]);
+
+      normalPositions.emplace_back(origin);
+      normalVectors.emplace_back((ending - origin).matrix());
+    }
+
+    // Interpolate the final vector from the particles vector
+    Eigen::Vector3d finalNormal;
+    auto cellPosition = levelset.getCellPosition(cell.first);
+    finalNormal = Ramuh::Interpolator::shepard(cellPosition, normalPositions,
+                                               normalVectors);
+    gradients[cell.first] = finalNormal.normalized().array();
   }
 }
 
