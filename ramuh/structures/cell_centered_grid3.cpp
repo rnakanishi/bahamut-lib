@@ -204,7 +204,7 @@ CellCenteredGrid3::interpolateCellArrayData(int dataId,
   points.emplace_back(cellPos + h);
 
   Eigen::Array3d interpData;
-  for (size_t d = 0; d < 2; d++) {
+  for (size_t d = 0; d < 3; d++) {
     values[0] = data[ijkToid(cellId[0], cellId[1], cellId[2])][d];
     values[1] = data[ijkToid(index[0], cellId[1], cellId[2])][d];
     values[2] = data[ijkToid(cellId[0], index[1], cellId[2])][d];

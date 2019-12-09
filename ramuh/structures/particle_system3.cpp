@@ -116,6 +116,11 @@ Eigen::Array3d ParticleSystem3::getParticlePosition(int pid) {
   return _arrayData[_particlePositionsId][pid];
 }
 
+void ParticleSystem3::setParticlePosition(int pid, Eigen::Array3d position) {
+  if (_active[pid])
+    _arrayData[_particlePositionsId][pid] = position;
+}
+
 bool ParticleSystem3::isActive(int pid) { return _active[pid]; }
 
 void ParticleSystem3::removeParticle(int pid) {

@@ -65,6 +65,8 @@ public:
    */
   Eigen::Array3d getParticlePosition(int pid);
 
+  void setParticlePosition(int pid, Eigen::Array3d position);
+
   /**
    * @brief Return either a particle is active or not.
    *

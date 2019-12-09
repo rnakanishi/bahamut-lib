@@ -1,4 +1,4 @@
-file = fopen("/home/rnakanishi/Documents/meshes/cube3.sdf");
+file = fopen("/home/rnakanishi/Documents/meshes/icosphere.sdf");
 
 line = fgets(file);
 dimension = sscanf(line, " %f %f %f ");

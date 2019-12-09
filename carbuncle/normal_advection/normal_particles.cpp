@@ -28,16 +28,15 @@ int NormalParticles3::seedParticlesOverSurface(
       double phi = levelset.interpolateCellScalarData(
           levelset.getCellArrayLabelId("phi"), getParticlePosition(particleID));
 
-      double lambda = 0.75;
+      double lambda = 1.0;
       int maxIt = 16;
       double threshold = 1e-6;
       Eigen::Array3d p = getParticlePosition(particleID);
       for (size_t it = 0; it < maxIt; it++) {
         auto direction = levelset.interpolateCellArrayData(
-            levelset.getCellArrayLabelId("cellGradient"),
-            getParticlePosition(particleID));
+            levelset.getCellArrayLabelId("cellGradient"), p);
         phi = levelset.interpolateCellScalarData(
-            levelset.getCellArrayLabelId("phi"), p);
+            levelset.getCellScalarLabelId("phi"), p);
         direction = direction.matrix().normalized().array();
 
         // xnew = xp + lambda(goal - phi(xp)) * N(p)
@@ -53,11 +52,11 @@ int NormalParticles3::seedParticlesOverSurface(
         phi = levelset.interpolateCellScalarData(
             levelset.getCellScalarLabelId("phi"), newp);
 
-        if (phi < threshold)
+        p = newp;
+        if (std::abs(phi) < threshold)
           break;
-
-        p = p + (lambda / 2) * (0. - phi) * direction;
       }
+      setParticlePosition(particleID, p);
     }
   }
 
@@ -66,7 +65,7 @@ int NormalParticles3::seedParticlesOverSurface(
         levelset.getCellArrayLabelId("cellGradient"), getParticlePosition(pid));
     direction = direction.matrix().normalized().array();
     Eigen::Array3d normalTarget;
-    normalTarget = getParticlePosition(pid) + 0.001 * direction;
+    normalTarget = getParticlePosition(pid) + 0.01 * direction;
     int newPid = insertParticle(normalTarget);
     normalPair[pid] = newPid;
   }
