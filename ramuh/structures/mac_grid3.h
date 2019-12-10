@@ -23,6 +23,10 @@ public:
   size_t newFaceArrayLabel(std::string label);
   size_t newFaceArrayLabel(std::string label, Eigen::Array3d value);
 
+  int getFaceScalarLabelId(std::string label);
+
+  int getFaceArrayLabelId(std::string label);
+
   /**
    * @brief Get a reference for the vector containing data for a given face.
    *Face id should follow (x = 0, y = 1, z = 2)
@@ -77,7 +81,7 @@ public:
 protected:
   std::vector<std::vector<double>> _uScalar, _vScalar, _wScalar;
   std::vector<std::vector<Eigen::Array3d>> _uArray, _vArray, _wArray;
-  std::map<std::string, size_t> _faceDataLabel;
+  std::map<std::string, size_t> _faceScalarLabel, _faceArrayLabel;
 };
 
 } // namespace Ramuh

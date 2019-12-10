@@ -63,6 +63,9 @@ public:
 
   virtual void print();
 
+  std::vector<int> findSurfaceCells();
+  std::vector<int> findSurfaceCells(double surfaceDistance);
+
   std::vector<int> trackSurface();
 
 protected:
@@ -78,7 +81,9 @@ protected:
   size_t _cellVelocityId;
   bool _isPressure2nd;
   double _tolerance;
-  std::vector<bool> _surfaceCells;
+  int _surfaceCellCount;
+  std::vector<bool> _isSurfaceCell;
+  std::vector<int> _surfaceCellIds;
 };
 
 } // namespace Leviathan

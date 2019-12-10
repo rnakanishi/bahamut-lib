@@ -28,20 +28,26 @@ std::vector<size_t> CellCenteredGrid2::idToij(size_t id) {
   return index;
 }
 
+Eigen::Array2i CellCenteredGrid2::getGridSize() { return _gridSize; }
+
+Eigen::Array2i CellCenteredGrid2::getResolution() { return _gridSize; }
+
+BoundingBox2 CellCenteredGrid2::getDomain() { return _domain; }
+
 Eigen::Array2d CellCenteredGrid2::getH() {
-  return _domain.size().cwiseQuotient(_gridSize.cast<double>());
+  return _domain.getSize().cwiseQuotient(_gridSize.cast<double>());
 }
 
 Eigen::Array2d CellCenteredGrid2::getCellPosition(int i, int j) {
   auto h = getH();
-  return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
+  return _domain.getMin() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
 }
 
 Eigen::Array2d CellCenteredGrid2::getCellPosition(int id) {
   auto ij = idToij(id);
   auto h = getH();
   int i = ij[0], j = ij[1];
-  return _domain.min() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
+  return _domain.getMin() + Eigen::Array2d((i + 0.5) * h[0], (j + 0.5) * h[1]);
 }
 
 BoundingBox2 CellCenteredGrid2::getCellBoundingBox(int i, int j) {
@@ -110,7 +116,7 @@ double CellCenteredGrid2::interpolateCellScalarData(int dataId,
 
   // Find which cell-id data belongs
   Eigen::Array2i cellId =
-      (position - _domain.min()).cwiseQuotient(h).floor().cast<int>();
+      (position - _domain.getMin()).cwiseQuotient(h).floor().cast<int>();
 
   // Assemble bilinear stencil interpolation for velocities
   auto cellPos = getCellPosition(cellId[0], cellId[1]);
@@ -155,7 +161,7 @@ CellCenteredGrid2::interpolateCellArrayData(int dataId,
 
   // Find which cell-id data belongs
   Eigen::Array2i cellId =
-      (position - _domain.min()).cwiseQuotient(h).floor().cast<int>();
+      (position - _domain.getMin()).cwiseQuotient(h).floor().cast<int>();
 
   // Assemble bilinear stencil interpolation for velocities
   auto cellPos = getCellPosition(cellId[0], cellId[1]);

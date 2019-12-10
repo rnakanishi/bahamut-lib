@@ -109,13 +109,13 @@ public:
    * @return Eigen::Array2d Each coordinate of the array corresponds to the
    *respective side's size.
    **/
-  Eigen::Array2d size();
+  Eigen::Array2d getSize();
 
-  Eigen::Array2d min();
+  Eigen::Array2d getMin();
 
-  Eigen::Array2d max();
+  Eigen::Array2d getMax();
 
-  Eigen::Array2d center();
+  Eigen::Array2d getCenter();
 
   void setMin(Eigen::Array2d newMin);
 

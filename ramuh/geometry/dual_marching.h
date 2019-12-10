@@ -40,7 +40,7 @@ public:
                                 BoundingBox2 squareLimits);
 
   void reconstruct();
-  void reconstruct(std::vector<Eigen::Array2i> connections);
+  void reconstruct(std::vector<std::pair<int, int>> connections);
 
   void merge(DualMarching2 square);
 
@@ -50,12 +50,17 @@ public:
 
   std::map<int, int> &getIdMap();
 
+  void setBaseFolder(std::string folder);
+
+  void resetCounter();
+  void resetCounter(int value);
+
 protected:
   bool _consistentNormals(std::vector<int> ids);
 
   bool _hasConnection(Eigen::Array2i tuple1, Eigen::Array2i tuple2);
 
-  void _buildConnectionMap(std::vector<Eigen::Array2i> connections);
+  void _buildConnectionMap(std::vector<std::pair<int, int>> connections);
 
 private:
   std::map<int, int> _idMap;
@@ -63,6 +68,8 @@ private:
   std::vector<Eigen::Vector2d> _normals;
   std::map<int, std::vector<int>> _connections;
   Eigen::Array2i _resolution;
+  std::string _baseFolder;
+  int count;
 };
 
 /*************************************************************************
@@ -85,9 +92,10 @@ public:
   /**
    * @brief This method evaluates a 3D cube containing levelset Hermite data.
    *Points indices are used as a key identifier so every vertex is unique.
-   *Intersection points of the cube and its normals should be given as a vector
-   *with same index for each data. After all cubes of the domain are evalueated,
-   *reconstruct() method should be called to generate proper surface polygons.
+   *Intersection points of the cube and its normals should be given as a
+   *vector with same index for each data. After all cubes of the domain are
+   *evalueated, reconstruct() method should be called to generate proper
+   *surface polygons.
    *
    * @param pointIndices unique index for each surface point
    * @param normalLocation 3D position of the intersection points
@@ -101,11 +109,11 @@ public:
   /**
    * @brief This method evaluates a 3D cube containing levelset Hermite data.
    *Points indices are used as a key identifier so every vertex is unique.
-   *Intersection points of the cube and its normals should be given as a vector
-   *with same index for each data. A limiting cube could be given so if the new
-   *point falls off this bounds, then coordinates are clamped accordingly. After
-   *all cubes of the domain are evalueated, reconstruct() method should be
-   *called to generate proper surface polygons.
+   *Intersection points of the cube and its normals should be given as a
+   *vector with same index for each data. A limiting cube could be given so if
+   *the new point falls off this bounds, then coordinates are clamped
+   *accordingly. After all cubes of the domain are evalueated, reconstruct()
+   *method should be called to generate proper surface polygons.
    *
    * @param cellIndex unique index for each surface point
    * @param normalLocation 3D position of the intersection points
@@ -142,14 +150,46 @@ public:
 
   std::map<int, int> &getIdMap();
 
+  /**
+   * @brief Set the Base Folder for saving the surface reconstructions
+   *
+   * @param folder
+   */
   void setBaseFolder(std::string folder);
 
+  /**
+   * @brief Reset the counter for saved files. if an int is given as
+   * parameter, the file count is set to that int. This method is pretty
+   * useful when dealing with a lot of different surfaces in a single
+   * execution
+   *
+   */
   void resetCounter();
   void resetCounter(int value);
 
 protected:
+  /**
+   * @brief This method checks if the cell normal is pointing the same
+   * direction as all vertices normal. If not, the face is flipped.
+   *
+   * TODO: Non-convex polygons are not treated here and may cause wrong
+   * flipped normals
+   *
+   * @param ids Ids of the vertices to be used to check
+   * @return true If the face has correct normals
+   * @return false Otherwise.
+   */
   bool _consistentNormals(std::vector<int> ids);
 
+  /**
+   * @brief Check if two cells have connections between them. In other worlds,
+   * if they share an edge that has surface intersection.
+   *
+   * @param tuple1 Cell id
+   * @param tuple2 Cell id
+   * @return true if the cells should be connected
+   * @return false otherwise
+   */
   bool _hasConnection(Eigen::Array3i tuple1, Eigen::Array3i tuple2);
 
   void _buildConnectionMap(std::vector<std::pair<int, int>> connections);

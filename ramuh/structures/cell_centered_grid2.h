@@ -43,6 +43,12 @@ public:
    **/
   std::vector<size_t> idToij(size_t id);
 
+  Eigen::Array2i getGridSize();
+
+  Eigen::Array2i getResolution();
+
+  BoundingBox2 getDomain();
+
   Eigen::Array2d getH();
 
   Eigen::Array2d getCellPosition(int i, int j);

@@ -30,6 +30,33 @@ void printParticles(Carbuncle::NormalParticles3 particles) {
   file.close();
 }
 
+void defineCellVelocity(Leviathan::LevelSetFluid3 levelset) {
+  auto &u = levelset.getFaceArrayData(
+      0, levelset.getFaceScalarLabelId("cellVelocity"));
+  for (size_t faceId = 0; faceId < levelset.faceCount(0); faceId++) {
+    auto ijk = levelset.idToijk(faceId);
+    auto p = levelset.getFacePosition(0, faceId);
+    u[faceId] = -p[1];
+  }
+  auto v = levelset.getFaceArrayData(
+      0, levelset.getFaceScalarLabelId("cellVelocity"));
+  for (size_t faceId = 0; faceId < levelset.faceCount(1); faceId++) {
+    auto ijk = levelset.idToijk(faceId);
+    auto p = levelset.getFacePosition(1, faceId);
+    v[faceId] = p[0];
+  }
+}
+
+void defineParticleVelocity(Carbuncle::NormalParticles3 particles) {
+  auto vel = particles.getParticleArrayData("particleVelocity");
+  for (size_t pid = 0; pid < particles.getParticleCount(); pid++) {
+    if (particles.isActive(pid)) {
+      auto p = particles.getParticlePosition(pid);
+      vel[pid] = Eigen::Array3d(p[0], -p[1], 0);
+    }
+  }
+}
+
 int main(int argc, char const *argv[]) {
   Carbuncle::LevelSetReader reader(
       "/home/rnakanishi/Documents/meshes/zalesak_3d.sdf");
@@ -38,14 +65,26 @@ int main(int argc, char const *argv[]) {
   reader.read(levelset);
   levelset.computeCellsGradient();
 
+  // TODO: Change domain: insert dhe televelset to a predefined bounding box
+
   std::cerr << "Seeding particles\n";
   Carbuncle::NormalParticles3 particles;
   particles.seedParticlesOverSurface(levelset);
 
   particles.estimateCellNormals(levelset);
+  Leviathan::DualCubes cubes(levelset);
+  cubes.resetFileCounter();
+  cubes.setFolder("/home/rnakanishi/Documents/meshes/bunny/");
+  cubes.computeIntersectionAndNormals();
+  cubes.extractSurface();
 
   printParticles(particles);
   printGradients(levelset);
+
+  defineCellVelocity(levelset);
+  defineParticleVelocity(particles);
+
+  levelset.advectWeno();
 
   // TODO: Rotate levelset and particles
   // estimate surface normals with particles
@@ -57,11 +96,6 @@ int main(int argc, char const *argv[]) {
   // levelset.computeWenoGradient();
   // std::cerr << levelset.getDomain().getMin() <<
   // levelset.getDomain().getMax();
-  Leviathan::DualCubes cubes(levelset);
-  cubes.resetFileCounter();
-  cubes.setFolder("/home/rnakanishi/Documents/meshes/bunny/");
-  cubes.computeIntersectionAndNormals();
-  cubes.extractSurface();
 
   return 0;
 }

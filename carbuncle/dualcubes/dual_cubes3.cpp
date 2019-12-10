@@ -652,158 +652,161 @@ void DualCubes3::extractSurface() {
   auto &_vfaceNormals = getFaceArrayData(1, "faceNormal");
   auto &_wfaceNormals = getFaceArrayData(2, "faceNormal");
 
-  std::vector<Ramuh::DualMarching3> surfaces(omp_get_max_threads(),
-                                             Ramuh::DualMarching3(_gridSize));
+  computeWenoGradient();
+  trackSurface();
 
   std::vector<std::pair<int, int>> connections;
-  // #pragma omp parallel for
-  for (int k = 0; k < _gridSize[2] - 1; k++) {
-    for (int j = 0; j < _gridSize[1] - 1; j++) {
-      for (int i = 0; i < _gridSize[0] - 1; i++) {
-        std::vector<Eigen::Array3d> normalPosition;
-        std::vector<Eigen::Vector3d> normal;
-        bool isSurface = false;
-        int id = ijkToid(i, j, k);
+#pragma omp parallel
+  {
+    Ramuh::DualMarching3 threadSurface;
+    std::vector<std::pair<int, int>> threadConnections;
+#pragma omp for
+    for (size_t surfId = 0; surfId < _surfaceCellIds.size(); surfId++) {
+      int cellId = _surfaceCellIds[surfId];
+      auto ijk = idToijk(cellId);
+      int i = ijk[0], j = ijk[1], k = ijk[2];
 
-        // yz-plane
-        if (signChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i + 1, j, k)])) {
-          isSurface = true;
-          normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k)]);
-          normalPosition.emplace_back(
-              _ufaceLocation[faceijkToid(0, i + 1, j, k)]);
+      std::vector<Eigen::Array3d> normalPosition;
+      std::vector<Eigen::Vector3d> normal;
+      bool isSurface = false;
+      int id = ijkToid(i, j, k);
 
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j, k), ijkToid(i, j, k - 1)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j, k), ijkToid(i, j - 1, k)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j, k - 1), ijkToid(i, j - 1, k - 1)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j - 1, k), ijkToid(i, j - 1, k - 1)));
-        }
-        if (signChange(_phi[ijkToid(i + 1, j + 1, k)],
-                       _phi[ijkToid(i, j + 1, k)])) {
-          isSurface = true;
-          normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j + 1, k)]);
-          normalPosition.emplace_back(
-              _ufaceLocation[faceijkToid(0, i + 1, j + 1, k)]);
-        }
-        if (signChange(_phi[ijkToid(i, j, k + 1)],
-                       _phi[ijkToid(i + 1, j, k + 1)])) {
-          isSurface = true;
-          normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k + 1)]);
-          normalPosition.emplace_back(
-              _ufaceLocation[faceijkToid(0, i + 1, j, k + 1)]);
-        }
-        if (signChange(_phi[ijkToid(i + 1, j + 1, k + 1)],
-                       _phi[ijkToid(i, j + 1, k + 1)])) {
-          isSurface = true;
-          normal.emplace_back(
-              _ufaceNormals[faceijkToid(0, i + 1, j + 1, k + 1)]);
-          normalPosition.emplace_back(
-              _ufaceLocation[faceijkToid(0, i + 1, j + 1, k + 1)]);
-        }
+      // yz-plane
+      if (signChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i + 1, j, k)])) {
+        isSurface = true;
+        normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k)]);
+        normalPosition.emplace_back(
+            _ufaceLocation[faceijkToid(0, i + 1, j, k)]);
 
-        // xz-plane
-        if (signChange(_phi[ijkToid(i + 1, j, k)],
-                       _phi[ijkToid(i + 1, j + 1, k)])) {
-          isSurface = true;
-          normal.emplace_back(_vfaceNormals[faceijkToid(1, i + 1, j + 1, k)]);
-          normalPosition.emplace_back(
-              _vfaceLocation[faceijkToid(1, i + 1, j + 1, k)]);
-        }
-        if (signChange(_phi[ijkToid(i, j + 1, k)], _phi[ijkToid(i, j, k)])) {
-          isSurface = true;
-          normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k)]);
-          normalPosition.emplace_back(
-              _vfaceLocation[faceijkToid(1, i, j + 1, k)]);
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j, k), ijkToid(i, j, k - 1)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j, k), ijkToid(i, j - 1, k)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j, k - 1), ijkToid(i, j - 1, k - 1)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j - 1, k), ijkToid(i, j - 1, k - 1)));
+      }
+      if (signChange(_phi[ijkToid(i + 1, j + 1, k)],
+                     _phi[ijkToid(i, j + 1, k)])) {
+        isSurface = true;
+        normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j + 1, k)]);
+        normalPosition.emplace_back(
+            _ufaceLocation[faceijkToid(0, i + 1, j + 1, k)]);
+      }
+      if (signChange(_phi[ijkToid(i, j, k + 1)],
+                     _phi[ijkToid(i + 1, j, k + 1)])) {
+        isSurface = true;
+        normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j, k + 1)]);
+        normalPosition.emplace_back(
+            _ufaceLocation[faceijkToid(0, i + 1, j, k + 1)]);
+      }
+      if (signChange(_phi[ijkToid(i + 1, j + 1, k + 1)],
+                     _phi[ijkToid(i, j + 1, k + 1)])) {
+        isSurface = true;
+        normal.emplace_back(_ufaceNormals[faceijkToid(0, i + 1, j + 1, k + 1)]);
+        normalPosition.emplace_back(
+            _ufaceLocation[faceijkToid(0, i + 1, j + 1, k + 1)]);
+      }
 
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j, k), ijkToid(i, j, k - 1)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j, k), ijkToid(i - 1, j, k)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j, k - 1), ijkToid(i - 1, j, k - 1)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i - 1, j, k), ijkToid(i - 1, j, k - 1)));
-        }
-        if (signChange(_phi[ijkToid(i + 1, j, k + 1)],
-                       _phi[ijkToid(i + 1, j + 1, k + 1)])) {
-          isSurface = true;
-          normal.emplace_back(
-              _vfaceNormals[faceijkToid(1, i + 1, j + 1, k + 1)]);
-          normalPosition.emplace_back(
-              _vfaceLocation[faceijkToid(1, i + 1, j + 1, k + 1)]);
-        }
-        if (signChange(_phi[ijkToid(i, j + 1, k + 1)],
-                       _phi[ijkToid(i, j, k + 1)])) {
-          isSurface = true;
-          normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k + 1)]);
-          normalPosition.emplace_back(
-              _vfaceLocation[faceijkToid(1, i, j + 1, k + 1)]);
-        }
+      // xz-plane
+      if (signChange(_phi[ijkToid(i + 1, j, k)],
+                     _phi[ijkToid(i + 1, j + 1, k)])) {
+        isSurface = true;
+        normal.emplace_back(_vfaceNormals[faceijkToid(1, i + 1, j + 1, k)]);
+        normalPosition.emplace_back(
+            _vfaceLocation[faceijkToid(1, i + 1, j + 1, k)]);
+      }
+      if (signChange(_phi[ijkToid(i, j + 1, k)], _phi[ijkToid(i, j, k)])) {
+        isSurface = true;
+        normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k)]);
+        normalPosition.emplace_back(
+            _vfaceLocation[faceijkToid(1, i, j + 1, k)]);
 
-        // xy-plane
-        if (signChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i, j, k + 1)])) {
-          isSurface = true;
-          normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j, k + 1)]);
-          normalPosition.emplace_back(
-              _wfaceLocation[faceijkToid(2, i, j, k + 1)]);
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j, k), ijkToid(i, j, k - 1)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j, k), ijkToid(i - 1, j, k)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j, k - 1), ijkToid(i - 1, j, k - 1)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i - 1, j, k), ijkToid(i - 1, j, k - 1)));
+      }
+      if (signChange(_phi[ijkToid(i + 1, j, k + 1)],
+                     _phi[ijkToid(i + 1, j + 1, k + 1)])) {
+        isSurface = true;
+        normal.emplace_back(_vfaceNormals[faceijkToid(1, i + 1, j + 1, k + 1)]);
+        normalPosition.emplace_back(
+            _vfaceLocation[faceijkToid(1, i + 1, j + 1, k + 1)]);
+      }
+      if (signChange(_phi[ijkToid(i, j + 1, k + 1)],
+                     _phi[ijkToid(i, j, k + 1)])) {
+        isSurface = true;
+        normal.emplace_back(_vfaceNormals[faceijkToid(1, i, j + 1, k + 1)]);
+        normalPosition.emplace_back(
+            _vfaceLocation[faceijkToid(1, i, j + 1, k + 1)]);
+      }
 
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j, k), ijkToid(i - 1, j, k)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j, k), ijkToid(i, j - 1, k)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i - 1, j, k), ijkToid(i - 1, j - 1, k)));
-          connections.emplace_back(
-              std::make_pair(ijkToid(i, j - 1, k), ijkToid(i - 1, j - 1, k)));
-        }
-        if (signChange(_phi[ijkToid(i + 1, j, k)],
-                       _phi[ijkToid(i + 1, j, k + 1)])) {
-          isSurface = true;
-          normal.emplace_back(_wfaceNormals[faceijkToid(2, i + 1, j, k + 1)]);
-          normalPosition.emplace_back(
-              _wfaceLocation[faceijkToid(2, i + 1, j, k + 1)]);
-        }
-        if (signChange(_phi[ijkToid(i + 1, j + 1, k)],
-                       _phi[ijkToid(i + 1, j + 1, k + 1)])) {
-          isSurface = true;
-          normal.emplace_back(
-              _wfaceNormals[faceijkToid(2, i + 1, j + 1, k + 1)]);
-          normalPosition.emplace_back(
-              _wfaceLocation[faceijkToid(2, i + 1, j + 1, k + 1)]);
-        }
-        if (signChange(_phi[ijkToid(i, j + 1, k)],
-                       _phi[ijkToid(i, j + 1, k + 1)])) {
-          isSurface = true;
-          normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j + 1, k + 1)]);
-          normalPosition.emplace_back(
-              _wfaceLocation[faceijkToid(2, i, j + 1, k + 1)]);
-        }
-        // Solve quadratic function
-        if (isSurface) {
-          Eigen::Array3d cubeMin =
-              _domain.getMin() +
-              _h.cwiseProduct(Eigen::Array3d(i + 0.5, j + 0.5, k + 0.5));
-          Eigen::Array3d cubeMax =
-              _domain.getMin() +
-              _h.cwiseProduct(Eigen::Array3d(i + 1.5, j + 1.5, k + 1.5));
-          int thread = omp_get_thread_num();
-          auto x = surfaces[thread].evaluateCube(
-              Eigen::Array3i(i, j, k), normalPosition, normal,
-              Ramuh::BoundingBox3(cubeMin, cubeMax));
-          // std::cout << x[0] << " " << x[1] << " " << x[2] <<
-          // std::endl;
-        }
+      // xy-plane
+      if (signChange(_phi[ijkToid(i, j, k)], _phi[ijkToid(i, j, k + 1)])) {
+        isSurface = true;
+        normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j, k + 1)]);
+        normalPosition.emplace_back(
+            _wfaceLocation[faceijkToid(2, i, j, k + 1)]);
+
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j, k), ijkToid(i - 1, j, k)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j, k), ijkToid(i, j - 1, k)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i - 1, j, k), ijkToid(i - 1, j - 1, k)));
+        threadConnections.emplace_back(
+            std::make_pair(ijkToid(i, j - 1, k), ijkToid(i - 1, j - 1, k)));
+      }
+      if (signChange(_phi[ijkToid(i + 1, j, k)],
+                     _phi[ijkToid(i + 1, j, k + 1)])) {
+        isSurface = true;
+        normal.emplace_back(_wfaceNormals[faceijkToid(2, i + 1, j, k + 1)]);
+        normalPosition.emplace_back(
+            _wfaceLocation[faceijkToid(2, i + 1, j, k + 1)]);
+      }
+      if (signChange(_phi[ijkToid(i + 1, j + 1, k)],
+                     _phi[ijkToid(i + 1, j + 1, k + 1)])) {
+        isSurface = true;
+        normal.emplace_back(_wfaceNormals[faceijkToid(2, i + 1, j + 1, k + 1)]);
+        normalPosition.emplace_back(
+            _wfaceLocation[faceijkToid(2, i + 1, j + 1, k + 1)]);
+      }
+      if (signChange(_phi[ijkToid(i, j + 1, k)],
+                     _phi[ijkToid(i, j + 1, k + 1)])) {
+        isSurface = true;
+        normal.emplace_back(_wfaceNormals[faceijkToid(2, i, j + 1, k + 1)]);
+        normalPosition.emplace_back(
+            _wfaceLocation[faceijkToid(2, i, j + 1, k + 1)]);
+      }
+      // Solve quadratic function
+      if (isSurface) {
+        Eigen::Array3d cubeMin =
+            _domain.getMin() +
+            _h.cwiseProduct(Eigen::Array3d(i + 0.5, j + 0.5, k + 0.5));
+        Eigen::Array3d cubeMax =
+            _domain.getMin() +
+            _h.cwiseProduct(Eigen::Array3d(i + 1.5, j + 1.5, k + 1.5));
+        int thread = omp_get_thread_num();
+        auto x = threadSurface.evaluateCube(
+            Eigen::Array3i(i, j, k), normalPosition, normal,
+            Ramuh::BoundingBox3(cubeMin, cubeMax));
+        // std::cout << x[0] << " " << x[1] << " " << x[2] <<
+        // std::endl;
       }
     }
+#pragma omp critical
+    {
+      surface.merge(threadSurface);
+      connections.insert(connections.end(), threadConnections.begin(),
+                         threadConnections.end());
+    }
   }
-  for (size_t i = 0; i < omp_get_max_threads(); i++) {
-    ;
-    surface.merge(surfaces[i]);
-  }
-
   surface.reconstruct(connections);
 }
 

@@ -25,7 +25,7 @@ public:
   void resetFileCounter();
   void resetFileCounter(int value);
 
-  void swapLevelSet(LevelSetFluid3 levelset);
+  void swapLevelSet(LevelSetFluid3 &levelset);
 
 protected:
   bool hasSignChange(double valueA, double valueB);

@@ -39,7 +39,7 @@ int ParticleSystem2::seedParticles(BoundingBox2 region) {
   Eigen::Array2d position;
   position[0] = std::rand() % 100000;
   position[1] = std::rand() % 100000;
-  position = region.min() + position.cwiseProduct(region.size()) / 100000;
+  position = region.getMin() + position.cwiseProduct(region.getSize()) / 100000;
   _positions[id] = position;
   _count++;
   return id;

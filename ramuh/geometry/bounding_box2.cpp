@@ -14,13 +14,13 @@ BoundingBox2::BoundingBox2(Eigen::Array2d min, Eigen::Array2d max) {
   _max = max;
 }
 
-Eigen::Array2d BoundingBox2::min() { return _min; }
+Eigen::Array2d BoundingBox2::getMin() { return _min; }
 
-Eigen::Array2d BoundingBox2::max() { return _max; }
+Eigen::Array2d BoundingBox2::getMax() { return _max; }
 
-Eigen::Array2d BoundingBox2::center() { return (_max + _min) / 2.0; }
+Eigen::Array2d BoundingBox2::getCenter() { return (_max + _min) / 2.0; }
 
-Eigen::Array2d BoundingBox2::size() { return _max - _min; }
+Eigen::Array2d BoundingBox2::getSize() { return _max - _min; }
 
 void BoundingBox2::setMin(Eigen::Array2d newMin) { _min = newMin; }
 
@@ -40,8 +40,8 @@ bool BoundingBox2::contains(Eigen::Array2d point) {
 }
 
 bool BoundingBox2::contains(BoundingBox2 box) {
-  auto bmin = box.min();
-  auto bmax = box.max();
+  auto bmin = box.getMin();
+  auto bmax = box.getMax();
   if ((bmin[0] < _min[0] || bmin[1] < _min[1]) ||
       (bmax[0] > _max[0] || bmax[1] > _max[1]))
     return false;

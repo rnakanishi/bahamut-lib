@@ -74,7 +74,7 @@ void ParticleLevelSet2::interpolateVelocityToParticles() {
     if (!isActive(pid))
       continue;
     // Find which cell-id particle belongs
-    Eigen::Array2i cellId = (position[pid] - ParticleSystem2::_domain.min())
+    Eigen::Array2i cellId = (position[pid] - ParticleSystem2::_domain.getMin())
                                 .cwiseQuotient(h)
                                 .floor()
                                 .cast<int>();
@@ -361,10 +361,11 @@ bool ParticleLevelSet2::correctLevelSetWithParticles() {
     if (_hasEscaped(pid)) {
       hasCorrection = true;
       _escapedParticles.emplace_back(pid);
-      Eigen::Array2i cellIj = (positions[pid] - ParticleSystem2::_domain.min())
-                                  .cwiseQuotient(h)
-                                  .floor()
-                                  .cast<int>();
+      Eigen::Array2i cellIj =
+          (positions[pid] - ParticleSystem2::_domain.getMin())
+              .cwiseQuotient(h)
+              .floor()
+              .cast<int>();
       int cellId = ijToid(cellIj[0], cellIj[1]);
       escapedCells[cellId].emplace_back(pid);
 
@@ -410,7 +411,7 @@ bool ParticleLevelSet2::correctLevelSetWithParticles() {
 
 int ParticleLevelSet2::findCellIdByCoordinate(Eigen::Array2d position) {
   auto h = getH();
-  Eigen::Array2i cellIj = (position - ParticleSystem2::_domain.min())
+  Eigen::Array2i cellIj = (position - ParticleSystem2::_domain.getMin())
                               .cwiseQuotient(h)
                               .floor()
                               .cast<int>();
@@ -442,7 +443,7 @@ void ParticleLevelSet2::reseedParticles() {
       }
     }
     if (pCount > _maxParticles + 0.25 * _maxParticles &&
-        !_surfaceCells[icell]) {
+        !_isSurfaceCell[icell]) {
 #pragma omp critical
       {
         removeParticle(std::vector<int>(particles.begin() + _maxParticles,
@@ -462,7 +463,7 @@ void ParticleLevelSet2::sortParticles() {
     auto position = getParticlePosition(pid);
 
     // Computing cell id
-    Eigen::Array2i cellIj = (position - LevelSetFluid2::_domain.min())
+    Eigen::Array2i cellIj = (position - LevelSetFluid2::_domain.getMin())
                                 .cwiseQuotient(h)
                                 .floor()
                                 .cast<int>();

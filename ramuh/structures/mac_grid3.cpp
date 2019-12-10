@@ -12,25 +12,25 @@ size_t MacGrid3::newFaceScalarLabel(std::string label) {
 }
 
 size_t MacGrid3::newFaceScalarLabel(std::string label, double value) {
-  if (_faceDataLabel.find(label) == _faceDataLabel.end()) {
+  if (_faceScalarLabel.find(label) == _faceScalarLabel.end()) {
     _uScalar.emplace_back(std::vector<double>(
         (_gridSize[0] + 1) * _gridSize[1] * _gridSize[2], value));
     _vScalar.emplace_back(std::vector<double>(
         _gridSize[0] * (_gridSize[1] + 1) * _gridSize[2], value));
     _wScalar.emplace_back(std::vector<double>(
         _gridSize[0] * _gridSize[1] * (_gridSize[2] + 1), value));
-    _faceDataLabel[label] = _uScalar.size() - 1;
+    _faceScalarLabel[label] = _uScalar.size() - 1;
   }
-  return _faceDataLabel[label];
+  return _faceScalarLabel[label];
 }
 
 std::vector<double> &MacGrid3::getFaceScalarData(size_t face,
                                                  std::string label) {
   if (face == 0)
-    return _uScalar[_faceDataLabel[label]];
+    return _uScalar[_faceScalarLabel[label]];
   if (face == 1)
-    return _vScalar[_faceDataLabel[label]];
-  return _wScalar[_faceDataLabel[label]];
+    return _vScalar[_faceScalarLabel[label]];
+  return _wScalar[_faceScalarLabel[label]];
 }
 
 std::vector<double> &MacGrid3::getFaceScalarData(size_t face, size_t index) {
@@ -46,25 +46,37 @@ size_t MacGrid3::newFaceArrayLabel(std::string label) {
 }
 
 size_t MacGrid3::newFaceArrayLabel(std::string label, Eigen::Array3d value) {
-  if (_faceDataLabel.find(label) == _faceDataLabel.end()) {
+  if (_faceArrayLabel.find(label) == _faceArrayLabel.end()) {
     _uArray.emplace_back(std::vector<Eigen::Array3d>(
         (_gridSize[0] + 1) * _gridSize[1] * _gridSize[2], value));
     _vArray.emplace_back(std::vector<Eigen::Array3d>(
         _gridSize[0] * (_gridSize[1] + 1) * _gridSize[2], value));
     _wArray.emplace_back(std::vector<Eigen::Array3d>(
         _gridSize[0] * _gridSize[1] * (_gridSize[2] + 1), value));
-    _faceDataLabel[label] = _uArray.size() - 1;
+    _faceArrayLabel[label] = _uArray.size() - 1;
   }
-  return _faceDataLabel[label];
+  return _faceArrayLabel[label];
+}
+
+int MacGrid3::getFaceScalarLabelId(std::string label) {
+  if (_faceScalarLabel.find(label) == _faceScalarLabel.end())
+    return -1;
+  return _faceScalarLabel[label];
+}
+
+int MacGrid3::getFaceArrayLabelId(std::string label) {
+  if (_faceArrayLabel.find(label) == _faceArrayLabel.end())
+    return -1;
+  return _faceArrayLabel[label];
 }
 
 std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayData(size_t face,
                                                         std::string label) {
   if (face == 0)
-    return _uArray[_faceDataLabel[label]];
+    return _uArray[_faceArrayLabel[label]];
   if (face == 1)
-    return _vArray[_faceDataLabel[label]];
-  return _wArray[_faceDataLabel[label]];
+    return _vArray[_faceArrayLabel[label]];
+  return _wArray[_faceArrayLabel[label]];
 }
 
 std::vector<Eigen::Array3d> &MacGrid3::getFaceArrayData(size_t face,

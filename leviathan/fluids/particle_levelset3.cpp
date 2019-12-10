@@ -82,18 +82,23 @@ void ParticleLevelSet3::interpolateVelocityToParticles(double time) {
     Eigen::Array3d p = position[pid];
     if (!_active[pid])
       continue;
+    velocity[pid][0] = -p[1];
+    velocity[pid][1] = p[0];
+    velocity[pid][2] = 0;
 
-    velocity[pid][0] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
-                       sin(2 * M_PI * p[2]);
+    // velocity[pid][0] = 2 * pow(sin(M_PI * p[0]), 2) * sin(2 * M_PI * p[1]) *
+    //                    sin(2 * M_PI * p[2]);
     // interpolateFaceScalarData(0, _faceVelocityId, position[pid]);
-    velocity[pid][1] =
-        -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) * sin(2 * M_PI * p[2]);
+    // velocity[pid][1] =
+    //     -pow(sin(M_PI * p[1]), 2) * sin(2 * M_PI * p[0]) * sin(2 * M_PI *
+    //     p[2]);
     // interpolateFaceScalarData(1, _faceVelocityId, position[pid]);
-    velocity[pid][2] =
-        -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) * sin(2 * M_PI * p[1]);
+    // velocity[pid][2] =
+    //     -pow(sin(M_PI * p[2]), 2) * sin(2 * M_PI * p[0]) * sin(2 * M_PI *
+    //     p[1]);
     // interpolateFaceScalarData(2, _faceVelocityId, position[pid]);
 
-    velocity[pid] *= cos(M_PI * time);
+    // velocity[pid] *= cos(M_PI * time);
   }
 }
 

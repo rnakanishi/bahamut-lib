@@ -1,4 +1,5 @@
 #include <fluids/levelset_fluid2.h>
+#include <set>
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -26,8 +27,9 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
 
   _gradientId = newCellArrayLabel("cellGradient");
   _cellVelocityId = newCellArrayLabel("cellVelocity");
+  _surfaceCellCount = 0;
 
-  _surfaceCells.resize(cellCount(), false);
+  _surfaceCellIds.resize(cellCount(), false);
 }
 
 void LevelSetFluid2::computeCellsGradient() {
@@ -685,7 +687,7 @@ std::vector<int> LevelSetFluid2::trackSurface() {
   std::vector<bool> isInterface(cellCount(), false);
   std::vector<int> surface;
 
-  std::fill(_surfaceCells.begin(), _surfaceCells.end(), false);
+  std::fill(_isSurfaceCell.begin(), _isSurfaceCell.end(), false);
 #pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     auto ij = idToij(id);
@@ -695,13 +697,43 @@ std::vector<int> LevelSetFluid2::trackSurface() {
           phi[id] * phi[ijToid(i + 1, j)] <= 0 ||
           phi[id] * phi[ijToid(i, j - 1)] <= 0 ||
           phi[id] * phi[ijToid(i, j + 1)] <= 0) {
-        _surfaceCells[id] = true;
+        _isSurfaceCell[id] = true;
 #pragma omp critical
         { surface.emplace_back(id); }
       }
     }
   }
   return surface;
+}
+
+std::vector<int> LevelSetFluid2::findSurfaceCells() {
+  auto h = getH();
+  return findSurfaceCells(h[0]);
+}
+
+std::vector<int> LevelSetFluid2::findSurfaceCells(double surfaceDistance) {
+  std::set<int> toSeed;
+  auto &phi = getCellScalarData(_phiId);
+
+  _surfaceCellIds.clear();
+// For every cell, check their distance to the surface (phi)
+#pragma omp parallel
+  {
+    std::vector<int> threadBand;
+#pragma omp for nowait
+    for (size_t cellId = 0; cellId < cellCount(); cellId++) {
+      if (phi[cellId] < surfaceDistance)
+        threadBand.emplace_back(cellId);
+    }
+#pragma omp critical
+    {
+      _surfaceCellIds.insert(_surfaceCellIds.end(), threadBand.begin(),
+                             threadBand.end());
+    }
+  }
+
+  _surfaceCellCount = _surfaceCellIds.size();
+  return _surfaceCellIds;
 }
 
 } // namespace Leviathan

@@ -6,19 +6,31 @@
 #include <geometry/bounding_box.h>
 #include <structures/mac_grid3.h>
 #include <structures/mac_grid2.h>
+#include <fluids/levelset_fluid2.h>
 #include <fluids/levelset_fluid3.h>
 #include <fstream>
 #include <sstream>
 
 namespace Carbuncle {
 
-class DualCubes2 {
+class DualCubes2 : public Leviathan::LevelSetFluid2 {
 public:
+  enum class ParametricSurface : int { CIRCLE, SQUARE };
+
   DualCubes2();
 
-  DualCubes2(int size);
+  DualCubes2(Eigen::Array2i resolution);
+
+  DualCubes2(Eigen::Array2i resolution, Ramuh::BoundingBox2 domain);
+
+  DualCubes2(Leviathan::LevelSetFluid2 &levelset);
 
   void initialize(Eigen::Array2d center, double radius);
+
+  void initialize(Eigen::Array2d center, double radius,
+                  DualCubes2::ParametricSurface surface);
+
+  void computeIntersectionAndNormals();
 
   void extractSurface();
 
@@ -31,7 +43,7 @@ protected:
   std::vector<std::vector<double>> _cells, _vertices;
   std::vector<std::vector<Eigen::Vector2d>> _ufaceNormals, _vfaceNormals;
   std::vector<std::vector<Eigen::Array2d>> _ufaceLocation, _vfaceLocation;
-  double _h;
+  Eigen::Array2d _h;
   double _resolution;
 };
 
@@ -56,6 +68,8 @@ public:
 
   DualCubes3(Eigen::Array3i resolution, Ramuh::BoundingBox3 domain);
 
+  DualCubes3(Leviathan::LevelSetFluid3 &levelset);
+
   void initialize(Eigen::Array3d center, double radius);
 
   void initialize(Eigen::Array3d center, double radius,
@@ -70,6 +84,7 @@ public:
   void defineVelocity();
 
   void computeIntersection();
+
   void computeIntersectionAndNormals();
   Eigen::Array3d computeIntersection(int cell1, int cell2);
 

@@ -24,9 +24,12 @@ int main(int argc, char const *argv[]) {
   // cubes.computeIntersectionAndNormals();
   // cubes.extractSurface();
   cubes.redistance();
-  cubes.print();
+  // cubes.print();
 
-  // return 1;
+  cubes.computeWenoGradient();
+  cubes.computeIntersectionAndNormals();
+  cubes.extractSurface();
+  return 1;
 
   for (int i = 1; i <= 15; i++) {
     cubes.advectWeno();
@@ -40,7 +43,7 @@ int main(int argc, char const *argv[]) {
     cubes.computeWenoGradient();
     cubes.computeIntersectionAndNormals();
     cubes.extractSurface();
-    cubes.print();
+    // cubes.print();
   }
 
   //   auto surface = cubes.marc hingTetrahedra();

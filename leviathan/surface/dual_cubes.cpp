@@ -20,7 +20,7 @@ DualCubes::DualCubes(Leviathan::LevelSetFluid3 levelset)
   swapLevelSet(levelset);
 }
 
-void DualCubes::swapLevelSet(LevelSetFluid3 levelset) {
+void DualCubes::swapLevelSet(LevelSetFluid3 &levelset) {
   auto &phi = getCellScalarData("phi");
   auto &gradient = getCellArrayData("cellGradient");
   auto &lphi = levelset.getCellScalarData("phi");
