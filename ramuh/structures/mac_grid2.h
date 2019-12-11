@@ -34,8 +34,8 @@ public:
    * @param faceId
    * @return Eigen::Array2d position in domain
    */
-  Eigen::Array2d facePosition(size_t face, int faceId);
-  Eigen::Array2d facePosition(size_t face, int i, int j);
+  Eigen::Array2d getFacePosition(size_t face, int faceId);
+  Eigen::Array2d getFacePosition(size_t face, int i, int j);
 
   /**
    * @brief Return the total amount of faces over a single dimension, based on

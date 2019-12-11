@@ -19,7 +19,11 @@ public:
 
   void estimateCellNormals(Leviathan::LevelSetFluid2 &levelset);
 
-  void advectParticles(double time);
+  void defineParticlesVelocity();
+
+  void fixLevelsetGradients(Leviathan::LevelSetFluid2 &levelset);
+
+  void advectParticles() override;
 
 protected:
   std::map<int, int> normalPair;

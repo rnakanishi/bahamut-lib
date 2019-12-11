@@ -23,36 +23,37 @@ int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
       Eigen::Array2i(25, 25),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
+  Carbuncle::NormalParticles2 particles;
 
   initializeCube(cubes, Eigen::Array2d(0, 0), 3, ParametricSurface::SQUARE);
   initializeGradientsAtIntersection(cubes, Eigen::Array2d(0, 0), 3,
                                     ParametricSurface::SQUARE);
-  defineVelocity(cubes);
   cubes.setFolder("results/dualSquares/");
-  cubes.computeCellsGradient();
 
-  Carbuncle::NormalParticles2 particles;
+  defineCellsVelocity(cubes);
+
   particles.seedParticlesOverSurface(cubes);
-
+  defineParticlesVelocity(particles);
   printParticles(particles);
-
-  // cubes.redistance();
 
   // cubes.computeCellsGradient();
   // cubes.computeIntersectionAndNormals();
 
   cubes.extractSurface();
-  return 1;
 
-  for (int i = 1; i <= 15; i++) {
+  for (int i = 1; i <= 50; i++) {
     cubes.advectWeno();
+    particles.advectParticles();
 
-    if (i % 10 == 0)
-      cubes.redistance();
-    cubes.computeWenoGradient();
+    // After levelset and particles advection, cell gradient should be corrected
+    // using particle information
     cubes.computeIntersectionAndNormals();
-    cubes.extractSurface();
+    // Correct computed gradients with particle normals
   }
+  printParticles(particles);
+  cubes.computeCellsGradient();
+  cubes.computeIntersectionAndNormals();
+  cubes.extractSurface();
 
   return 0;
 }

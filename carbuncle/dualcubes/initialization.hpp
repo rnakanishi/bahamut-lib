@@ -1,7 +1,31 @@
 
+#include <surface/dual_squares.h>
+#include <structures/particle_system2.h>
+
 enum class ParametricSurface : int { CIRCLE, SQUARE };
 
-void defineVelocity(Leviathan::DualSquares &cubes) {}
+void defineCellsVelocity(Leviathan::DualSquares &levelset) {
+  auto &u = levelset.getFaceArrayData(0, "cellVelocity");
+  for (size_t faceId = 0; faceId < levelset.faceCount(0); faceId++) {
+    auto ij = levelset.faceIdToij(0, faceId);
+    auto p = levelset.getFacePosition(0, faceId);
+    u[faceId] = -p[1];
+  }
+  auto v = levelset.getFaceArrayData(0, "cellVelocity");
+  for (size_t faceId = 0; faceId < levelset.faceCount(1); faceId++) {
+    auto ij = levelset.faceIdToij(1, faceId);
+    auto p = levelset.getFacePosition(1, faceId);
+    v[faceId] = p[0];
+  }
+}
+
+void defineParticlesVelocity(Ramuh::ParticleSystem2 &particles) {
+  auto &velocity = particles.getParticleArrayData("particleVelocity");
+  for (size_t pid = 0; pid < particles.particleCount(); pid++) {
+    auto p = particles.getParticlePosition(pid);
+    velocity[pid] = Eigen::Array2d(-p[1], p[0]);
+  }
+}
 
 void initializeCube(Leviathan::DualSquares &squares, Eigen::Array2d center,
                     double radius, ParametricSurface surface) {
@@ -112,5 +136,32 @@ void initializeGradientsAtIntersection(Leviathan::DualSquares &squares,
         int ii = 0;
       }
     }
+
+    // Computing cell center gradient
+    Eigen::Array2d normalDirection(0);
+    auto p = squares.getCellPosition(cellId);
+    p -= center;
+
+    int signal = 1;
+    if (std::abs(p[0]) < radius && std::abs(p[1]) < radius) {
+      // Inside cube
+      if (std::abs(p[0]) > std::abs(p[1])) {
+        signal = (p[0]) < 0 ? -1 : 1;
+        normalDirection = Eigen::Array2d(1, 0);
+      } else {
+        signal = (p[1]) < 0 ? -1 : 1;
+        normalDirection = Eigen::Array2d(0, 1);
+      }
+    } else {
+      // Diagonal values take direction of the nearest face
+      if (std::abs(p[0]) < std::abs(p[1])) {
+        signal = (p[1]) < 0 ? -1 : 1;
+        normalDirection = Eigen::Array2d(0, 1);
+      } else {
+        signal = (p[0]) < 0 ? -1 : 1;
+        normalDirection = Eigen::Array2d(1, 0);
+      }
+    }
+    gradient[cellId] = normalDirection * signal;
   }
 }

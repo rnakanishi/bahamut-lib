@@ -11,8 +11,11 @@ std::map<int, int> &NormalParticles2::getPairMap() { return normalPair; }
 
 int NormalParticles2::seedParticlesOverSurface(
     Leviathan::LevelSetFluid2 levelset) {
+  // TODO: Seed particles only near the cell face
+  // TODO: Also ensure uniform sampling of the particles along surface
+  // Check which cell it intersect with and seed particles there
   int particlesPerCell = 1;
-
+  auto gradient = levelset.getCellArrayData("cellGradient");
   // find surface cells
   auto surfaceCells = levelset.trackSurface();
   // preAllocateParticles(surfaceCells.size() * particlesPerCell);
@@ -36,7 +39,9 @@ int NormalParticles2::seedParticlesOverSurface(
       double threshold = 1e-6;
       Eigen::Array2d p = getParticlePosition(particleID);
       for (size_t it = 0; it < maxIt; it++) {
-        auto direction = levelset.interpolateCellArrayData("cellGradient", p);
+        // auto direction = levelset.interpolateCellArrayData("cellGradient",
+        // p);
+        auto direction = gradient[cellId];
         phi = levelset.interpolateCellScalarData("phi", p);
         direction = direction.matrix().normalized().array();
 
@@ -57,17 +62,16 @@ int NormalParticles2::seedParticlesOverSurface(
           break;
       }
       setParticlePosition(particleID, p);
-    }
-  }
 
-  for (int pid : normalOrigin) {
-    auto direction = levelset.interpolateCellArrayData(
-        "cellGradient", getParticlePosition(pid));
-    direction = direction.matrix().normalized().array();
-    Eigen::Array2d normalTarget;
-    normalTarget = getParticlePosition(pid) + 0.01 * direction;
-    int newPid = insertParticle(normalTarget);
-    normalPair[pid] = newPid;
+      // For each added particle, add a pair for normal target
+      // copy the cell gradient to the particle
+      auto direction = gradient[cellId];
+      direction = direction.matrix().normalized().array();
+      Eigen::Array2d normalTarget;
+      normalTarget = getParticlePosition(particleID) + 0.01 * direction;
+      int newPid = insertParticle(normalTarget);
+      normalPair[particleID] = newPid;
+    }
   }
 
   return surfaceCells.size() * particlesPerCell * 2;
@@ -118,6 +122,54 @@ void NormalParticles2::estimateCellNormals(
                                                normalVectors);
     gradients[cell.first] = finalNormal.normalized().array();
   }
+}
+
+void NormalParticles2::advectParticles() {
+  auto &position = getParticleArrayData(_particlePositionsId);
+
+  std::vector<Eigen::Array2d> lastPosition(position.size());
+  for (size_t i = 0; i < position.size(); i++) {
+    lastPosition[i] = position[i];
+  }
+  advectEuler();
+  defineParticlesVelocity();
+  advectEuler();
+#pragma omp parallel for
+  for (size_t i = 0; i < position.size(); i++) {
+    position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
+  }
+  defineParticlesVelocity();
+  advectEuler();
+#pragma omp parallel for
+  for (size_t i = 0; i < position.size(); i++) {
+    position[i] = lastPosition[i] / 3 + 2 * position[i] / 3;
+  }
+}
+
+void NormalParticles2::defineParticlesVelocity() {
+  auto &velocity = getParticleArrayData("particleVelocity");
+  for (size_t pid = 0; pid < particleCount(); pid++) {
+    auto p = getParticlePosition(pid);
+    velocity[pid] = Eigen::Array2d(-p[1], p[0]);
+  }
+}
+
+void NormalParticles2::fixLevelsetGradients(
+    Leviathan::LevelSetFluid2 &levelset) {
+  auto &gradient = levelset.getCellArrayData("cellGradient");
+  auto &unormalPosition = levelset.getFaceArrayData(0, "facePosition");
+  auto &vnormalPosition = levelset.getFaceArrayData(1, "facePosition");
+  auto &unormal = levelset.getFaceArrayData(0, "faceNormal");
+  auto &vnormal = levelset.getFaceArrayData(1, "faceNormal");
+
+  // Track all surface cells
+  auto surfaceCells = levelset.trackSurface();
+
+  // Find which cells contain particles
+  // Interpolate gradient values from the closest particles
+
+  // For those cells that may not contain any particle, copy from closest
+  // particle
 }
 
 } // namespace Carbuncle

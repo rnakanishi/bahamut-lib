@@ -19,7 +19,7 @@ public:
    * beforehand by interpolateVelocityToParticles() method.
    *
    */
-  void advectParticles();
+  virtual void advectParticles();
 
   void advectEuler();
 
@@ -55,7 +55,30 @@ public:
 
   bool correctLevelSetWithParticles();
 
+  /**
+   * @brief Create a map of particles that are in each cell. The map id is the
+   * cell id. The data in the map contains a vector for all particles' that
+   * belong to that cell
+   *
+   */
   void sortParticles();
+
+  /**
+   * @brief Find all the cell ids that contains particles
+   *
+   * @return std::vector<int> containing all the ids of the desired cells
+   */
+  std::vector<int> computeCellsWithParticles();
+
+  /**
+   * @brief Get the Particles In the cellId cell. This method should be called
+   * after sortiParticles()
+   *
+   * @param cellId cellId which particles are wanted
+   * @return std::vector<int> contains all the particles in that cell. If no
+   * particle is present, the vector is empty
+   */
+  std::vector<int> getParticlesInCell(int cellId);
 
 protected:
   bool _hasEscaped(int pid);

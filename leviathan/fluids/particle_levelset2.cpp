@@ -21,7 +21,7 @@ ParticleLevelSet2::ParticleLevelSet2(Eigen::Array2i gridSize,
     : Ramuh::ParticleSystem2(domain), Leviathan::LevelSetFluid2(gridSize,
                                                                 domain) {
   _particleRadiusId = newParticleScalarLabel("radius");
-  _particleVelocityId = newParticleArrayLabel("velocity");
+  _particleVelocityId = newParticleArrayLabel("particleVelocity");
   _particleSignalId = newParticleScalarLabel("particleSignal");
   _particleLevelSetId = newParticleScalarLabel("particleLevelSet");
 
@@ -95,10 +95,10 @@ void ParticleLevelSet2::interpolateVelocityToParticles() {
     target[1] = position[pid][1];
 
     // u velocity
-    points.emplace_back(facePosition(0, cellId[0] + 0, cellId[1] + 0));
-    points.emplace_back(facePosition(0, cellId[0] + 1, cellId[1] + 0));
-    points.emplace_back(facePosition(0, cellId[0] + 0, cellId[1] + yinc));
-    points.emplace_back(facePosition(0, cellId[0] + 1, cellId[1] + yinc));
+    points.emplace_back(getFacePosition(0, cellId[0] + 0, cellId[1] + 0));
+    points.emplace_back(getFacePosition(0, cellId[0] + 1, cellId[1] + 0));
+    points.emplace_back(getFacePosition(0, cellId[0] + 0, cellId[1] + yinc));
+    points.emplace_back(getFacePosition(0, cellId[0] + 1, cellId[1] + yinc));
     values[0] = u[faceijToid(0, cellId[0] + 0, cellId[1] + 0)];
     values[1] = u[faceijToid(0, cellId[0] + 1, cellId[1] + 0)];
     values[2] = u[faceijToid(0, cellId[0] + 0, cellId[1] + yinc)];
@@ -106,10 +106,10 @@ void ParticleLevelSet2::interpolateVelocityToParticles() {
     velocity[pid][0] = Ramuh::Interpolator::bilinear(target, points, values);
 
     // v velocity
-    points[0] = facePosition(1, cellId[0] + 0, cellId[1] + 0);
-    points[1] = facePosition(1, cellId[0] + xinc, cellId[1] + 0);
-    points[2] = facePosition(1, cellId[0] + 0, cellId[1] + 1);
-    points[3] = facePosition(1, cellId[0] + xinc, cellId[1] + 1);
+    points[0] = getFacePosition(1, cellId[0] + 0, cellId[1] + 0);
+    points[1] = getFacePosition(1, cellId[0] + xinc, cellId[1] + 0);
+    points[2] = getFacePosition(1, cellId[0] + 0, cellId[1] + 1);
+    points[3] = getFacePosition(1, cellId[0] + xinc, cellId[1] + 1);
     values[0] = v[faceijToid(1, cellId[0] + 0, cellId[1] + 0)];
     values[1] = v[faceijToid(1, cellId[0] + xinc, cellId[1] + 0)];
     values[2] = v[faceijToid(1, cellId[0] + 0, cellId[1] + 1)];
@@ -461,8 +461,7 @@ void ParticleLevelSet2::sortParticles() {
   // Loop over particles computing their cell index
   for (size_t pid = 0; pid < particleCount(); pid++) {
     auto position = getParticlePosition(pid);
-
-    // Computing cell id
+    // Computing cell id from particle position
     Eigen::Array2i cellIj = (position - LevelSetFluid2::_domain.getMin())
                                 .cwiseQuotient(h)
                                 .floor()
@@ -478,6 +477,21 @@ void ParticleLevelSet2::sortParticles() {
   for (auto particleVector : _particlesInCell) {
     auto particles = particleVector.second;
   }
+}
+
+std::vector<int> ParticleLevelSet2::computeCellsWithParticles() {
+  sortParticles();
+  std::vector<int> cellsWithParticles;
+  for (auto cell : _particlesInCell) {
+    cellsWithParticles.emplace_back(cell.first);
+  }
+  return cellsWithParticles;
+}
+
+std::vector<int> ParticleLevelSet2::getParticlesInCell(int cellId) {
+  if (_particlesInCell.find(cellId) == _particlesInCell.end())
+    return std::vector<int>();
+  return _particlesInCell[cellId];
 }
 
 } // namespace Leviathan

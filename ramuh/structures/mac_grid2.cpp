@@ -69,13 +69,13 @@ int MacGrid2::faceCount(int face) {
     return _gridSize[0] * (_gridSize[1] + 1);
 }
 
-Eigen::Array2d MacGrid2::facePosition(size_t face, int i, int j) {
+Eigen::Array2d MacGrid2::getFacePosition(size_t face, int i, int j) {
   i = std::min(_gridSize[0], std::max(0, i));
   j = std::min(_gridSize[1], std::max(0, j));
-  return facePosition(face, faceijToid(face, i, j));
+  return getFacePosition(face, faceijToid(face, i, j));
 }
 
-Eigen::Array2d MacGrid2::facePosition(size_t face, int faceId) {
+Eigen::Array2d MacGrid2::getFacePosition(size_t face, int faceId) {
   auto ij = faceIdToij(face, faceId);
   auto h = getH();
   int i = ij[0], j = ij[1];
