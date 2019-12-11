@@ -1,11 +1,15 @@
 #include "normal_particles2.hpp"
 #include <geometry/bounding_box.h>
+#include <geometry/dual_marching.h>
 #include <blas/interpolator.h>
 #include <iostream>
 
 namespace Carbuncle {
 
 NormalParticles2::NormalParticles2() {}
+
+NormalParticles2::NormalParticles2(Leviathan::LevelSetFluid2 levelset)
+    : ParticleLevelSet2(levelset.getGridSize(), levelset.getDomain()) {}
 
 std::map<int, int> &NormalParticles2::getPairMap() { return normalPair; }
 
@@ -170,6 +174,50 @@ void NormalParticles2::fixLevelsetGradients(
 
   // For those cells that may not contain any particle, copy from closest
   // particle
+}
+
+void NormalParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
+
+  // Find surface cells
+  auto surfaceCells = levelset.trackSurface();
+  std::vector<Eigen::Array2d> positions;
+  std::vector<Eigen::Vector2d> normals;
+
+  Ramuh::DualMarching2 surface;
+
+  surface.setBaseFolder("results/dualSquares/particles/");
+
+  // Check which particles belong to that cell
+  sortParticles();
+  surfaceCells = computeCellsWithParticles();
+  int nParticles = particleCount() / 2;
+  for (auto cell : surfaceCells) {
+    auto particles = getParticlesInCell(cell);
+
+    positions.clear();
+    normals.clear();
+    // Use particles and their normals to compute minimization point for surface
+    for (auto particle : particles) {
+      if (normalPair.find(particle) == normalPair.end())
+        continue;
+      Eigen::Vector2d normal;
+      Eigen::Array2d position = getParticlePosition(particle);
+      Eigen::Array2d target = getParticlePosition(normalPair[particle]);
+      normal = target - position;
+
+      positions.emplace_back(position);
+      normals.emplace_back(normal);
+    }
+    if (positions.size() == 1)
+      surface.getPoints().emplace_back(positions[0]);
+    else if (!positions.empty()) {
+      auto ij = levelset.idToij(cell);
+      Eigen::Array2i index(ij[0], ij[1]);
+      surface.evaluateSquare(index, positions, normals,
+                             levelset.getCellBoundingBox(cell));
+    }
+  }
+  surface.reconstruct();
 }
 
 } // namespace Carbuncle

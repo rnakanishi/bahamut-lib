@@ -457,6 +457,7 @@ void ParticleLevelSet2::reseedParticles() {
 
 void ParticleLevelSet2::sortParticles() {
   auto h = getH();
+  _particlesInCell.clear();
 
   // Loop over particles computing their cell index
   for (size_t pid = 0; pid < particleCount(); pid++) {

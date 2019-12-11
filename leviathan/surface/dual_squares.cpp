@@ -175,7 +175,7 @@ void DualSquares::extractSurface() {
   surface.reconstruct(connections);
 }
 
-void DualSquares::setFolder(std ::string folder) { _baseFolder = folder; }
+void DualSquares::setFolder(std::string folder) { _baseFolder = folder; }
 
 void DualSquares::resetFileCounter() { surface.resetCounter(); }
 

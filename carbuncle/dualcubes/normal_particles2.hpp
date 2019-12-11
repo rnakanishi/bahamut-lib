@@ -13,6 +13,8 @@ class NormalParticles2 : public Leviathan::ParticleLevelSet2 {
 public:
   NormalParticles2();
 
+  NormalParticles2(Leviathan::LevelSetFluid2 levelset);
+
   int seedParticlesOverSurface(Leviathan::LevelSetFluid2 levelset);
 
   std::map<int, int> &getPairMap();
@@ -24,6 +26,8 @@ public:
   void fixLevelsetGradients(Leviathan::LevelSetFluid2 &levelset);
 
   void advectParticles() override;
+
+  void extractSurface(Leviathan::LevelSetFluid2 &levelset);
 
 protected:
   std::map<int, int> normalPair;

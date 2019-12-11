@@ -23,7 +23,7 @@ int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
       Eigen::Array2i(15, 15),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
-  Carbuncle::NormalParticles2 particles;
+  Carbuncle::NormalParticles2 particles(cubes);
 
   initializeCube(cubes, Eigen::Array2d(0, 0), 3, ParametricSurface::SQUARE);
   initializeGradientsAtIntersection(cubes, Eigen::Array2d(0, 0), 3,
@@ -55,5 +55,6 @@ int main(int argc, char const *argv[]) {
   cubes.computeIntersectionAndNormals();
   cubes.extractSurface();
 
+  particles.extractSurface(cubes);
   return 0;
 }
