@@ -137,11 +137,14 @@ void DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
   }
 
   int id = 1;
+  int realPointCount = _points.size();
   for (int i = 0; i < _points.size(); i++) {
     file << "v " << _points[i][0] << " " << _points[i][1] << " 0" << std::endl;
   }
-  for (int i = 0; i < _normals.size(); i++) {
-    file << "vn " << _normals[i][0] << " " << _normals[i][1] << " 0"
+  // Create auxiliary points to create slim face, so object can be displayed as
+  // a 2D lines
+  for (int i = 0; i < _points.size(); i++) {
+    file << "v " << _points[i][0] << " " << _points[i][1] << " 0.001"
          << std::endl;
   }
 
@@ -159,10 +162,11 @@ void DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[convertKey(i, j)]);
             pIds.emplace_back(_idMap[convertKey(i + 1, j)]);
-            pIds.emplace_back(_idMap[convertKey(i, j + 1)]);
+            pIds.emplace_back(_idMap[convertKey(i + 1, j)] + realPointCount);
+            pIds.emplace_back(_idMap[convertKey(i, j)] + realPointCount);
             file << "f ";
             for (auto id : pIds) {
-              file << id + 1 << "//" << id + 1 << " ";
+              file << id + 1 << " ";
             }
             file << std::endl;
           }
@@ -174,10 +178,11 @@ void DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
             std::vector<int> pIds;
             pIds.emplace_back(_idMap[convertKey(i, j)]);
             pIds.emplace_back(_idMap[convertKey(i, j + 1)]);
-            pIds.emplace_back(_idMap[convertKey(i + 1, j)]);
+            pIds.emplace_back(_idMap[convertKey(i, j + 1)] + realPointCount);
+            pIds.emplace_back(_idMap[convertKey(i, j)] + realPointCount);
             file << "f ";
             for (auto id : pIds) {
-              file << id + 1 << "//" << id + 1 << " ";
+              file << id + 1 << " ";
             }
             file << std::endl;
           }

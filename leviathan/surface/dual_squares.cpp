@@ -96,13 +96,15 @@ void DualSquares::extractSurface() {
   findSurfaceCells(_h[0] * 8);
 
   std::vector<std::pair<int, int>> connections;
-#pragma omp parallel num_threads(1)
+#pragma omp parallel
   {
     Ramuh::DualMarching2 threadSurface(_gridSize);
     std::vector<std::pair<int, int>> threadConnections;
 #pragma omp for
     for (size_t cellId = 0; cellId < cellCount(); cellId++) {
-      // int cellId = _surfaceCellIds[surfId];
+      // The resulting point is stored in the evaluating cell
+      // Connections between cells are made with those that share an
+      // intersecting edge
       auto ij = idToij(cellId);
       int i = ij[0], j = ij[1];
 
@@ -118,9 +120,6 @@ void DualSquares::extractSurface() {
         isSurface = true;
         normal.emplace_back(_ufaceNormals[faceijToid(0, i + 1, j)]);
         normalPosition.emplace_back(_ufaceLocation[faceijToid(0, i + 1, j)]);
-
-        threadConnections.emplace_back(
-            std::make_pair(ijToid(i, j), ijToid(i + 1, j)));
       }
       if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1]) &&
           hasSignChange(_phi[ijToid(i + 1, j + 1)], _phi[ijToid(i, j + 1)])) {
@@ -128,8 +127,10 @@ void DualSquares::extractSurface() {
         normal.emplace_back(_ufaceNormals[faceijToid(0, i + 1, j + 1)]);
         normalPosition.emplace_back(
             _ufaceLocation[faceijToid(0, i + 1, j + 1)]);
+        // Connections are made between cells that share an edge containing
+        // intersection
         threadConnections.emplace_back(
-            std::make_pair(ijToid(i, j + 1), ijToid(i + 1, j + 1)));
+            std::make_pair(ijToid(i, j + 1), ijToid(i, j)));
       }
 
       if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1]) &&
@@ -139,15 +140,13 @@ void DualSquares::extractSurface() {
         normalPosition.emplace_back(
             _vfaceLocation[faceijToid(1, i + 1, j + 1)]);
         threadConnections.emplace_back(
-            std::make_pair(ijToid(i + 1, j + 1), ijToid(i + 1, j)));
+            std::make_pair(ijToid(i, j), ijToid(i + 1, j)));
       }
       if ((j + 1 < _gridSize[1]) &&
           hasSignChange(_phi[ijToid(i, j)], _phi[ijToid(i, j + 1)])) {
         isSurface = true;
         normal.emplace_back(_vfaceNormals[faceijToid(1, i, j + 1)]);
         normalPosition.emplace_back(_vfaceLocation[faceijToid(1, i, j + 1)]);
-        threadConnections.emplace_back(
-            std::make_pair(ijToid(i, j), ijToid(i, j + 1)));
       }
 
       // Solve quadratic function
@@ -162,8 +161,6 @@ void DualSquares::extractSurface() {
         auto x = threadSurface.evaluateSquare(
             Eigen::Array2i(i, j), normalPosition, normal,
             Ramuh::BoundingBox2(cubeMin, cubeMax));
-        // std::cout << x[0] << " " << x[1] << " " << x[2] <<
-        // std::endl;
       }
     }
 #pragma omp critical(surfaceMerge)

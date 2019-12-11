@@ -34,8 +34,6 @@ void initializeCube(Leviathan::DualSquares &squares, Eigen::Array2d center,
 
       double r2;
       double r;
-      // TODO: Fix this initialization method. Extends this class into an
-      // application and create another method to initialize properly
       switch (surface) {
       // SPHERE
       case ParametricSurface::CIRCLE:
@@ -60,20 +58,85 @@ void initializeCube(Leviathan::DualSquares &squares, Eigen::Array2d center,
     }
 }
 
+void initializeGradientsAtIntersection(Leviathan::DualSquares &squares,
+                                       Eigen::Array2d center, double radius,
+                                       ParametricSurface surface) {
+  auto &phi = squares.getCellScalarData("phi");
+  auto &gradient = squares.getCellArrayData("cellGradient");
+  auto &ufaceLocation = squares.getFaceArrayData(0, "facePosition");
+  auto &vfaceLocation = squares.getFaceArrayData(1, "facePosition");
+  auto &ufaceNormals = squares.getFaceArrayData(0, "faceNormal");
+  auto &vfaceNormals = squares.getFaceArrayData(1, "faceNormal");
+  auto _h = squares.getH();
+  auto gridSize = squares.getGridSize();
+
+  auto surfaceCellIds = squares.findSurfaceCells(_h[0] * 8);
+  Eigen::Array2d domainMin = squares.getDomain().getMin();
+  // #pragma omp parallel for
+  // for (size_t cellId = 0; cellId < cellCount(); cellId++) {
+  for (size_t surfId = 0; surfId < surfaceCellIds.size(); surfId++) {
+    int cellId = surfaceCellIds[surfId];
+    auto ij = squares.idToij(cellId);
+    int i = ij[0], j = ij[1];
+    int centerSign = (phi[squares.ijToid(i, j)] < 0) ? -1 : 1;
+    int id = squares.ijToid(i, j);
+    if (i < gridSize[0] - 1) {
+      if (squares.hasSignChange(phi[cellId], phi[squares.ijToid(i + 1, j)])) {
+        // Compute intersection location
+        double theta =
+            phi[squares.ijToid(i + 1, j)] - phi[squares.ijToid(i, j)];
+        double x = domainMin[0] - _h[0] * phi[squares.ijToid(i, j)] / (theta) +
+                   (i + 0.5) * _h[0];
+        double y = domainMin[1] + (j + 0.5) * _h[1];
+        ufaceLocation[squares.faceijToid(0, i + 1, j)] = Eigen::Array2d(x, y);
+
+        Eigen::Array2d normal = Eigen::Array2d(0);
+        if (x < center[0])
+          normal[0] = -1;
+        else
+          normal[0] = 1;
+        ufaceNormals[squares.faceijToid(0, i + 1, j)] = normal;
+        int ii = 0;
+      }
+    }
+
+    if (j < gridSize[1] - 1) {
+      if (squares.hasSignChange(phi[cellId], phi[squares.ijToid(i, j + 1)])) {
+        // Compute intersection location
+        double theta =
+            phi[squares.ijToid(i, j + 1)] - phi[squares.ijToid(i, j)];
+        double x = domainMin[0] + (i + 0.5) * _h[0];
+        double y = domainMin[1] - _h[1] * phi[squares.ijToid(i, j)] / (theta) +
+                   (j + 0.5) * _h[1];
+        vfaceLocation[squares.faceijToid(1, i, j + 1)] = Eigen::Array2d(x, y);
+
+        Eigen::Array2d normal = Eigen::Array2d(0);
+        if (y < center[1])
+          normal[1] = -1;
+        else
+          normal[1] = 1;
+        vfaceNormals[squares.faceijToid(1, i, j + 1)] = normal;
+        int ii = 0;
+      }
+    }
+  }
+}
+
 int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
       Eigen::Array2i(10, 10),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
 
   initializeCube(cubes, Eigen::Array2d(0, 0), 3, ParametricSurface::SQUARE);
-
+  initializeGradientsAtIntersection(cubes, Eigen::Array2d(0, 0), 3,
+                                    ParametricSurface::SQUARE);
   defineVelocity(cubes);
   cubes.setFolder("results/dualSquares/");
 
   // cubes.redistance();
 
-  cubes.computeCellsGradient();
-  cubes.computeIntersectionAndNormals();
+  // cubes.computeCellsGradient();
+  // cubes.computeIntersectionAndNormals();
 
   cubes.extractSurface();
   return 1;

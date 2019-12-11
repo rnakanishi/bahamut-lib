@@ -25,8 +25,9 @@ public:
 
   void resetFileCounter(int value);
 
-protected:
   bool hasSignChange(double valueA, double valueB);
+
+protected:
   int _faceSurfaceNormalId, _faceSurfacePositionId;
   std::string _baseFolder;
   int _count;
