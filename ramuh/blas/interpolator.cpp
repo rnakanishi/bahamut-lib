@@ -261,6 +261,48 @@ Eigen::Vector3d Interpolator::shepard(Eigen::Array3d position,
   return _min.array().max(_max.array().min(result.array())).matrix();
 }
 
+double Interpolator::shepard(Eigen::Array2d position,
+                             std::vector<Eigen::Array2d> &samples,
+                             std::vector<double> values) {
+  double distance, dSum = 0.0;
+  double result = 0.0;
+  double _min = 1e8;
+  double _max = -1e8;
+  for (int i = 0; i < samples.size(); i++) {
+    distance = (position - samples[i]).matrix().norm();
+    if (distance < 1e-14) {
+      return values[i];
+    }
+    dSum += 1. / distance;
+    result += values[i] / distance;
+    _min = std::min(_min, values[i]);
+    _max = std::max(_max, values[i]);
+  }
+  result = result / dSum;
+  return std::max(_min, std::min(_max, result));
+}
+
+Eigen::Vector2d Interpolator::shepard(Eigen::Array2d position,
+                                      std::vector<Eigen::Array2d> &samples,
+                                      std::vector<Eigen::Vector2d> vectors) {
+  double distance, dSum = 0.0;
+  Eigen::Vector2d result(0, 0);
+  Eigen::Vector2d _min(1e8, 1e8);
+  Eigen::Vector2d _max(-1e8, -1e8);
+  for (int i = 0; i < samples.size(); i++) {
+    distance = (position - samples[i]).matrix().norm();
+    if (distance < 1e-14) {
+      return vectors[i];
+    }
+    dSum += 1. / distance;
+    result += vectors[i] / distance;
+    _min = _min.array().min(vectors[i].array()).matrix();
+    _max = _max.array().max(vectors[i].array()).matrix();
+  }
+  result = result / dSum;
+  return _min.array().max(_max.array().min(result.array())).matrix();
+}
+
 double Interpolator::rbf(Eigen::Array3d position,
                          std::vector<Eigen::Array3d> &samples,
                          std::vector<double> values) {

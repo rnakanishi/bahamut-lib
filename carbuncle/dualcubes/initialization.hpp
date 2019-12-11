@@ -1,0 +1,116 @@
+
+enum class ParametricSurface : int { CIRCLE, SQUARE };
+
+void defineVelocity(Leviathan::DualSquares &cubes) {}
+
+void initializeCube(Leviathan::DualSquares &squares, Eigen::Array2d center,
+                    double radius, ParametricSurface surface) {
+
+  Eigen::Array2d domainMin = squares.getDomain().getMin();
+  auto &_phi = squares.getCellScalarData("phi");
+  auto gridSize = squares.getGridSize();
+  auto h = squares.getH();
+
+  // ====== Initialize cell surfaces
+  for (int j = 0; j < gridSize[1]; j++)
+    for (int i = 0; i < gridSize[0]; i++) {
+      Eigen::Array2d position =
+          domainMin + Eigen::Array2d(i, j).cwiseProduct(h) + h / 2.0;
+      // double distance = (position - center).matrix().norm() - radius;
+
+      double x, y, x2, y2;
+      double distance;
+      x = position[0] - center[0];
+      y = position[1] - center[1];
+      x2 = x * x;
+      y2 = y * y;
+
+      double r2;
+      double r;
+      switch (surface) {
+      // SPHERE
+      case ParametricSurface::CIRCLE:
+        distance = x2 + y2 - radius * radius;
+        break;
+      case ParametricSurface::SQUARE:
+        // CUBE
+        distance = std::max(std::fabs(x), std::fabs(y)) - radius;
+        if (distance > 0) {
+          position = position.abs();
+          distance = 0.0;
+          x = std::max(0.0, position[0] - radius);
+          y = std::max(0.0, position[1] - radius);
+          distance = sqrt(x * x + y * y);
+        }
+        break;
+      default:
+        distance = 1e8;
+      }
+      _phi[squares.ijToid(i, j)] =
+          std::min(_phi[squares.ijToid(i, j)], distance);
+    }
+}
+
+void initializeGradientsAtIntersection(Leviathan::DualSquares &squares,
+                                       Eigen::Array2d center, double radius,
+                                       ParametricSurface surface) {
+  auto &phi = squares.getCellScalarData("phi");
+  auto &gradient = squares.getCellArrayData("cellGradient");
+  auto &ufaceLocation = squares.getFaceArrayData(0, "facePosition");
+  auto &vfaceLocation = squares.getFaceArrayData(1, "facePosition");
+  auto &ufaceNormals = squares.getFaceArrayData(0, "faceNormal");
+  auto &vfaceNormals = squares.getFaceArrayData(1, "faceNormal");
+  auto _h = squares.getH();
+  auto gridSize = squares.getGridSize();
+
+  auto surfaceCellIds = squares.findSurfaceCells(_h[0] * 8);
+  Eigen::Array2d domainMin = squares.getDomain().getMin();
+  // #pragma omp parallel for
+  // for (size_t cellId = 0; cellId < cellCount(); cellId++) {
+  for (size_t surfId = 0; surfId < surfaceCellIds.size(); surfId++) {
+    int cellId = surfaceCellIds[surfId];
+    auto ij = squares.idToij(cellId);
+    int i = ij[0], j = ij[1];
+    int centerSign = (phi[squares.ijToid(i, j)] < 0) ? -1 : 1;
+    int id = squares.ijToid(i, j);
+    if (i < gridSize[0] - 1) {
+      if (squares.hasSignChange(phi[cellId], phi[squares.ijToid(i + 1, j)])) {
+        // Compute intersection location
+        double theta =
+            phi[squares.ijToid(i + 1, j)] - phi[squares.ijToid(i, j)];
+        double x = domainMin[0] - _h[0] * phi[squares.ijToid(i, j)] / (theta) +
+                   (i + 0.5) * _h[0];
+        double y = domainMin[1] + (j + 0.5) * _h[1];
+        ufaceLocation[squares.faceijToid(0, i + 1, j)] = Eigen::Array2d(x, y);
+
+        Eigen::Array2d normal = Eigen::Array2d(0);
+        if (x < center[0])
+          normal[0] = -1;
+        else
+          normal[0] = 1;
+        ufaceNormals[squares.faceijToid(0, i + 1, j)] = normal;
+        int ii = 0;
+      }
+    }
+
+    if (j < gridSize[1] - 1) {
+      if (squares.hasSignChange(phi[cellId], phi[squares.ijToid(i, j + 1)])) {
+        // Compute intersection location
+        double theta =
+            phi[squares.ijToid(i, j + 1)] - phi[squares.ijToid(i, j)];
+        double x = domainMin[0] + (i + 0.5) * _h[0];
+        double y = domainMin[1] - _h[1] * phi[squares.ijToid(i, j)] / (theta) +
+                   (j + 0.5) * _h[1];
+        vfaceLocation[squares.faceijToid(1, i, j + 1)] = Eigen::Array2d(x, y);
+
+        Eigen::Array2d normal = Eigen::Array2d(0);
+        if (y < center[1])
+          normal[1] = -1;
+        else
+          normal[1] = 1;
+        vfaceNormals[squares.faceijToid(1, i, j + 1)] = normal;
+        int ii = 0;
+      }
+    }
+  }
+}

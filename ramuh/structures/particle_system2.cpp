@@ -7,18 +7,49 @@ namespace Ramuh {
 ParticleSystem2::ParticleSystem2() : ParticleSystem2(BoundingBox2::unitBox()) {}
 
 ParticleSystem2::ParticleSystem2(BoundingBox2 domain)
-    : ParticleSystem2(_domain, Eigen::Array2i(32, 32)) {}
+    : ParticleSystem2(_domain, Eigen::Array2i(22, 32)) {}
 
 ParticleSystem2::ParticleSystem2(BoundingBox2 domain, Eigen::Array2i gridSize)
     : _domain(domain), _gridSize(gridSize) {
   _count = 0;
   _totalIds = 0;
-  _positionsId = newParticleArrayLabel("positions");
+  _particlePositionsId = newParticleArrayLabel("positions");
 
   std::srand(0);
 }
 
+void ParticleSystem2::preAllocateParticles(int nparticles) {
+  if (_totalIds < _count + nparticles) {
+    _active.resize(_count + nparticles, false);
+    for (auto &dataFieldId : _scalarMap)
+      _scalarData[dataFieldId.second].resize(_count + nparticles, 0);
+    for (auto &arrayFieldId : _arrayMap)
+      _arrayData[arrayFieldId.second].resize(_count + nparticles,
+                                             Eigen::Array2d(0));
+  }
+}
+
 int ParticleSystem2::particleCount() { return _count; }
+
+int ParticleSystem2::insertParticle(Eigen::Array2d position) {
+  int id;
+  if (_idQueue.empty()) {
+    id = _totalIds++;
+    _active.emplace_back(true);
+    for (auto &dataFieldId : _scalarMap)
+      _scalarData[dataFieldId.second].emplace_back(0);
+    for (auto &arrayFieldId : _arrayMap)
+      _arrayData[arrayFieldId.second].emplace_back(Eigen::Array2d(0));
+  } else {
+    id = _idQueue.front();
+    _idQueue.pop();
+    _active[id] = true;
+  }
+  auto &_positions = getParticleArrayData(_particlePositionsId);
+  _positions[id] = position;
+  _count++;
+  return id;
+}
 
 int ParticleSystem2::seedParticles(BoundingBox2 region) {
   int id;
@@ -35,7 +66,7 @@ int ParticleSystem2::seedParticles(BoundingBox2 region) {
     _active[id] = true;
   }
 
-  auto &_positions = getParticleArrayData(_positionsId);
+  auto &_positions = getParticleArrayData(_particlePositionsId);
   Eigen::Array2d position;
   position[0] = std::rand() % 100000;
   position[1] = std::rand() % 100000;
@@ -54,10 +85,15 @@ std::vector<int> ParticleSystem2::seedParticles(BoundingBox2 region, int n) {
   return ids;
 }
 
+void ParticleSystem2::setParticlePosition(int pid, Eigen::Array2d position) {
+  if (_active[pid])
+    _arrayData[_particlePositionsId][pid] = position;
+}
+
 Eigen::Array2d ParticleSystem2::getParticlePosition(int pid) {
   if (!_active[pid])
     return Eigen::Array2d(0);
-  return _arrayData[_positionsId][pid];
+  return _arrayData[_particlePositionsId][pid];
 }
 
 bool ParticleSystem2::isActive(int pid) { return _active[pid]; }

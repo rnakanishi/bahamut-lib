@@ -71,15 +71,15 @@ size_t CellCenteredGrid2::newCellScalarLabel(std::string label) {
 }
 
 size_t CellCenteredGrid2::newCellScalarLabel(std::string label, double value) {
-  if (_dataLabel.find(label) == _dataLabel.end()) {
+  if (_cellScalarLabel.find(label) == _cellScalarLabel.end()) {
     _scalarData.emplace_back(std::vector<double>(_gridSize.prod(), value));
-    _dataLabel[label] = _scalarData.size() - 1;
+    _cellScalarLabel[label] = _scalarData.size() - 1;
   }
-  return _dataLabel[label];
+  return _cellScalarLabel[label];
 }
 
 std::vector<double> &CellCenteredGrid2::getCellScalarData(std::string label) {
-  return _scalarData[_dataLabel[label]];
+  return _scalarData[_cellScalarLabel[label]];
 }
 
 std::vector<double> &CellCenteredGrid2::getCellScalarData(size_t id) {
@@ -92,21 +92,26 @@ size_t CellCenteredGrid2::newCellArrayLabel(std::string label) {
 
 size_t CellCenteredGrid2::newCellArrayLabel(std::string label,
                                             Eigen::Array2d value) {
-  if (_dataLabel.find(label) == _dataLabel.end()) {
+  if (_cellArrayLabel.find(label) == _cellArrayLabel.end()) {
     _arrayData.emplace_back(
         std::vector<Eigen::Array2d>(_gridSize.prod(), value));
-    _dataLabel[label] = _arrayData.size() - 1;
+    _cellArrayLabel[label] = _arrayData.size() - 1;
   }
-  return _dataLabel[label];
+  return _cellArrayLabel[label];
 }
 
 std::vector<Eigen::Array2d> &
 CellCenteredGrid2::getCellArrayData(std::string label) {
-  return _arrayData[_dataLabel[label]];
+  return _arrayData[_cellArrayLabel[label]];
 }
 
 std::vector<Eigen::Array2d> &CellCenteredGrid2::getCellArrayData(int id) {
   return _arrayData[id];
+}
+
+double CellCenteredGrid2::interpolateCellScalarData(std::string label,
+                                                    Eigen::Array2d position) {
+  return interpolateCellScalarData(_cellScalarLabel[label], position);
 }
 
 double CellCenteredGrid2::interpolateCellScalarData(int dataId,
@@ -151,6 +156,12 @@ double CellCenteredGrid2::interpolateCellScalarData(int dataId,
   values[3] = data[ijToid(xindex, yindex)];
 
   return Ramuh::Interpolator::bilinear(target, points, values);
+}
+
+Eigen::Array2d
+CellCenteredGrid2::interpolateCellArrayData(std::string label,
+                                            Eigen::Array2d position) {
+  return interpolateCellArrayData(_cellArrayLabel[label], position);
 }
 
 Eigen::Array2d

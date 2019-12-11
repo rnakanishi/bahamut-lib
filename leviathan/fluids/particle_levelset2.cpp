@@ -30,7 +30,7 @@ ParticleLevelSet2::ParticleLevelSet2(Eigen::Array2i gridSize,
 
 void ParticleLevelSet2::advectEuler() {
   auto &velocity = getParticleArrayData(_particleVelocityId);
-  auto &position = getParticleArrayData(_positionsId);
+  auto &position = getParticleArrayData(_particlePositionsId);
 
 #pragma omp parallel for
   for (size_t i = 0; i < _totalIds; i++) {
@@ -41,7 +41,7 @@ void ParticleLevelSet2::advectEuler() {
 }
 
 void ParticleLevelSet2::advectParticles() {
-  auto &position = getParticleArrayData(_positionsId);
+  auto &position = getParticleArrayData(_particlePositionsId);
 
   std::vector<Eigen::Array2d> lastPosition(position.size());
   for (size_t i = 0; i < position.size(); i++) {
@@ -66,7 +66,7 @@ void ParticleLevelSet2::interpolateVelocityToParticles() {
   auto &velocity = ParticleSystem2::getParticleArrayData(_particleVelocityId);
   auto &u = getFaceScalarData(0, _velocityId);
   auto &v = getFaceScalarData(1, _velocityId);
-  auto &position = getParticleArrayData(_positionsId);
+  auto &position = getParticleArrayData(_particlePositionsId);
   auto h = getH();
 
 #pragma omp parallel for
@@ -223,7 +223,7 @@ void ParticleLevelSet2::_seedCells(std::vector<int> &toSeed,
 }
 
 bool ParticleLevelSet2::_hasEscaped(int pid) {
-  auto &positions = getParticleArrayData(_positionsId);
+  auto &positions = getParticleArrayData(_particlePositionsId);
   auto &signals = getParticleScalarData(_particleSignalId);
   auto &radiuses = getParticleScalarData(_particleRadiusId);
   auto h = getH();
@@ -247,7 +247,7 @@ bool ParticleLevelSet2::_hasEscaped(int pid) {
 
 void ParticleLevelSet2::attractParticles() {
   auto &psignal = getParticleScalarData(_particleSignalId);
-  auto &position = getParticleArrayData(_positionsId);
+  auto &position = getParticleArrayData(_particlePositionsId);
   auto &radius = getParticleScalarData(_particleRadiusId);
   auto &particlesLevelSet = getParticleScalarData(_particleLevelSetId);
 
@@ -308,7 +308,7 @@ void ParticleLevelSet2::attractParticles() {
 void ParticleLevelSet2::adjustParticleRadius() {
   auto &particleSignal = getParticleScalarData(_particleSignalId);
   auto &particlesLevelSet = getParticleScalarData(_particleLevelSetId);
-  auto &position = getParticleArrayData(_positionsId);
+  auto &position = getParticleArrayData(_particlePositionsId);
   auto &radius = getParticleScalarData(_particleRadiusId);
   auto &signals = getParticleScalarData(_particleSignalId);
 
@@ -338,7 +338,7 @@ void ParticleLevelSet2::adjustParticleRadius() {
 }
 
 bool ParticleLevelSet2::correctLevelSetWithParticles() {
-  auto &positions = getParticleArrayData(_positionsId);
+  auto &positions = getParticleArrayData(_particlePositionsId);
   auto &signals = getParticleScalarData(_particleSignalId);
   auto &radiuses = getParticleScalarData(_particleRadiusId);
   auto &particlesLevelSet = getParticleScalarData(_particleLevelSetId);

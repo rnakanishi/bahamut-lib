@@ -18,6 +18,10 @@ public:
 
   int particleCount();
 
+  void preAllocateParticles(int nparticles);
+
+  int insertParticle(Eigen::Array2d position);
+
   /**
    * @brief Seeds a predertmined number (default: 1) of particles over a given
    * region and set them to active. If there are non-active ids, they are used
@@ -39,6 +43,8 @@ public:
    * positions; or a single position
    */
   Eigen::Array2d getParticlePosition(int pid);
+
+  void setParticlePosition(int pid, Eigen::Array2d position);
 
   /**
    * @brief Return either a particle is active or not.
@@ -75,13 +81,13 @@ public:
 protected:
   std::vector<bool> _active;
   std::queue<int> _idQueue;
-  int _positionsId;
 
   std::vector<std::vector<double>> _scalarData;
   std::vector<std::vector<Eigen::Array2d>> _arrayData;
   std::map<std::string, int> _arrayMap, _scalarMap;
 
   Eigen::Array2i _gridSize;
+  int _particlePositionsId;
 
   BoundingBox2 _domain;
   int _count, _totalIds;

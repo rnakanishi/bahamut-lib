@@ -30,6 +30,7 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
   _surfaceCellCount = 0;
 
   _surfaceCellIds.resize(cellCount(), false);
+  _isSurfaceCell.resize(cellCount(), false);
 }
 
 void LevelSetFluid2::computeCellsGradient() {

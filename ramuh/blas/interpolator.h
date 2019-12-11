@@ -104,6 +104,14 @@ public:
                                  std::vector<Eigen::Array3d> &samples,
                                  std::vector<Eigen::Vector3d> vectors);
 
+  static double shepard(Eigen::Array2d position,
+                        std::vector<Eigen::Array2d> &samples,
+                        std::vector<double> values);
+
+  static Eigen::Vector2d shepard(Eigen::Array2d position,
+                                 std::vector<Eigen::Array2d> &samples,
+                                 std::vector<Eigen::Vector2d> vectors);
+
   static double rbf(Eigen::Array3d position,
                     std::vector<Eigen::Array3d> &samples,
                     std::vector<double> values);

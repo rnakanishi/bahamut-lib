@@ -98,6 +98,7 @@ public:
    * @return double interpolated value at position
    */
   double interpolateCellScalarData(int dataId, Eigen::Array2d position);
+  double interpolateCellScalarData(std::string label, Eigen::Array2d position);
 
   /**
    * @brief Given a cell field id and a point inside the domain, computes an
@@ -110,6 +111,8 @@ public:
    * @return double interpolated value at position
    */
   Eigen::Array2d interpolateCellArrayData(int dataId, Eigen::Array2d position);
+  Eigen::Array2d interpolateCellArrayData(std::string label,
+                                          Eigen::Array2d position);
 
 protected:
   Eigen::Array2i _gridSize;
@@ -117,7 +120,7 @@ protected:
 
   std::vector<std::vector<double>> _scalarData;
   std::vector<std::vector<Eigen::Array2d>> _arrayData;
-  std::map<std::string, size_t> _dataLabel;
+  std::map<std::string, size_t> _cellScalarLabel, _cellArrayLabel;
 };
 
 } // namespace Ramuh
