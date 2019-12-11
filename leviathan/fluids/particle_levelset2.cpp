@@ -18,8 +18,8 @@ ParticleLevelSet2::ParticleLevelSet2()
 
 ParticleLevelSet2::ParticleLevelSet2(Eigen::Array2i gridSize,
                                      Ramuh::BoundingBox2 domain)
-    : Ramuh::ParticleSystem2(domain), Leviathan::LevelSetFluid2(gridSize,
-                                                                domain) {
+    : Ramuh::ParticleSystem2(domain),
+      Leviathan::LevelSetFluid2(gridSize, domain) {
   _particleRadiusId = newParticleScalarLabel("radius");
   _particleVelocityId = newParticleArrayLabel("particleVelocity");
   _particleSignalId = newParticleScalarLabel("particleSignal");
@@ -64,8 +64,8 @@ void ParticleLevelSet2::advectParticles() {
 
 void ParticleLevelSet2::interpolateVelocityToParticles() {
   auto &velocity = ParticleSystem2::getParticleArrayData(_particleVelocityId);
-  auto &u = getFaceScalarData(0, _velocityId);
-  auto &v = getFaceScalarData(1, _velocityId);
+  auto &u = getFaceScalarData(0, _faceVelocityId);
+  auto &v = getFaceScalarData(1, _faceVelocityId);
   auto &position = getParticleArrayData(_particlePositionsId);
   auto h = getH();
 

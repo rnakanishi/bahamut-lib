@@ -5,13 +5,13 @@
 enum class ParametricSurface : int { CIRCLE, SQUARE };
 
 void defineCellsVelocity(Leviathan::DualSquares &levelset) {
-  auto &u = levelset.getFaceArrayData(0, "cellVelocity");
+  auto &u = levelset.getFaceScalarData(0, "faceVelocity");
   for (size_t faceId = 0; faceId < levelset.faceCount(0); faceId++) {
     auto ij = levelset.faceIdToij(0, faceId);
     auto p = levelset.getFacePosition(0, faceId);
     u[faceId] = -p[1];
   }
-  auto v = levelset.getFaceArrayData(0, "cellVelocity");
+  auto &v = levelset.getFaceScalarData(1, "faceVelocity");
   for (size_t faceId = 0; faceId < levelset.faceCount(1); faceId++) {
     auto ij = levelset.faceIdToij(1, faceId);
     auto p = levelset.getFacePosition(1, faceId);

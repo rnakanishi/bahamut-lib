@@ -21,7 +21,7 @@ void printParticles(Carbuncle::NormalParticles2 particles) {
 
 int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
-      Eigen::Array2i(25, 25),
+      Eigen::Array2i(15, 15),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
   Carbuncle::NormalParticles2 particles;
 

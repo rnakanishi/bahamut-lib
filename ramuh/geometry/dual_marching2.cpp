@@ -10,7 +10,11 @@ DualMarching2::DualMarching2() : DualMarching2(Eigen::Array2i(16, 16)) {}
 
 DualMarching2::DualMarching2(Eigen::Array2i resolution) {
   _resolution = resolution;
-  count = 0;
+  resetCounter();
+  clear();
+}
+
+void DualMarching2::clear() {
   _idMap.clear();
   _points.clear();
   _normals.clear();

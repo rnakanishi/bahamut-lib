@@ -15,6 +15,8 @@ public:
 
   DualMarching2(Eigen::Array2i resolution);
 
+  void clear();
+  
   int convertKey(Eigen::Array2i index);
   int convertKey(int i, int j);
   Eigen::Array2i convertKey(int index);

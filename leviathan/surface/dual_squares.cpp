@@ -93,6 +93,7 @@ void DualSquares::extractSurface() {
   auto &_vfaceNormals = getFaceArrayData(1, "faceNormal");
   auto _h = getH();
 
+  surface.clear();
   findSurfaceCells(_h[0] * 8);
 
   std::vector<std::pair<int, int>> connections;

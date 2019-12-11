@@ -15,7 +15,7 @@ int main(int argc, char const *argv[]) {
   initializeCube(cubes, Eigen::Array2d(0, 0), 3, ParametricSurface::SQUARE);
   initializeGradientsAtIntersection(cubes, Eigen::Array2d(0, 0), 3,
                                     ParametricSurface::SQUARE);
-  defineVelocity(cubes);
+  defineCellsVelocity(cubes);
   cubes.setFolder("results/dualSquares/");
 
   // cubes.redistance();

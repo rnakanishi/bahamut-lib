@@ -17,7 +17,7 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
                                Ramuh::BoundingBox2 domain)
     : MacGrid2(domain, gridSize) {
   _phiId = newCellScalarLabel("phi", 1e8);
-  _velocityId = newFaceScalarLabel("velocity");
+  _faceVelocityId = newFaceScalarLabel("faceVelocity");
   //  --> Even though velocities are vector, MAC grid split them into scalar
   //  pieces for each coordinate
   _originalDt = _dt = 1. / 60;
@@ -85,7 +85,7 @@ void LevelSetFluid2::advectUpwind() {
     int i = ij[0], j = ij[1];
     newPhi[id] = 0;
     for (size_t coord = 0; coord < 2; coord++) {
-      auto &uv = getFaceScalarData(coord, _velocityId);
+      auto &uv = getFaceScalarData(coord, _faceVelocityId);
       auto faceij = ij;
       auto faceid = faceijToid(coord, i, j);
       int facei = faceij[0], facej = faceij[1];
@@ -140,50 +140,147 @@ void LevelSetFluid2::advectUpwind() {
 }
 
 void LevelSetFluid2::advectWeno() {
-  auto &gradient = getCellArrayData(_gradientId);
+  auto &gradient = getCellArrayData("cellGradient");
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
   auto &phi = getCellScalarData(_phiId);
+  auto h = getH();
 
-  std::vector<double> phiN(phi.size());
-  for (size_t i = 0; i < phi.size(); i++) {
-    phiN[i] = phi[i];
-  }
+  std::vector<double> phiN(phi.begin(), phi.end());
 
-  // computeCentralGradient();
   computeCellVelocity();
-  computeWenoGradient();
-#pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
-    phi[id] =
-        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
-  }
+  wenoAdvection();
+  wenoAdvection();
 
-  // computeCentralGradient();
-  computeCellVelocity();
-  computeWenoGradient();
 #pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
-    phi[id] =
-        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
-  }
-
-  for (size_t i = 0; i < phi.size(); i++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int i = _surfaceCellIds[sId];
     phi[i] = 0.75 * phiN[i] + 0.25 * phi[i];
   }
 
-  // computeCentralGradient();
-  computeCellVelocity();
-  computeWenoGradient();
-#pragma omp parallel for
-  for (int id = 0; id < cellCount(); id++) {
-    phi[id] =
-        phi[id] - cellVelocity[id].matrix().dot(gradient[id].matrix()) * _dt;
-  }
+  wenoAdvection();
 
 #pragma omp parallel for
-  for (size_t i = 0; i < phi.size(); i++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int i = _surfaceCellIds[sId];
     phi[i] = phiN[i] / 3 + 2 * phi[i] / 3;
   }
+}
+
+void LevelSetFluid2::wenoAdvection() {
+  auto h = getH();
+  auto &phi = getCellScalarData(_phiId);
+  auto &cellVelocity = getCellArrayData(_cellVelocityId);
+
+  std::vector<double> newphi;
+  newphi.insert(newphi.begin(), phi.begin(), phi.end());
+
+  computeCellVelocity();
+// Weno computation
+#pragma omp parallel for
+  // for (int id = 0; id < cellCount(); id++) {
+  for (int sId = 0; sId < _surfaceCellIds.size(); sId++) {
+    int id = _surfaceCellIds[sId];
+    std::vector<double> values(6);
+    auto ij = idToij(id);
+    int i = ij[0], j = ij[1];
+
+    double dPhi = 0.0;
+    for (size_t coord = 0; coord < 2; coord++) {
+      auto &uv = getFaceScalarData(coord, _faceVelocityId);
+      auto faceij = ij;
+      int facei = faceij[0], facej = faceij[1];
+      double velocity;
+
+      int cellij;
+      if (coord == 0)
+        cellij = i;
+      else if (coord == 1)
+        cellij = j;
+
+      // For each coordinate, compute its own velocity
+      velocity = cellVelocity[id][coord];
+
+      // For positive velocity  upwind-based scheme is used. Otherwise,
+      // downwind
+      if (velocity <= 0) {
+        // ========= DOWNWIND =========
+        for (int ival = 0, inc = 3; ival < 7; ival++, inc--) {
+          int index, index1, faceIndex;
+          // Each coordinate have to be treated separatedly due to cell-face
+          // indexation
+          switch (coord) {
+          case 0:
+            index = std::min(_gridSize[coord] - 1, std::max(1, i + inc));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc - 1));
+            faceIndex = std::min(_gridSize[coord], std::max(0, facei + inc));
+            values[ival] =
+                (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) / h[coord];
+            // velocity = cellVelocity[ijToid(index1, j, k)][coord];
+            break;
+          case 1:
+            index = std::min(_gridSize[coord] - 1, std::max(1, j + inc));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc - 1));
+            faceIndex = std::min(_gridSize[coord], std::max(0, facej + inc));
+            values[ival] =
+                (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) / h[coord];
+            // velocity = cellVelocity[ijToid(i, index1, k)][coord];
+            break;
+          }
+        }
+        // Boundary conditions. This ensure weno doesnt use outside values
+        if (cellij <= 1)
+          values[5] = 1e4;
+        if (cellij <= 0)
+          values[4] = 1e4;
+        if (cellij >= _gridSize[coord] - 2)
+          values[0] = 1e4;
+        if (cellij >= _gridSize[coord] - 1)
+          values[1] = 1e4;
+      } else {
+        // ========= UPWIND =========
+        for (int ival = 0, inc = -3; ival < 7; ival++, inc++) {
+          int index, index1, faceIndex;
+          // Each coordinate have to be treated separatedly due to cell-face
+          // indexation
+          switch (coord) {
+          case 0:
+            index = std::min(_gridSize[coord] - 1, std::max(1, i + inc + 1));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, i + inc));
+            faceIndex =
+                std::min(_gridSize[coord], std::max(0, facei + inc + 1));
+            values[ival] =
+                (phi[ijToid(index, j)] - phi[ijToid(index1, j)]) / h[coord];
+            // velocity = cellVelocity[ijToid(index, j, k)][coord];
+            break;
+          case 1:
+            index = std::min(_gridSize[coord] - 1, std::max(1, j + inc + 1));
+            index1 = std::min(_gridSize[coord] - 2, std::max(0, j + inc));
+            faceIndex =
+                std::min(_gridSize[coord], std::max(0, facej + inc + 1));
+            values[ival] =
+                (phi[ijToid(i, index)] - phi[ijToid(i, index1)]) / h[coord];
+            // velocity = cellVelocity[ijToid(i, index, k)][coord];
+            break;
+          }
+          // values[ival] *= velocity;
+        }
+        if (cellij <= 1)
+          values[0] = 1e4;
+        if (cellij <= 0)
+          values[1] = 1e4;
+        if (cellij >= _gridSize[coord] - 2)
+          values[5] = 1e4;
+        if (cellij >= _gridSize[coord] - 1)
+          values[4] = 1e4;
+      }
+
+      // Summing up all gradients to obtain flux
+      dPhi += Ramuh::Weno::evaluate(values, h[coord], false) * velocity;
+    }
+    newphi[id] = phi[id] - dPhi * _dt;
+  }
+  phi.clear();
+  phi.insert(phi.begin(), newphi.begin(), newphi.end());
 }
 
 void LevelSetFluid2::computeCentralGradient() {
@@ -251,7 +348,7 @@ void LevelSetFluid2::computeWenoGradient() {
     std::vector<double> values(6);
 
     for (size_t coord = 0; coord < 2; coord++) {
-      auto &uv = getFaceScalarData(coord, _velocityId);
+      auto &uv = getFaceScalarData(coord, _faceVelocityId);
       auto faceij = ij;
       auto faceid = faceijToid(coord, i, j);
       int facei = faceij[0], facej = faceij[1];
@@ -356,8 +453,8 @@ void LevelSetFluid2::advectCip() {
   auto h = getH();
   auto &phi = getCellScalarData(_phiId);
   auto &gradient = getCellArrayData(_gradientId);
-  auto &uVelocity = getFaceScalarData(0, _velocityId);
-  auto &vVelocity = getFaceScalarData(1, _velocityId);
+  auto &uVelocity = getFaceScalarData(0, _faceVelocityId);
+  auto &vVelocity = getFaceScalarData(1, _faceVelocityId);
   static int count = 0;
   std::vector<double> a(cellCount()), b(cellCount());
   std::vector<double> newPhi(cellCount(), 0);
@@ -426,13 +523,13 @@ void LevelSetFluid2::advectCip() {
 void LevelSetFluid2::computeCellVelocity() {
   auto &cellVelocity = getCellArrayData(_cellVelocityId);
 
-#pragma omp parallel for
+  // #pragma omp parallel for
   for (int id = 0; id < cellCount(); id++) {
     auto ij = idToij(id);
     int i = ij[0], j = ij[1];
 
     for (size_t coord = 0; coord < 2; coord++) {
-      auto &uv = getFaceScalarData(coord, _velocityId);
+      auto &uv = getFaceScalarData(coord, _faceVelocityId);
       double velocity;
       switch (coord) {
       case 0:
@@ -555,8 +652,9 @@ void LevelSetFluid2::redistance() {
       if (!isInterface[id]) {
         newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
       } else {
-        newPhi = phi[id] - (dt / h[0]) * (cellSignal[id] * abs(phi[id]) -
-                                          interfaceFactor[id]);
+        newPhi =
+            phi[id] -
+            (dt / h[0]) * (cellSignal[id] * abs(phi[id]) - interfaceFactor[id]);
       }
       error += abs(phi[id] - newPhi);
       phi[id] = newPhi;
@@ -654,15 +752,15 @@ bool LevelSetFluid2::advanceTime() {
 
 void LevelSetFluid2::applyCfl() {
   Eigen::Vector2d maxVel = Eigen::Vector2d(0.0, 0.0);
-  auto &u = getFaceScalarData(0, _velocityId);
-  auto &v = getFaceScalarData(1, _velocityId);
+  auto &u = getFaceScalarData(0, _faceVelocityId);
+  auto &v = getFaceScalarData(1, _faceVelocityId);
   auto h = getH();
 
   for (int id = 0; id < cellCount(); id++) {
-    auto ijk = idToij(id);
+    auto ij = idToij(id);
     int i, j;
-    i = ijk[0];
-    j = ijk[1];
+    i = ij[0];
+    j = ij[1];
 
     Eigen::Vector2d vel;
     vel[0] = (u[id] + u[faceijToid(0, i + 1, j)]) / 2.0;

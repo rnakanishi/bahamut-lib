@@ -29,6 +29,8 @@ public:
 
   void advectWeno();
 
+  void wenoAdvection();
+
   /**
    * @brief Perform Cubic Interpolated Propagation (CIP) advection for the
    * levelset. The predicted (t+1) gradient is computed using shifted
@@ -77,7 +79,7 @@ protected:
                                 double &max);
 
   double _dt, _ellapsedDt, _originalDt;
-  size_t _velocityId, _phiId, _gradientId;
+  size_t _faceVelocityId, _phiId, _gradientId;
   size_t _cellVelocityId;
   bool _isPressure2nd;
   double _tolerance;
