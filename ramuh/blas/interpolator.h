@@ -126,6 +126,13 @@ public:
   static double camullRom2(Eigen::Array3d position,
                            std::vector<Eigen::Array3d> &points,
                            std::vector<double> values);
+
+  static double closestPoint(Eigen::Array2d position,
+                             std::vector<Eigen::Array2d> &points,
+                             std::vector<double> values);
+  static Eigen::Vector2d closestPoint(Eigen::Array2d position,
+                                      std::vector<Eigen::Array2d> &points,
+                                      std::vector<Eigen::Vector2d> values);
 };
 } // namespace Ramuh
 

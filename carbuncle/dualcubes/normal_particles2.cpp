@@ -6,6 +6,29 @@
 
 namespace Carbuncle {
 
+double getFunctionValue(Eigen::Array2d p) {
+  Eigen::Array2d center(0, 0);
+  double radius = 1.5;
+
+  double x, y, x2, y2;
+  double distance;
+  x = p[0] - center[0];
+  y = p[1] - center[1];
+  x2 = x * x;
+  y2 = y * y;
+
+  // CUBE
+  distance = std::max(std::fabs(x), std::fabs(y)) - radius;
+  if (distance > 0) {
+    p = p.abs();
+    distance = 0.0;
+    x = std::max(0.0, p[0] - radius);
+    y = std::max(0.0, p[1] - radius);
+    distance = sqrt(x * x + y * y);
+  }
+  return distance;
+}
+
 NormalParticles2::NormalParticles2() {}
 
 NormalParticles2::NormalParticles2(Leviathan::LevelSetFluid2 levelset)
@@ -18,7 +41,7 @@ int NormalParticles2::seedParticlesOverSurface(
   // TODO: Seed particles only near the cell face
   // TODO: Also ensure uniform sampling of the particles along surface
   // Check which cell it intersect with and seed particles there
-  int particlesPerCell = 1;
+  int particlesPerCell = 15;
   auto gradient = levelset.getCellArrayData("cellGradient");
   // find surface cells
   auto surfaceCells = levelset.trackSurface();
@@ -35,8 +58,7 @@ int NormalParticles2::seedParticlesOverSurface(
     // Attract them to the 0 levelset
     for (auto particleID : particles) {
       normalOrigin.emplace_back(particleID);
-      double phi = levelset.interpolateCellScalarData(
-          "phi", getParticlePosition(particleID));
+      double phi;
 
       double lambda = 1.0;
       int maxIt = 16;
@@ -46,7 +68,8 @@ int NormalParticles2::seedParticlesOverSurface(
         // auto direction = levelset.interpolateCellArrayData("cellGradient",
         // p);
         auto direction = gradient[cellId];
-        phi = levelset.interpolateCellScalarData("phi", p);
+        // phi = levelset.interpolateCellScalarData("phi", p);
+        phi = getFunctionValue(p);
         direction = direction.matrix().normalized().array();
 
         // xnew = xp + lambda(goal - phi(xp)) * N(p)
@@ -59,7 +82,8 @@ int NormalParticles2::seedParticlesOverSurface(
         }
 
         // Verify if near goal
-        phi = levelset.interpolateCellScalarData("phi", newp);
+        // phi = levelset.interpolateCellScalarData("phi", newp);
+        phi = getFunctionValue(newp);
 
         p = newp;
         if (std::abs(phi) < threshold)
@@ -122,8 +146,8 @@ void NormalParticles2::estimateCellNormals(
     // Interpolate the final vector from the particles vector
     Eigen::Vector2d finalNormal;
     auto cellPosition = levelset.getCellPosition(cell.first);
-    finalNormal = Ramuh::Interpolator::shepard(cellPosition, normalPositions,
-                                               normalVectors);
+    finalNormal = Ramuh::Interpolator::closestPoint(
+        cellPosition, normalPositions, normalVectors);
     gradients[cell.first] = finalNormal.normalized().array();
   }
 }
@@ -168,6 +192,46 @@ void NormalParticles2::fixLevelsetGradients(
 
   // Track all surface cells
   auto surfaceCells = levelset.trackSurface();
+  auto h = levelset.getH();
+
+  std::vector<Eigen::Array2d> allPositions;
+  std::vector<Eigen::Vector2d> allNormals;
+
+  for (size_t pid = 0; pid < particleCount(); pid++) {
+    if (normalPair.find(pid) != normalPair.end()) {
+      Eigen::Array2d origin = getParticlePosition(pid);
+      Eigen::Array2d ending = getParticlePosition(normalPair[pid]);
+      allPositions.emplace_back(origin);
+      allNormals.emplace_back((ending - origin).matrix());
+    }
+  }
+
+  // for all cells that is surface, fix its face normals
+  for (auto cell : surfaceCells) {
+    auto ij = levelset.idToij(cell);
+
+    unormal[levelset.faceijToid(0, ij[0], ij[1])] =
+        Ramuh::Interpolator::closestPoint(
+            unormalPosition[levelset.faceijToid(0, ij[0], ij[1])], allPositions,
+            allNormals)
+            .array();
+    // unormal[levelset.faceijToid(0, ij[0] + 1, ij[1])] =
+    //     Ramuh::Interpolator::closestPoint(
+    //         unormalPosition[levelset.faceijToid(0, ij[0] + 1, ij[1])],
+    //         allPositions, allNormals)
+    //         .array();
+
+    vnormal[levelset.faceijToid(1, ij[0], ij[1])] =
+        Ramuh::Interpolator::closestPoint(
+            vnormalPosition[levelset.faceijToid(1, ij[0], ij[1])], allPositions,
+            allNormals)
+            .array();
+    // vnormal[levelset.faceijToid(1, ij[0], ij[1] + 1)] =
+    //     Ramuh::Interpolator::closestPoint(
+    //         unormalPosition[levelset.faceijToid(1, ij[0], ij[1] + 1)],
+    //         allPositions, allNormals)
+    //         .array();
+  }
 
   // Find which cells contain particles
   // Interpolate gradient values from the closest particles
@@ -182,18 +246,18 @@ void NormalParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
   auto surfaceCells = levelset.trackSurface();
   std::vector<Eigen::Array2d> positions;
   std::vector<Eigen::Vector2d> normals;
-
-  Ramuh::DualMarching2 surface;
+  static Ramuh::DualMarching2 surface;
 
   surface.setBaseFolder("results/dualSquares/particles/");
+  surface.clear();
 
   // Check which particles belong to that cell
   sortParticles();
   surfaceCells = computeCellsWithParticles();
   int nParticles = particleCount() / 2;
+
   for (auto cell : surfaceCells) {
     auto particles = getParticlesInCell(cell);
-
     positions.clear();
     normals.clear();
     // Use particles and their normals to compute minimization point for surface
@@ -208,13 +272,12 @@ void NormalParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
       positions.emplace_back(position);
       normals.emplace_back(normal);
     }
-    if (positions.size() == 1)
+    if (positions.size() == 1) {
       surface.getPoints().emplace_back(positions[0]);
-    else if (!positions.empty()) {
+    } else if (!positions.empty()) {
       auto ij = levelset.idToij(cell);
       Eigen::Array2i index(ij[0], ij[1]);
-      surface.evaluateSquare(index, positions, normals,
-                             levelset.getCellBoundingBox(cell));
+      surface.evaluateSquare(index, positions, normals);
     }
   }
   surface.reconstruct();

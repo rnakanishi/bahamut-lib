@@ -344,4 +344,32 @@ double Interpolator::rbf(Eigen::Array3d position,
   return value;
 }
 
+double Interpolator::closestPoint(Eigen::Array2d position,
+                                  std::vector<Eigen::Array2d> &points,
+                                  std::vector<double> values) {
+  double distance = 1e8;
+  int closest = 0;
+  for (size_t i = 0; i < points.size(); i++) {
+    if ((position - points[i]).matrix().norm() < distance)
+      closest = i;
+  }
+  return values[closest];
+}
+
+Eigen::Vector2d
+Interpolator::closestPoint(Eigen::Array2d position,
+                           std::vector<Eigen::Array2d> &points,
+                           std::vector<Eigen::Vector2d> values) {
+  double distance = 1e8;
+  int closest = -1;
+  for (size_t i = 0; i < points.size(); i++) {
+    double newDistance = (position - points[i]).matrix().norm();
+    if ((position - points[i]).matrix().norm() < distance) {
+      distance = newDistance;
+      closest = i;
+    }
+  }
+  return values[closest];
+}
+
 } // namespace Ramuh
