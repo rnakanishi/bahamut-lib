@@ -652,9 +652,8 @@ void LevelSetFluid2::redistance() {
       if (!isInterface[id]) {
         newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
       } else {
-        newPhi =
-            phi[id] -
-            (dt / h[0]) * (cellSignal[id] * abs(phi[id]) - interfaceFactor[id]);
+        newPhi = phi[id] - (dt / h[0]) * (cellSignal[id] * abs(phi[id]) -
+                                          interfaceFactor[id]);
       }
       error += abs(phi[id] - newPhi);
       phi[id] = newPhi;
@@ -803,6 +802,13 @@ std::vector<int> LevelSetFluid2::trackSurface() {
     }
   }
   return surface;
+}
+
+int LevelSetFluid2::findCellIdByCoordinate(Eigen::Array2d position) {
+  auto h = getH();
+  Eigen::Array2i cellIj =
+      (position - _domain.getMin()).cwiseQuotient(h).floor().cast<int>();
+  return ijToid(cellIj[0], cellIj[1]);
 }
 
 std::vector<int> LevelSetFluid2::findSurfaceCells() {

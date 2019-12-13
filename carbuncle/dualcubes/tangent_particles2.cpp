@@ -3,6 +3,7 @@
 #include <geometry/dual_marching.h>
 #include <blas/interpolator.h>
 #include <iostream>
+#include <cstdlib>
 
 namespace Carbuncle {
 
@@ -100,6 +101,70 @@ int TangentParticles2::seedParticlesOverSurface(
   }
 
   return surfaceCells.size() * particlesPerCell * 2;
+}
+
+int TangentParticles2::seedParticlesOverSurface(
+    Leviathan::LevelSetFluid2 levelset, Ramuh::LineMesh mesh) {
+  // For all segments
+  auto &segments = mesh.getSegmentsList();
+  auto &vertices = mesh.getVerticesList();
+  Eigen::Vector2d tangent;
+  auto h = levelset.getH();
+
+  for (auto segment : segments) {
+    // Get the origin point positions and find which cell it belongs
+    Eigen::Array2d origin = mesh.getVertexPosition(segment[0]);
+    Eigen::Array2d ending = mesh.getVertexPosition(segment[1]);
+    tangent = (ending - origin).matrix().normalized();
+    double angle = (ending[1] - origin[1]) / (ending[0] - origin[0]);
+    auto cellId = levelset.findCellIdByCoordinate(origin);
+
+    // Do rasterization for each cell the segment crosses
+    // Generate one tangetnPoint for each cell-segment pair
+    bool ended = false;
+    Eigen::Array2d newOrigin = origin, newEnding;
+    Ramuh::BoundingBox2 cellBbox = levelset.getCellBoundingBox(cellId);
+    while (!ended) {
+      newEnding = ending;
+      if (!cellBbox.contains(ending)) {
+        // find which square edge intersects the surface
+        auto cellMin = cellBbox.getMin();
+        auto cellMax = cellBbox.getMax();
+        // for each edge, check intersection. If true, project to that edge
+        // bottom/top
+        if (newEnding[1] < cellMin[1]) {
+          newEnding[1] = cellMin[1];
+          newEnding[0] = (newEnding[1] - newOrigin[1]) / angle + origin[0];
+        } else if (newEnding[1] > cellMax[1]) {
+          newEnding[1] = cellMax[1];
+          newEnding[0] = (newEnding[1] - newOrigin[1]) / angle + origin[0];
+        }
+        // left/right
+        if (newEnding[0] < cellMin[0]) {
+          newEnding[0] = cellMin[0];
+          newEnding[1] = angle * (newEnding[0] - newOrigin[0]) + newOrigin[1];
+        } else if (newEnding[0] > cellMax[0]) {
+          newEnding[0] = cellMax[0];
+          newEnding[1] = angle * (newEnding[0] - newOrigin[0]) + newOrigin[1];
+        }
+      } else {
+        ended = true;
+      }
+
+      // Generate a random point for the segment within the cell
+      Eigen::Array2d newPoint, tangentTarget;
+      newPoint[0] = (std::rand() % 100000) / 100000;
+      newPoint[1] = (std::rand() % 100000) / 100000;
+      newPoint = newPoint.cwiseProduct(newEnding - newOrigin) + newOrigin;
+      tangentTarget = newPoint + (tangent.array() * 0.001);
+
+      int pid = insertParticle(newPoint);
+      int tid = insertParticle(tangentTarget);
+      tangentPair[pid] = tid;
+
+      newOrigin = newEnding;
+    }
+  }
 }
 
 void TangentParticles2::estimateCellNormals(

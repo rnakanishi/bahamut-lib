@@ -165,3 +165,24 @@ void initializeGradientsAtIntersection(Leviathan::DualSquares &squares,
     gradient[cellId] = normalDirection * signal;
   }
 }
+
+void createLineMesh(Ramuh::LineMesh &mesh, Eigen::Array2d center,
+                    double radius) {
+
+  // Creating a single square outline
+  Ramuh::BoundingBox2 bbox(center - radius, center + radius);
+  Eigen::Array2d min, max;
+  min = bbox.getMin();
+  max = bbox.getMax();
+  std::vector<int> points(4);
+
+  points[0] = mesh.addVertex(min);
+  points[1] = mesh.addVertex(Eigen::Array2d(max[0], min[1]));
+  points[2] = mesh.addVertex(max);
+  points[3] = mesh.addVertex(Eigen::Array2d(min[0], max[1]));
+
+  mesh.connectVertices(Eigen::Array2i(points[0], points[1]));
+  mesh.connectVertices(Eigen::Array2i(points[1], points[2]));
+  mesh.connectVertices(Eigen::Array2i(points[2], points[3]));
+  mesh.connectVertices(Eigen::Array2i(points[3], points[0]));
+}

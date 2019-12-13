@@ -5,6 +5,7 @@
 #include <iomanip>
 #include "dual_cubes.h"
 #include <surface/dual_squares.h>
+#include <structures/line_mesh.hpp>
 #include "initialization.hpp"
 #include "tangent_particles2.hpp"
 

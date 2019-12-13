@@ -2,6 +2,7 @@
 #define __CARBUNCLE_TANGENT_PARTICLES2_HPP__
 
 #include <fluids/particle_levelset2.h>
+#include <structures/line_mesh.hpp>
 #include <map>
 
 namespace Carbuncle {
@@ -12,6 +13,8 @@ public:
   TangentParticles2(Leviathan::LevelSetFluid2 levelset);
 
   int seedParticlesOverSurface(Leviathan::LevelSetFluid2 levelset);
+  int seedParticlesOverSurface(Leviathan::LevelSetFluid2 levelset,
+                               Ramuh::LineMesh mesh);
 
   std::map<int, int> &getPairMap();
 

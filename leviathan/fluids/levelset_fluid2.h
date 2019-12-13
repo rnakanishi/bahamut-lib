@@ -65,6 +65,9 @@ public:
 
   virtual void print();
 
+  // TODO: remove this fucntion from particlelevelset2
+  virtual int findCellIdByCoordinate(Eigen::Array2d position);
+
   std::vector<int> findSurfaceCells();
   std::vector<int> findSurfaceCells(double surfaceDistance);
 

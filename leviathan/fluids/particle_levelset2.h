@@ -49,7 +49,7 @@ public:
 
   void reseedParticles();
 
-  int findCellIdByCoordinate(Eigen::Array2d position);
+  int findCellIdByCoordinate(Eigen::Array2d position) override;
 
   void adjustParticleRadius();
 
