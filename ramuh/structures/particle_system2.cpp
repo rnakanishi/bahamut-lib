@@ -29,6 +29,16 @@ void ParticleSystem2::preAllocateParticles(int nparticles) {
   }
 }
 
+void ParticleSystem2::clearParticles() {
+  for (size_t pid = 0; pid < _active.size(); pid++) {
+    if (_active[pid]) {
+      _active[pid] = false;
+      _idQueue.push(pid);
+      _count--;
+    }
+  }
+}
+
 int ParticleSystem2::particleCount() { return _count; }
 
 int ParticleSystem2::insertParticle(Eigen::Array2d position) {

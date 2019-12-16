@@ -124,12 +124,13 @@ Eigen::Array2d DualMarching2::evaluateSquare(
   return x;
 }
 
-void DualMarching2::reconstruct() {
+Ramuh::LineMesh DualMarching2::reconstruct() {
 
-  reconstruct(std::vector<std::pair<int, int>>());
+  return reconstruct(std::vector<std::pair<int, int>>());
 }
 
-void DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
+Ramuh::LineMesh
+DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
   _buildConnectionMap(connections);
 
   std::ofstream file;
@@ -141,13 +142,15 @@ void DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
   if (!file.is_open()) {
     std::cerr << "\033[1;31m[ X ]\033[0m Failed opening file " << filename.str()
               << std::endl;
-    return;
+    return Ramuh::LineMesh();
   }
 
+  Ramuh::LineMesh mesh;
   int id = 1;
   int realPointCount = _points.size();
   for (int i = 0; i < _points.size(); i++) {
     file << "v " << _points[i][0] << " " << _points[i][1] << " 0" << std::endl;
+    mesh.addVertex(_points[i]);
   }
   // Create auxiliary points to create slim face, so object can be displayed as
   // a 2D lines
@@ -173,9 +176,14 @@ void DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
             pIds.emplace_back(_idMap[convertKey(i + 1, j)] + realPointCount);
             pIds.emplace_back(_idMap[convertKey(i, j)] + realPointCount);
             file << "f ";
+            if (!_consistentNormals(pIds)) {
+              std::swap(pIds[0], pIds[1]);
+              std::swap(pIds[2], pIds[3]);
+            }
             for (auto id : pIds) {
               file << id + 1 << " ";
             }
+            mesh.connectVertices(Eigen::Array2i(pIds[0], pIds[1]));
             file << std::endl;
           }
         }
@@ -189,9 +197,14 @@ void DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
             pIds.emplace_back(_idMap[convertKey(i, j + 1)] + realPointCount);
             pIds.emplace_back(_idMap[convertKey(i, j)] + realPointCount);
             file << "f ";
+            if (!_consistentNormals(pIds)) {
+              std::swap(pIds[0], pIds[1]);
+              std::swap(pIds[2], pIds[3]);
+            }
             for (auto id : pIds) {
               file << id + 1 << " ";
             }
+            mesh.connectVertices(Eigen::Array2i(pIds[0], pIds[1]));
             file << std::endl;
           }
         }
@@ -199,6 +212,16 @@ void DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
 
   std::cerr << "File written: " << filename.str();
   std::cerr << ": " << _points.size() << " vertices, " << fCount << " faces.\n";
+  return mesh;
+}
+
+bool DualMarching2::_consistentNormals(std::vector<int> ids) {
+  Eigen::Vector2d faceDir = (_points[ids[0]] - _points[ids[1]]).matrix();
+  Eigen::Vector2d faceNormal(faceDir[1], -faceDir[0]);
+  if (faceNormal.dot(_normals[ids[0]]) < 0 ||
+      faceNormal.dot(_normals[ids[1]]) < 0)
+    return false;
+  return true;
 }
 
 bool DualMarching2::_hasConnection(Eigen::Array2i tuple1,

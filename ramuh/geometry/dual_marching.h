@@ -6,6 +6,7 @@
 #include <Eigen/Dense>
 #include <geometry/bounding_box.h>
 #include <string>
+#include <structures/line_mesh.hpp>
 
 namespace Ramuh {
 
@@ -16,7 +17,7 @@ public:
   DualMarching2(Eigen::Array2i resolution);
 
   void clear();
-  
+
   int convertKey(Eigen::Array2i index);
   int convertKey(int i, int j);
   Eigen::Array2i convertKey(int index);
@@ -41,8 +42,8 @@ public:
                                 std::vector<Eigen::Vector2d> normals,
                                 BoundingBox2 squareLimits);
 
-  void reconstruct();
-  void reconstruct(std::vector<std::pair<int, int>> connections);
+  Ramuh::LineMesh reconstruct();
+  Ramuh::LineMesh reconstruct(std::vector<std::pair<int, int>> connections);
 
   void merge(DualMarching2 square);
 

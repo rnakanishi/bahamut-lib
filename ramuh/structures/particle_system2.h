@@ -20,6 +20,8 @@ public:
 
   void preAllocateParticles(int nparticles);
 
+  void clearParticles();
+
   int insertParticle(Eigen::Array2d position);
 
   /**

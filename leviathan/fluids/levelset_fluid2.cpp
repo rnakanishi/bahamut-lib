@@ -841,4 +841,17 @@ std::vector<int> LevelSetFluid2::findSurfaceCells(double surfaceDistance) {
   return _surfaceCellIds;
 }
 
+std::vector<int> LevelSetFluid2::findCellNeighbors(int cellId, int distance) {
+  auto ij = idToij(cellId);
+  std::vector<int> neighbors;
+  for (int j = ij[1] - distance; j < ij[1] + distance; j++) {
+    for (int i = ij[0] - distance; i < ij[0] + distance; i++) {
+      if (i < 0 || i > _gridSize[0] - 1 || j < 0 || j > _gridSize[1] - 1)
+        continue;
+      neighbors.emplace_back(ijToid(i, j));
+    }
+  }
+  return neighbors;
+}
+
 } // namespace Leviathan

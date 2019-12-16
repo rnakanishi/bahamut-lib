@@ -26,7 +26,7 @@ public:
 
   void advectParticles() override;
 
-  void extractSurface(Leviathan::LevelSetFluid2 &levelset);
+  Ramuh::LineMesh extractSurface(Leviathan::LevelSetFluid2 &levelset);
 
 protected:
   std::map<int, int> tangentPair;

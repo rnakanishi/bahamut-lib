@@ -110,6 +110,7 @@ int TangentParticles2::seedParticlesOverSurface(
   auto &vertices = mesh.getVerticesList();
   Eigen::Vector2d tangent;
   auto h = levelset.getH();
+  int nTanPoints = 5;
 
   for (auto segment : segments) {
     // Get the origin point positions and find which cell it belongs
@@ -163,17 +164,20 @@ int TangentParticles2::seedParticlesOverSurface(
         ended = true;
       }
 
-      // Generate a random point for the segment within the cell
+      // Generate a certain quantity of point along the cell segment
       Eigen::Array2d newPoint, tangentTarget;
-      newPoint[0] = (std::rand() % 100000) / 100000;
-      newPoint[1] = (std::rand() % 100000) / 100000;
-      newPoint = newPoint.cwiseProduct(newEnding - newOrigin) + newOrigin;
-      newPoint = (newOrigin + newEnding) / 2.0;
-      tangentTarget = newPoint + (tangent.array() * 0.001);
-
-      int pid = insertParticle(newPoint);
-      int tid = insertParticle(tangentTarget);
-      tangentPair[pid] = tid;
+      tangent = (newEnding - newOrigin).matrix();
+      Eigen::Array2d samplOrigin = newOrigin + tangent.array() * 0.001;
+      Eigen::Array2d samplEnding = newEnding - tangent.array() * 0.001;
+      Eigen::Vector2d segTangent = (samplEnding - samplOrigin).matrix();
+      for (int samplI = 0; samplI <= nTanPoints; samplI++) {
+        newPoint = samplOrigin +
+                   segTangent.array() * (1.0 - (double)samplI / nTanPoints);
+        tangentTarget = newPoint + (segTangent.array() * 0.001);
+        int pid = insertParticle(newPoint);
+        int tid = insertParticle(tangentTarget);
+        tangentPair[pid] = tid;
+      }
 
       newOrigin = newEnding;
     }
@@ -303,7 +307,8 @@ void TangentParticles2::fixLevelsetGradients(
   }
 }
 
-void TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
+Ramuh::LineMesh
+TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
 
   // Find surface cells
   auto surfaceCells = levelset.trackSurface();
@@ -348,7 +353,7 @@ void TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
     }
     // previousCell = cell;
   }
-  surface.reconstruct();
+  return surface.reconstruct();
 }
 
 } // namespace Carbuncle
