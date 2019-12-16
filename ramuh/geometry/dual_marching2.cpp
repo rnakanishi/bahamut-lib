@@ -62,56 +62,60 @@ Eigen::Array2d DualMarching2::evaluateSquare(
   Eigen::MatrixXd Full(normals.size(), 3);
   Eigen::Vector2d normalAvg(0, 0);
   Eigen::Array2d posAvg(0, 0);
-
-  for (int i = 0; i < nsize; i++) {
-    A.row(i) << normals[i][0], normals[i][1];
-    b[i] = normals[i].dot(normalLocation[i].matrix());
-    Full.row(i) << A.row(i), b[i];
-
-    if (normalLocation[i].matrix().norm() > 1e-6) {
-      validNormals++;
-      posAvg += normalLocation[i];
-      normalAvg += normals[i];
-    }
-  }
-  // posAvg = cubeLimits.center();
-  posAvg /= validNormals;
-  normalAvg /= validNormals;
-
-  // QR minimization
-  Eigen::HouseholderQR<Eigen::MatrixXd> qr(Full.rows(), Full.cols());
-  qr.compute(Full);
-  Eigen::MatrixXd Q = qr.householderQ();
-  Eigen::MatrixXd R = qr.matrixQR().triangularView<Eigen::Upper>();
-
-  A = R.block<2, 2>(0, 0);
-  b = R.block<2, 1>(0, 2);
-
-  // Pseudo Inverse Computation
-  auto svd =
-      (A.adjoint() * A).jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
-  auto &singularValues = svd.singularValues();
-  Eigen::MatrixXd dInv(2, 2);
-  dInv.setZero();
-  for (size_t i = 0; i < 2; i++) {
-    if (singularValues(i) > 0.1)
-      dInv(i, i) = 1. / singularValues(i);
-    else
-      dInv(i, i) = 0.;
-  }
-  Eigen::Matrix2d pseudoInv = svd.matrixV() * dInv * svd.matrixU().adjoint();
-
   Eigen::Vector2d x;
-  x = pseudoInv * (A.adjoint() * b - A.adjoint() * A * posAvg.matrix());
-  x = x + posAvg.matrix();
 
-  // Check boundaries so the point remains inside, even if the ouside result is
-  // correct
-  if (!squareLimits.contains(x)) {
-    // x = cubeLimits.clamp(x);
-    x = posAvg;
+  if (nsize > 1) {
+    // If only one point is given, minimization doesn`t have to be computed
+    for (int i = 0; i < nsize; i++) {
+      A.row(i) << normals[i][0], normals[i][1];
+      b[i] = normals[i].dot(normalLocation[i].matrix());
+      Full.row(i) << A.row(i), b[i];
+
+      if (normalLocation[i].matrix().norm() > 1e-6) {
+        validNormals++;
+        posAvg += normalLocation[i];
+        normalAvg += normals[i];
+      }
+    }
+    // posAvg = cubeLimits.center();
+    posAvg /= validNormals;
+    normalAvg /= validNormals;
+
+    // QR minimization
+    Eigen::HouseholderQR<Eigen::MatrixXd> qr(Full.rows(), Full.cols());
+    qr.compute(Full);
+    Eigen::MatrixXd Q = qr.householderQ();
+    Eigen::MatrixXd R = qr.matrixQR().triangularView<Eigen::Upper>();
+    A = R.block<2, 2>(0, 0);
+    b = R.block<2, 1>(0, 2);
+
+    // Pseudo Inverse Computation
+    auto svd =
+        (A.adjoint() * A).jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
+    auto &singularValues = svd.singularValues();
+    Eigen::MatrixXd dInv(2, 2);
+    dInv.setZero();
+    for (size_t i = 0; i < 2; i++) {
+      if (singularValues(i) > 0.1)
+        dInv(i, i) = 1. / singularValues(i);
+      else
+        dInv(i, i) = 0.;
+    }
+    Eigen::Matrix2d pseudoInv = svd.matrixV() * dInv * svd.matrixU().adjoint();
+
+    x = pseudoInv * (A.adjoint() * b - A.adjoint() * A * posAvg.matrix());
+    x = x + posAvg.matrix();
+
+    // Check boundaries so the point remains inside, even if the ouside result
+    // is correct
+    if (!squareLimits.contains(x)) {
+      // x = cubeLimits.clamp(x);
+      x = posAvg;
+    }
+  } else {
+    x = normalLocation[0];
+    normalAvg = normals[0];
   }
-
   int currIndex = _points.size();
   _idMap[convertKey(cellIndex)] = currIndex;
   _points.emplace_back(x);

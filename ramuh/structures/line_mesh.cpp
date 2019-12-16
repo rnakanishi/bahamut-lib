@@ -50,4 +50,10 @@ int LineMesh::getVerticesCount() { return _verticesPosition.size(); }
 
 int LineMesh::getSegmentsCount() { return _segments.size(); }
 
+std::vector<Eigen::Array2i> &LineMesh::getSegmentsList() { return _segments; }
+
+std::vector<Eigen::Array2d> &LineMesh::getVerticesList() {
+  return _verticesPosition;
+}
+
 } // namespace Ramuh

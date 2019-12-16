@@ -118,6 +118,7 @@ int TangentParticles2::seedParticlesOverSurface(
     tangent = (ending - origin).matrix().normalized();
     double angle = (ending[1] - origin[1]) / (ending[0] - origin[0]);
     auto cellId = levelset.findCellIdByCoordinate(origin);
+    auto cellij = levelset.idToij(cellId);
 
     // Do rasterization for each cell the segment crosses
     // Generate one tangetnPoint for each cell-segment pair
@@ -125,6 +126,7 @@ int TangentParticles2::seedParticlesOverSurface(
     Eigen::Array2d newOrigin = origin, newEnding;
     Ramuh::BoundingBox2 cellBbox = levelset.getCellBoundingBox(cellId);
     while (!ended) {
+      Eigen::Vector2i cellInc(0, 0);
       newEnding = ending;
       if (!cellBbox.contains(ending)) {
         // find which square edge intersects the surface
@@ -135,18 +137,28 @@ int TangentParticles2::seedParticlesOverSurface(
         if (newEnding[1] < cellMin[1]) {
           newEnding[1] = cellMin[1];
           newEnding[0] = (newEnding[1] - newOrigin[1]) / angle + origin[0];
+          if (cellBbox.contains(newEnding))
+            cellij[1]--;
         } else if (newEnding[1] > cellMax[1]) {
           newEnding[1] = cellMax[1];
           newEnding[0] = (newEnding[1] - newOrigin[1]) / angle + origin[0];
+          if (cellBbox.contains(newEnding))
+            cellij[1]++;
         }
         // left/right
         if (newEnding[0] < cellMin[0]) {
           newEnding[0] = cellMin[0];
           newEnding[1] = angle * (newEnding[0] - newOrigin[0]) + newOrigin[1];
+          if (cellBbox.contains(newEnding))
+            cellij[0]--;
         } else if (newEnding[0] > cellMax[0]) {
           newEnding[0] = cellMax[0];
           newEnding[1] = angle * (newEnding[0] - newOrigin[0]) + newOrigin[1];
+          if (cellBbox.contains(newEnding))
+            cellij[0]++;
         }
+        cellId = levelset.ijToid(cellij[0], cellij[1]);
+        cellBbox = levelset.getCellBoundingBox(cellId);
       } else {
         ended = true;
       }
@@ -156,6 +168,7 @@ int TangentParticles2::seedParticlesOverSurface(
       newPoint[0] = (std::rand() % 100000) / 100000;
       newPoint[1] = (std::rand() % 100000) / 100000;
       newPoint = newPoint.cwiseProduct(newEnding - newOrigin) + newOrigin;
+      newPoint = (newOrigin + newEnding) / 2.0;
       tangentTarget = newPoint + (tangent.array() * 0.001);
 
       int pid = insertParticle(newPoint);
@@ -165,6 +178,7 @@ int TangentParticles2::seedParticlesOverSurface(
       newOrigin = newEnding;
     }
   }
+  return particleCount();
 }
 
 void TangentParticles2::estimateCellNormals(
@@ -203,7 +217,7 @@ void TangentParticles2::estimateCellNormals(
       Eigen::Array2d tangent((ending - origin).matrix());
 
       normalPositions.emplace_back(origin);
-      normalVectors.emplace_back(-tangent[1], tangent[0]);
+      normalVectors.emplace_back(tangent[1], -tangent[0]);
     }
 
     // Interpolate the final vector from the particles vector
@@ -295,7 +309,7 @@ void TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
   auto surfaceCells = levelset.trackSurface();
   std::vector<Eigen::Array2d> positions;
   std::vector<Eigen::Vector2d> normals;
-  static Ramuh::DualMarching2 surface;
+  static Ramuh::DualMarching2 surface(levelset.getResolution());
 
   surface.setBaseFolder("results/dualSquares/particles/");
   surface.clear();
@@ -304,7 +318,9 @@ void TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
   sortParticles();
   surfaceCells = computeCellsWithParticles();
   int nParticles = particleCount() / 2;
+  std::vector<std::pair<int, int>> connections;
 
+  int previousCell = surfaceCells[0];
   for (auto cell : surfaceCells) {
     auto particles = getParticlesInCell(cell);
     positions.clear();
@@ -313,21 +329,24 @@ void TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
     for (auto particle : particles) {
       if (tangentPair.find(particle) == tangentPair.end())
         continue;
-      Eigen::Vector2d normal;
       Eigen::Array2d position = getParticlePosition(particle);
       Eigen::Array2d target = getParticlePosition(tangentPair[particle]);
-      normal = target - position;
+      Eigen::Array2d tangent((target - position).matrix());
+      Eigen::Vector2d normal(tangent[1], -tangent[0]);
 
       positions.emplace_back(position);
-      normals.emplace_back(normal);
+      normals.emplace_back(normal.normalized());
+      // if (previousCell != cell)
+      // connections.emplace_back(std::make_pair(previousCell, cell));
     }
-    if (positions.size() == 1) {
+    if (positions.size() < 1) {
       surface.getPoints().emplace_back(positions[0]);
     } else if (!positions.empty()) {
       auto ij = levelset.idToij(cell);
       Eigen::Array2i index(ij[0], ij[1]);
       surface.evaluateSquare(index, positions, normals);
     }
+    // previousCell = cell;
   }
   surface.reconstruct();
 }
