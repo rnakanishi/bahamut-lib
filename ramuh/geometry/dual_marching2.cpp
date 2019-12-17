@@ -125,8 +125,13 @@ Eigen::Array2d DualMarching2::evaluateSquare(
 }
 
 Ramuh::LineMesh DualMarching2::reconstruct() {
+  // Build connections
+  std::vector<std::pair<int, int>> connections;
+  std::vector<bool> visited(_points.size(), false);
 
-  return reconstruct(std::vector<std::pair<int, int>>());
+  //
+
+  return reconstruct(connections);
 }
 
 Ramuh::LineMesh

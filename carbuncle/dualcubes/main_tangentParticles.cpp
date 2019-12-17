@@ -64,11 +64,12 @@ void fixLevelsetFromMesh(Leviathan::DualSquares &levelset,
     bool ended = false;
     Eigen::Array2d newOrigin = origin, newEnding;
     Ramuh::BoundingBox2 cellBbox = levelset.getCellBoundingBox(cellId);
+    std::vector<bool> visited(phi.size(), false);
     while (!ended) {
       Eigen::Vector2i cellInc(0, 0);
       newEnding = ending;
+      // find which square edge intersects the surface
       if (!cellBbox.contains(ending)) {
-        // find which square edge intersects the surface
         auto cellMin = cellBbox.getMin();
         auto cellMax = cellBbox.getMax();
         // for each edge, check intersection. If true, project to that edge:
@@ -104,11 +105,25 @@ void fixLevelsetFromMesh(Leviathan::DualSquares &levelset,
       auto neighborCells = levelset.findCellNeighbors(cellId, 2);
       for (auto cell : neighborCells) {
         Eigen::Array2d cellCenter = levelset.getCellPosition(cell);
-        double distance = distanceToSegment(newOrigin, newEnding, cellCenter);
-        int dSignal = (distance < 0) ? -1 : 1;
+        Eigen::Vector2d direction, target;
+        direction = newEnding - newOrigin;
+        target = cellCenter - newOrigin;
         int pSignal = (phi[cell] < 0) ? -1 : 1;
+        double distance;
+        if ((target[0] * direction[1] - target[1] * direction[0]) * pSignal < 0)
+          distance = distanceToSegment(newOrigin, newEnding, cellCenter);
+        else
+          distance = distanceToSegment(newEnding, newOrigin, cellCenter);
+        int dSignal = (distance < 0) ? -1 : 1;
         // if (std::abs(phi[cell] > std::abs(distance)))
-        phi[cell] = std::abs(distance) * pSignal;
+        if (dSignal == pSignal)
+          if (!visited[cell]) {
+            visited[cell] = true;
+            phi[cell] = distance;
+          } else {
+            phi[cell] =
+                std::min(std::abs(phi[cell]), std::abs(distance)) * pSignal;
+          }
       }
       // Special case has to be treated when segment has reach an end: check for
       // singularity
@@ -151,21 +166,21 @@ int main(int argc, char const *argv[]) {
   cubes.extractSurface();
   squareMesh = particles.extractSurface(cubes);
 
-  for (int i = 1; i <= 15; i++) {
-    particles.clearParticles();
-    particles.seedParticlesOverSurface(cubes, squareMesh);
+  for (int i = 1; i <= 50; i++) {
+    // particles.clearParticles();
+    // particles.seedParticlesOverSurface(cubes, squareMesh);
 
-    fixLevelsetFromMesh(cubes, squareMesh);
+    // fixLevelsetFromMesh(cubes, squareMesh);
+    // cubes.redistance();
+    // cubes.computeCellsGradient();
     cubes.advectWeno();
     particles.advectParticles();
-
-    cubes.computeIntersectionAndNormals();
-    particles.fixLevelsetGradients(cubes);
 
     // After levelset and particles advection, cell gradient should be corrected
     // using particle information
     // Correct computed gradients with particle normals
-    cubes.computeCellsGradient();
+    particles.fixLevelsetGradients(cubes);
+    // cubes.computeCellsGradient();
     cubes.computeIntersectionAndNormals();
     // particles.estimateCellNormals(cubes);
     cubes.extractSurface();

@@ -110,7 +110,7 @@ int TangentParticles2::seedParticlesOverSurface(
   auto &vertices = mesh.getVerticesList();
   Eigen::Vector2d tangent;
   auto h = levelset.getH();
-  int nTanPoints = 5;
+  int nTanPoints = 25;
 
   for (auto segment : segments) {
     // Get the origin point positions and find which cell it belongs
@@ -259,7 +259,7 @@ void TangentParticles2::defineParticlesVelocity() {
   auto &velocity = getParticleArrayData("particleVelocity");
   for (size_t pid = 0; pid < particleCount(); pid++) {
     auto p = getParticlePosition(pid);
-    velocity[pid] = Eigen::Array2d(-p[1], p[0]);
+    velocity[pid] = Eigen::Array2d(-p[1], 0);
   }
 }
 
@@ -288,6 +288,8 @@ void TangentParticles2::fixLevelsetGradients(
       allNormals.emplace_back(-tangent[1], tangent[0]);
     }
   }
+  if (allPositions.empty())
+    return;
 
   // for all cells that is surface, fix its face normals
   for (auto cell : surfaceCells) {
@@ -309,6 +311,8 @@ void TangentParticles2::fixLevelsetGradients(
 
 Ramuh::LineMesh
 TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
+  if (particleCount() == 0)
+    return Ramuh::LineMesh();
 
   // Find surface cells
   auto surfaceCells = levelset.trackSurface();
@@ -320,12 +324,8 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
   surface.clear();
 
   // Check which particles belong to that cell
-  sortParticles();
   surfaceCells = computeCellsWithParticles();
-  int nParticles = particleCount() / 2;
-  std::vector<std::pair<int, int>> connections;
 
-  int previousCell = surfaceCells[0];
   for (auto cell : surfaceCells) {
     auto particles = getParticlesInCell(cell);
     positions.clear();
@@ -341,8 +341,6 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
 
       positions.emplace_back(position);
       normals.emplace_back(normal.normalized());
-      // if (previousCell != cell)
-      // connections.emplace_back(std::make_pair(previousCell, cell));
     }
     if (positions.size() < 1) {
       surface.getPoints().emplace_back(positions[0]);
