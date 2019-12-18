@@ -139,11 +139,22 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
     auto ij = convertKey(cell.first);
 
     // If vertex connection is different from 2, then it is spurious
-    int nConnections = mesh.getNumberOfConnections(vertexId) < 2;
+    int nConnections = mesh.getNumberOfConnections(vertexId);
     if (nConnections < 2) {
       // Check neighbor connection
-      // If only two connections, the find the other vertex that is also missing
-      // a connection
+      // If neighbor has only two connections, then find the other vertex that
+      // is also missing a connection
+      for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+          if (i == 0 && j == 0)
+            continue;
+          int neighId = convertKey(ij[0] + i, ij[1] + j);
+          if (_idMap.find(neighId) != _idMap.end() &&
+              mesh.getNumberOfConnections(_idMap[neighId]) == 1) {
+            mesh.connectVertices(vertexId, _idMap[neighId]);
+          }
+        }
+      }
 
       // If the neighbor is a hub, then its connections are given to the current
       // vertex and the neighbor is disconnected
@@ -155,8 +166,8 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
       // If more then one neighbor with more than two connections is found, then
     }
   }
-
-  return reconstruct(connections);
+  _writeMesh(mesh);
+  return mesh;
 }
 
 Ramuh::LineMesh
