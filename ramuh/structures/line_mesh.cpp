@@ -6,7 +6,7 @@ LineMesh::LineMesh() {}
 int LineMesh::addVertex(Eigen::Array2d position) {
   int vId = _verticesPosition.size();
   _verticesPosition.emplace_back(position);
-  _vertConnections[vId] = std::vector<int>();
+  _vertSegments[vId] = std::vector<int>();
   return vId;
 }
 
@@ -27,9 +27,9 @@ int LineMesh::connectVertices(Eigen::Array2i segment) {
   if (segId < 0) {
     segId = _segments.size();
     _segments.emplace_back(segment);
+    _vertSegments[segment[0]].emplace_back(segId);
+    _vertSegments[segment[1]].emplace_back(segId);
   }
-  _vertConnections[segment[0]].emplace_back(segId);
-  _vertConnections[segment[1]].emplace_back(segId);
   return segId;
 }
 
@@ -67,17 +67,17 @@ std::vector<Eigen::Array2d> &LineMesh::getVerticesList() {
 }
 
 std::vector<int> &LineMesh::getVertexSegments(int vertexId) {
-  return _vertConnections[vertexId];
+  return _vertSegments[vertexId];
 }
 
 int LineMesh::hasConnection(int vertex1, int vertex2) {
-  auto connections = _vertConnections[vertex1];
+  auto connections = _vertSegments[vertex1];
   for (auto segmentId : connections) {
     auto segment = _segments[segmentId];
     if (segment[0] == vertex2 || segment[1] == vertex2)
       return segmentId;
   }
-  connections = _vertConnections[vertex2];
+  connections = _vertSegments[vertex2];
   for (auto segmentId : connections) {
     auto segment = _segments[segmentId];
     if (segment[0] == vertex1 || segment[1] == vertex1)
@@ -87,7 +87,26 @@ int LineMesh::hasConnection(int vertex1, int vertex2) {
 }
 
 int LineMesh::getNumberOfConnections(int vertexId) {
-  return _vertConnections[vertexId].size();
+  return _vertSegments[vertexId].size();
+}
+
+std::vector<int> LineMesh::getAdjacentVertices(int vertexId) {
+  std::vector<int> neighbors;
+  auto segIds = getVertexSegments(vertexId);
+
+  for (auto segId : segIds) {
+    auto vertIds = getSegmentVertices(segId);
+    if (vertIds[0] != vertexId)
+      neighbors.emplace_back(vertIds[0]);
+    else
+      neighbors.emplace_back(vertIds[1]);
+  }
+  return neighbors;
+}
+
+void LineMesh::disconnectVertices(int vertex1, int vertex2) {
+  // Find which segment is between those two vertices
+  auto segId = hasConnection(vertex1, vertex2);
 }
 
 } // namespace Ramuh

@@ -142,22 +142,42 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
     int nConnections = mesh.getNumberOfConnections(vertexId);
     if (nConnections < 2) {
       // Check neighbor connection
-      // If neighbor has only two connections, then find the other vertex that
-      // is also missing a connection
-      for (int i = -1; i <= 1; i++) {
-        for (int j = -1; j <= 1; j++) {
-          if (i == 0 && j == 0)
-            continue;
-          int neighId = convertKey(ij[0] + i, ij[1] + j);
-          if (_idMap.find(neighId) != _idMap.end() &&
-              mesh.getNumberOfConnections(_idMap[neighId]) == 1) {
-            mesh.connectVertices(vertexId, _idMap[neighId]);
+      auto neighbor = mesh.getAdjacentVertices(vertexId);
+      int neighborConnections = mesh.getNumberOfConnections(neighbor[0]);
+      if (neighborConnections <= 2) {
+        // If neighbor has only two connections, then find the other vertex that
+        // is also missing a connection
+        for (int i = -1; i <= 1; i++) {
+          for (int j = -1; j <= 1; j++) {
+            if (i == 0 && j == 0)
+              continue;
+            int neighId = convertKey(ij[0] + i, ij[1] + j);
+            if (_idMap.find(neighId) != _idMap.end() &&
+                mesh.getNumberOfConnections(_idMap[neighId]) == 1) {
+              mesh.connectVertices(vertexId, _idMap[neighId]);
+            }
           }
         }
+      } else if (neighborConnections > 2) {
+        // If the neighbor is a hub, then its connections are given to the
+        // current vertex and the neighbor is disconnected
+        auto neighSegments = mesh.getVertexSegments(neighbor[0]);
+        auto segmentId = mesh.hasConnection(neighbor[0], vertexId);
+        for (auto segment : neighSegments) {
+          if (segment != segmentId) {
+            auto vertices = mesh.getSegmentVertices(segment);
+            if (vertices[0] != neighbor[0]) {
+              mesh.connectVertices(vertices[0], vertexId);
+            } else {
+              mesh.connectVertices(vertices[1], vertexId);
+            }
+            mesh.disconnectVertices(neighbor[0], vertices[0]);
+            mesh.disconnectVertices(neighbor[0], vertices[1]);
+          }
+        }
+        mesh.disconnectVertices(neighbor[0], vertexId);
+        // TODO: remove vertex as well
       }
-
-      // If the neighbor is a hub, then its connections are given to the current
-      // vertex and the neighbor is disconnected
     } else if (nConnections > 2) {
       // Check the neighbors
       // If only one neighbor with three connections is found, than remove the

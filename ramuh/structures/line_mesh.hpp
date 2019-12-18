@@ -127,11 +127,22 @@ public:
    */
   int getNumberOfConnections(int vertexId);
 
+  std::vector<int> getAdjacentVertices(int vertexId);
+
+  /**
+   * @brief  Remove segment between both vertices. The segments list and each
+   *vertex list are updated as well
+   *
+   * @param vertex1
+   * @param vertex2
+  **/
+  void disconnectVertices(int vertex1, int vertex2);
+
 protected:
   std::vector<Eigen::Array2d> _verticesPosition;
   std::vector<Eigen::Array2i> _segments; // Pair of connected vertices
   std::map<int, std::vector<int>>
-      _vertConnections; // List of segments connecteds to the vertex
+      _vertSegments; // List of segments connecteds to the vertex
 };
 
 } // namespace Ramuh
