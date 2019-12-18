@@ -128,8 +128,33 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
   // Build connections
   std::vector<std::pair<int, int>> connections;
   std::vector<bool> visited(_points.size(), false);
+  Ramuh::LineMesh mesh;
 
-  //
+  // Add vertices and their connections
+  _createSimpleConnections(mesh);
+
+  // Look for spurious vertices and fix them
+  for (auto cell : _idMap) {
+    int vertexId = cell.second;
+    auto ij = convertKey(cell.first);
+
+    // If vertex connection is different from 2, then it is spurious
+    int nConnections = mesh.getNumberOfConnections(vertexId) < 2;
+    if (nConnections < 2) {
+      // Check neighbor connection
+      // If only two connections, the find the other vertex that is also missing
+      // a connection
+
+      // If the neighbor is a hub, then its connections are given to the current
+      // vertex and the neighbor is disconnected
+    } else if (nConnections > 2) {
+      // Check the neighbors
+      // If only one neighbor with three connections is found, than remove the
+      // connection between them
+
+      // If more then one neighbor with more than two connections is found, then
+    }
+  }
 
   return reconstruct(connections);
 }
@@ -157,8 +182,8 @@ DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
     file << "v " << _points[i][0] << " " << _points[i][1] << " 0" << std::endl;
     mesh.addVertex(_points[i]);
   }
-  // Create auxiliary points to create slim face, so object can be displayed as
-  // a 2D lines
+  // Create auxiliary points to create slim face, so object can be displayed
+  // as a 2D lines
   for (int i = 0; i < _points.size(); i++) {
     file << "v " << _points[i][0] << " " << _points[i][1] << " 0.001"
          << std::endl;
@@ -276,10 +301,79 @@ void DualMarching2::merge(DualMarching2 square) {
   _idMap.insert(map.begin(), map.end());
 }
 
+void DualMarching2::_createSimpleConnections(LineMesh &mesh) {
+
+  mesh.addVertices(_points);
+
+  // for all cells, evaluate 4-neighborhood and connect with all cells that
+  // have a vertex
+  for (auto cell : _idMap) {
+    int cellId = cell.first;
+    auto ij = convertKey(cellId);
+
+    // Check 4-neighborhood
+    if (ij[0] > 0 &&
+        _idMap.find(convertKey(ij[0] - 1, ij[1])) != _idMap.end()) {
+      mesh.connectVertices(_idMap[cellId],
+                           _idMap[convertKey(ij[0] - 1, ij[1])]);
+    }
+    if (ij[0] < _resolution[0] - 1 &&
+        _idMap.find(convertKey(ij[0] + 1, ij[1])) != _idMap.end()) {
+      mesh.connectVertices(_idMap[cellId],
+                           _idMap[convertKey(ij[0] + 1, ij[1])]);
+    }
+    if (ij[1] > 0 &&
+        _idMap.find(convertKey(ij[0], ij[1] - 1)) != _idMap.end()) {
+      mesh.connectVertices(_idMap[cellId],
+                           _idMap[convertKey(ij[0], ij[1] - 1)]);
+    }
+    if (ij[1] < _resolution[1] - 1 &&
+        _idMap.find(convertKey(ij[0], ij[1] + 1)) != _idMap.end()) {
+      mesh.connectVertices(_idMap[cellId],
+                           _idMap[convertKey(ij[0], ij[1] + 1)]);
+    }
+  }
+}
+
 void DualMarching2::setBaseFolder(std::string folder) { _baseFolder = folder; }
 
 void DualMarching2::resetCounter() { count = 0; }
 
 void DualMarching2::resetCounter(int value) { count = value; }
+
+void DualMarching2::_writeMesh(LineMesh &mesh) {
+
+  std::ofstream file;
+  std::stringstream filename;
+  filename << _baseFolder << std::setfill('0') << std::setw(4) << count++
+           << ".obj";
+  auto fullpath = filename.str();
+  file.open(fullpath.c_str(), std::ofstream::out);
+  if (!file.is_open()) {
+    std::cerr << "\033[1;31m[ X ]\033[0m Failed opening file " << filename.str()
+              << std::endl;
+    return;
+  }
+
+  auto &vertices = mesh.getVerticesList();
+  auto &segments = mesh.getSegmentsList();
+  int nVertices = vertices.size();
+
+  for (auto vertex : vertices) {
+    file << "v " << vertex[0] << " " << vertex[1] << " 0" << std::endl;
+  }
+  for (auto vertex : vertices) {
+    file << "v " << vertex[0] << " " << vertex[1] << " 0.1" << std::endl;
+  }
+
+  for (auto segment : segments) {
+    file << "f " << segment[0] + 1 << " " << segment[1] + 1 << " "
+         << segment[1] + 1 + nVertices << " " << segment[0] + 1 + nVertices
+         << " " << std::endl;
+  }
+  std::cerr << "File written: " << filename.str();
+  std::cerr << ": " << vertices.size() << " vertices, " << segments.size()
+            << " faces.\n";
+}
 
 } // namespace Ramuh

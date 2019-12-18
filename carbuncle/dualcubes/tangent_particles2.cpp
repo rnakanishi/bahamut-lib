@@ -259,7 +259,7 @@ void TangentParticles2::defineParticlesVelocity() {
   auto &velocity = getParticleArrayData("particleVelocity");
   for (size_t pid = 0; pid < particleCount(); pid++) {
     auto p = getParticlePosition(pid);
-    velocity[pid] = Eigen::Array2d(-p[1], 0);
+    velocity[pid] = Eigen::Array2d(-p[1], p[0]);
   }
 }
 

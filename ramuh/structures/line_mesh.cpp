@@ -4,30 +4,40 @@ namespace Ramuh {
 LineMesh::LineMesh() {}
 
 int LineMesh::addVertex(Eigen::Array2d position) {
+  int vId = _verticesPosition.size();
   _verticesPosition.emplace_back(position);
-  return _verticesPosition.size() - 1;
+  _vertConnections[vId] = std::vector<int>();
+  return vId;
 }
 
 std::vector<int> LineMesh::addVertices(std::vector<Eigen::Array2d> positions) {
   std::vector<int> indices;
   for (auto position : positions) {
-    indices.emplace_back(_verticesPosition.size());
-    _verticesPosition.emplace_back(position);
+    indices.emplace_back(addVertex(position));
   }
   return indices;
 }
 
+int LineMesh::connectVertices(int vertex1, int vertex2) {
+  return connectVertices(Eigen::Array2i(vertex1, vertex2));
+}
+
 int LineMesh::connectVertices(Eigen::Array2i segment) {
-  _segments.emplace_back(segment);
-  return _segments.size() - 1;
+  int segId = hasConnection(segment[0], segment[1]);
+  if (segId < 0) {
+    segId = _segments.size();
+    _segments.emplace_back(segment);
+  }
+  _vertConnections[segment[0]].emplace_back(segId);
+  _vertConnections[segment[1]].emplace_back(segId);
+  return segId;
 }
 
 std::vector<int>
 LineMesh::connectVertices(std::vector<Eigen::Array2i> segments) {
   std::vector<int> indices;
   for (auto segment : segments) {
-    indices.emplace_back(_segments.size());
-    _segments.emplace_back(segment);
+    indices.emplace_back(connectVertices(segment));
   }
   return indices;
 }
@@ -54,6 +64,30 @@ std::vector<Eigen::Array2i> &LineMesh::getSegmentsList() { return _segments; }
 
 std::vector<Eigen::Array2d> &LineMesh::getVerticesList() {
   return _verticesPosition;
+}
+
+std::vector<int> &LineMesh::getVertexSegments(int vertexId) {
+  return _vertConnections[vertexId];
+}
+
+int LineMesh::hasConnection(int vertex1, int vertex2) {
+  auto connections = _vertConnections[vertex1];
+  for (auto segmentId : connections) {
+    auto segment = _segments[segmentId];
+    if (segment[0] == vertex2 || segment[1] == vertex2)
+      return segmentId;
+  }
+  connections = _vertConnections[vertex2];
+  for (auto segmentId : connections) {
+    auto segment = _segments[segmentId];
+    if (segment[0] == vertex1 || segment[1] == vertex1)
+      return segmentId;
+  }
+  return -1;
+}
+
+int LineMesh::getNumberOfConnections(int vertexId) {
+  return _vertConnections[vertexId].size();
 }
 
 } // namespace Ramuh

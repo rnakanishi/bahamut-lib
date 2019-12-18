@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <vector>
+#include <map>
 
 namespace Ramuh {
 
@@ -47,6 +48,7 @@ public:
    * @return the new segment id
    */
   int connectVertices(Eigen::Array2i segment);
+  int connectVertices(int vertex1, int vertex2);
   std::vector<int> connectVertices(std::vector<Eigen::Array2i> segment);
 
   /**
@@ -89,6 +91,15 @@ public:
   std::vector<Eigen::Array2d> &getVerticesList();
 
   /**
+   * @brief Get all the segments the vertex has.
+   *
+   * @param vertexId which segments are wnated
+   * @return std::vector<int>& reference to a vector containing all vertex
+   * connections
+   */
+  std::vector<int> &getVertexSegments(int vertexId);
+
+  /**
    * @brief Get the reference for the Segments List, containing the pair of
    * vertices that are connected
    *
@@ -96,9 +107,31 @@ public:
    */
   std::vector<Eigen::Array2i> &getSegmentsList();
 
+  /**
+   * @brief Verify if the two given vertex ids are connected and return the id
+   * of the segment connecting the vertices. If no connection is found, then -1
+   * is returned instead
+   *
+   * @param vertex1
+   * @param vertex2
+   * @return the id for the segment if any. -1 if no connections was found
+   */
+  int hasConnection(int vertex1, int vertex2);
+
+  /**
+   * @brief Get the Number Of Connections for the given vertex Id. If no vertex
+   * is found, or if no connections exist, then 0 is returned
+   *
+   * @param vertexId
+   * @return int number of total connectios to the vertex
+   */
+  int getNumberOfConnections(int vertexId);
+
 protected:
   std::vector<Eigen::Array2d> _verticesPosition;
-  std::vector<Eigen::Array2i> _segments;
+  std::vector<Eigen::Array2i> _segments; // Pair of connected vertices
+  std::map<int, std::vector<int>>
+      _vertConnections; // List of segments connecteds to the vertex
 };
 
 } // namespace Ramuh

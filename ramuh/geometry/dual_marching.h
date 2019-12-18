@@ -65,6 +65,10 @@ protected:
 
   void _buildConnectionMap(std::vector<std::pair<int, int>> connections);
 
+  void _createSimpleConnections(LineMesh &mesh);
+
+  void _writeMesh(LineMesh &mesh);
+
 private:
   std::map<int, int> _idMap;
   std::vector<Eigen::Array2d> _points;
