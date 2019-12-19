@@ -136,6 +136,8 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
   // Look for spurious vertices and fix them
   for (auto cell : _idMap) {
     int vertexId = cell.second;
+    if (!mesh.isVertexActive(vertexId))
+      continue;
     auto ij = convertKey(cell.first);
 
     // If vertex connection is different from 2, then it is spurious
@@ -168,14 +170,16 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
             auto vertices = mesh.getSegmentVertices(segment);
             if (vertices[0] != neighbor[0]) {
               mesh.connectVertices(vertices[0], vertexId);
+              mesh.disconnectVertices(neighbor[0], vertices[0]);
             } else {
               mesh.connectVertices(vertices[1], vertexId);
+              mesh.disconnectVertices(neighbor[0], vertices[1]);
             }
-            mesh.disconnectVertices(neighbor[0], vertices[0]);
-            mesh.disconnectVertices(neighbor[0], vertices[1]);
           }
         }
         mesh.disconnectVertices(neighbor[0], vertexId);
+        mesh.removeVertex(neighbor[0]);
+
         // TODO: remove vertex as well
       }
     } else if (nConnections > 2) {
@@ -397,7 +401,10 @@ void DualMarching2::_writeMesh(LineMesh &mesh) {
     file << "v " << vertex[0] << " " << vertex[1] << " 0.1" << std::endl;
   }
 
-  for (auto segment : segments) {
+  for (size_t sId = 0; sId < segments.size(); sId++) {
+    if (!mesh.isSegmentActive(sId))
+      continue;
+    auto segment = segments[sId];
     file << "f " << segment[0] + 1 << " " << segment[1] + 1 << " "
          << segment[1] + 1 + nVertices << " " << segment[0] + 1 + nVertices
          << " " << std::endl;

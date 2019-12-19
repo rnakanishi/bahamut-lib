@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include <vector>
 #include <map>
+#include <queue>
 
 namespace Ramuh {
 
@@ -135,12 +136,29 @@ public:
    *
    * @param vertex1
    * @param vertex2
-  **/
+   **/
   void disconnectVertices(int vertex1, int vertex2);
+
+  /**
+   * @brief Mark the given vertex as inactive.
+   *
+   * NOTE: This does not remove vertex from its segments, nor from the neighbors
+   * connections. It has to be done before removing the verted
+   *
+   * @param vertexId to be removed
+   */
+  void removeVertex(int vertexId);
+
+  bool isSegmentActive(int segId);
+
+  bool isVertexActive(int vertexId);
 
 protected:
   std::vector<Eigen::Array2d> _verticesPosition;
   std::vector<Eigen::Array2i> _segments; // Pair of connected vertices
+  std::vector<bool> _activeSegment, _activeVertices;
+  std::queue<int> _segmentIdQueue, _vertexIdQueue;
+
   std::map<int, std::vector<int>>
       _vertSegments; // List of segments connecteds to the vertex
 };
