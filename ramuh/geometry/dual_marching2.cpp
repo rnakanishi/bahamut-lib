@@ -129,6 +129,7 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
   std::vector<std::pair<int, int>> connections;
   std::vector<bool> visited(_points.size(), false);
   Ramuh::LineMesh mesh;
+  std::queue<int> simpleConn, tripleConn;
 
   // Add vertices and their connections
   _createSimpleConnections(mesh);
@@ -142,57 +143,111 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
 
     // If vertex connection is different from 2, then it is spurious
     int nConnections = mesh.getNumberOfConnections(vertexId);
-    if (nConnections < 2) {
-      // Check neighbor connection
+    if (nConnections < 2)
+      simpleConn.push(cell.first);
+    else if (nConnections > 2)
+      tripleConn.push(cell.first);
+  }
+
+  // Process all single connections first
+  while (!simpleConn.empty()) {
+    int cell = simpleConn.front();
+    simpleConn.pop();
+    int vertexId = _idMap[cell];
+    // First try to find the other vertex that is also missing a connection
+    bool connected = false;
+    auto ij = convertKey(cell);
+    for (int i = -1; i <= 1; i++) {
+      for (int j = -1; j <= 1; j++) {
+        if (i == 0 && j == 0)
+          continue;
+        int neighCell = convertKey(ij[0] + i, ij[1] + j);
+        if (_idMap.find(neighCell) != _idMap.end() &&
+            mesh.getNumberOfConnections(_idMap[neighCell]) == 1) {
+          mesh.connectVertices(vertexId, _idMap[neighCell]);
+          connected = true;
+        } else if (mesh.getNumberOfConnections(vertexId) == 2) {
+          // Already received a connection from its pair
+          connected = true;
+        }
+      }
+    }
+    if (!connected) {
+      // Not able to find any missing neighbor vertex, then,
+      // If the neighbor is a hub, then its connections are given to the
+      // current vertex and this neighbor is disconnected
       auto neighbor = mesh.getAdjacentVertices(vertexId);
       int neighborConnections = mesh.getNumberOfConnections(neighbor[0]);
-      if (neighborConnections <= 2) {
-        // If neighbor has only two connections, then find the other vertex that
-        // is also missing a connection
-        for (int i = -1; i <= 1; i++) {
-          for (int j = -1; j <= 1; j++) {
-            if (i == 0 && j == 0)
-              continue;
-            int neighId = convertKey(ij[0] + i, ij[1] + j);
-            if (_idMap.find(neighId) != _idMap.end() &&
-                mesh.getNumberOfConnections(_idMap[neighId]) == 1) {
-              mesh.connectVertices(vertexId, _idMap[neighId]);
-            }
+      auto neighSegments = mesh.getVertexSegments(neighbor[0]);
+      auto segmentId = mesh.hasConnection(neighbor[0], vertexId);
+      for (auto segment : neighSegments) {
+        if (segment != segmentId) {
+          auto vertices = mesh.getSegmentVertices(segment);
+          if (vertices[0] != neighbor[0]) {
+            mesh.connectVertices(vertices[0], vertexId);
+            mesh.disconnectVertices(neighbor[0], vertices[0]);
+          } else {
+            mesh.connectVertices(vertices[1], vertexId);
+            mesh.disconnectVertices(neighbor[0], vertices[1]);
           }
         }
-      } else if (neighborConnections > 2) {
-        // If the neighbor is a hub, then its connections are given to the
-        // current vertex and the neighbor is disconnected
-        auto neighSegments = mesh.getVertexSegments(neighbor[0]);
-        auto segmentId = mesh.hasConnection(neighbor[0], vertexId);
-        for (auto segment : neighSegments) {
-          if (segment != segmentId) {
-            auto vertices = mesh.getSegmentVertices(segment);
-            if (vertices[0] != neighbor[0]) {
-              mesh.connectVertices(vertices[0], vertexId);
-              mesh.disconnectVertices(neighbor[0], vertices[0]);
-            } else {
-              mesh.connectVertices(vertices[1], vertexId);
-              mesh.disconnectVertices(neighbor[0], vertices[1]);
-            }
-          }
-        }
-        mesh.disconnectVertices(neighbor[0], vertexId);
-        mesh.removeVertex(neighbor[0]);
-
-        // TODO: remove vertex as well
       }
-    } else if (nConnections > 2) {
-      // Check the neighbors
-      // If only one neighbor with three connections is found, than remove the
-      // connection between them
-
-      // If more then one neighbor with more than two connections is found, then
+      mesh.disconnectVertices(neighbor[0], vertexId);
+      mesh.removeVertex(neighbor[0]);
     }
   }
+  while (!tripleConn.empty()) {
+    int cell = tripleConn.front();
+    tripleConn.pop();
+    int vertexId = _idMap[cell];
+    // Check if stiil has triple connections
+    if (mesh.getNumberOfConnections(vertexId) <= 2)
+      continue;
+
+    // Check the neighbors
+    int lonelyVertex = -1;
+    std::vector<int> tripleConnectionIds;
+    auto neighbors = mesh.getAdjacentVertices(vertexId);
+    for (auto neighbor : neighbors) {
+      int nConn = mesh.getNumberOfConnections(neighbor);
+      if (nConn == 1) {
+        lonelyVertex = neighbor;
+      } else if (nConn == 3) {
+        tripleConnectionIds.emplace_back(neighbor);
+      }
+    }
+    // Found on neighbor with only one connection: ignore. This case will be
+    // treated by that lonely vertex
+    if (lonelyVertex >= 0 && tripleConnectionIds.empty()) {
+      auto pos1 = mesh.getVertexPosition(vertexId);
+      auto pos2 = mesh.getVertexPosition(lonelyVertex);
+      if ((pos1 - pos2).matrix().norm() < 1e-5) {
+        mesh.disconnectVertices(lonelyVertex, vertexId);
+        mesh.removeVertex(lonelyVertex);
+      }
+      continue;
+    }
+
+    // If only one neighbor with three connections is found, than remove the
+    // connection between them
+    // If more then one neighbor with more than two connections is found,
+    // then the common edge has to be found. Disconnect that edge and remove
+    // the problematic vertex
+    if (tripleConnectionIds.size() == 1) {
+      auto neighbor = tripleConnectionIds[0];
+      mesh.disconnectVertices(vertexId, neighbor);
+    } else if (tripleConnectionIds.size() == 2) {
+      if (mesh.hasConnection(tripleConnectionIds[0], tripleConnectionIds[1]))
+        mesh.disconnectVertices(tripleConnectionIds[0], tripleConnectionIds[1]);
+      else {
+      }
+    } else if (tripleConnectionIds.size() == 3) {
+    }
+  }
+
   _writeMesh(mesh);
   return mesh;
-}
+} // namespace Ramuh
 
 Ramuh::LineMesh
 DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {

@@ -32,6 +32,8 @@ int LineMesh::connectVertices(int vertex1, int vertex2) {
 }
 
 int LineMesh::connectVertices(Eigen::Array2i segment) {
+  if (!isVertexActive(segment[0]) || !isVertexActive(segment[1]))
+    return -1;
   int segId = hasConnection(segment[0], segment[1]);
   if (segId < 0) {
     if (_segmentIdQueue.empty()) {
@@ -54,7 +56,9 @@ std::vector<int>
 LineMesh::connectVertices(std::vector<Eigen::Array2i> segments) {
   std::vector<int> indices;
   for (auto segment : segments) {
-    indices.emplace_back(connectVertices(segment));
+    int segId = connectVertices(segment);
+    if (segId >= 0)
+      indices.emplace_back(segId);
   }
   return indices;
 }
@@ -126,6 +130,8 @@ void LineMesh::removeVertex(int vertexId) { _activeVertices[vertexId] = false; }
 void LineMesh::disconnectVertices(int vertex1, int vertex2) {
   // Find which segment is between those two vertices
   auto segId = hasConnection(vertex1, vertex2);
+  if (segId < 0)
+    return;
 
   // In the list of segmetns of each vertex, look for that to be deleted
   std::vector<int> vIds(2);
