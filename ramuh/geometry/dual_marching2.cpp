@@ -448,18 +448,36 @@ void DualMarching2::_writeMesh(LineMesh &mesh) {
   auto &vertices = mesh.getVerticesList();
   auto &segments = mesh.getSegmentsList();
   int nVertices = vertices.size();
-
-  for (auto vertex : vertices) {
-    file << "v " << vertex[0] << " " << vertex[1] << " 0" << std::endl;
+  std::vector<int> inactiveVertices;
+  inactiveVertices.clear();
+  for (size_t vId = 0; vId < vertices.size(); vId++) {
+    auto vertex = vertices[vId];
+    if (mesh.isVertexActive(vId))
+      file << "v " << vertex[0] << " " << vertex[1] << " 0" << std::endl;
+    else {
+      inactiveVertices.emplace_back(vId);
+      nVertices--;
+    }
   }
-  for (auto vertex : vertices) {
-    file << "v " << vertex[0] << " " << vertex[1] << " 0.1" << std::endl;
+  for (size_t vId = 0; vId < vertices.size(); vId++) {
+    auto vertex = vertices[vId];
+    if (mesh.isVertexActive(vId))
+      file << "v " << vertex[0] << " " << vertex[1] << " 1" << std::endl;
   }
 
   for (size_t sId = 0; sId < segments.size(); sId++) {
     if (!mesh.isSegmentActive(sId))
       continue;
     auto segment = segments[sId];
+    Eigen::Array2i reduction(0, 0);
+    for (auto vertex : inactiveVertices) {
+      if (segment[0] >= vertex)
+        reduction[0]++;
+      if (segment[1] >= vertex)
+        reduction[1]++;
+    }
+    segment = segment - reduction;
+
     file << "f " << segment[0] + 1 << " " << segment[1] + 1 << " "
          << segment[1] + 1 + nVertices << " " << segment[0] + 1 + nVertices
          << " " << std::endl;
