@@ -320,7 +320,8 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
   std::vector<Eigen::Vector2d> normals;
   static Ramuh::DualMarching2 surface(levelset.getResolution());
 
-  surface.setBaseFolder("results/dualSquares/particles/");
+  // surface.setBaseFolder("results/dualSquares/rotation/");
+  surface.setBaseFolder("results/dualSquares/rotationOriginal/");
   surface.clear();
 
   // Check which particles belong to that cell
@@ -351,7 +352,8 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
     }
     // previousCell = cell;
   }
-  return surface.reconstruct();
+  // return surface.reconstruct();
+  return surface.reconstruct(std::vector<std::pair<int, int>>());
 }
 
 } // namespace Carbuncle
