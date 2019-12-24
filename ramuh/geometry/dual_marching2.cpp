@@ -164,7 +164,10 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
         int neighCell = convertKey(ij[0] + i, ij[1] + j);
         if (_idMap.find(neighCell) != _idMap.end() &&
             mesh.getNumberOfConnections(_idMap[neighCell]) == 1) {
-          mesh.connectVertices(vertexId, _idMap[neighCell]);
+          if (checkOrientation(mesh, vertexId, _idMap[neighCell]))
+            mesh.connectVertices(vertexId, _idMap[neighCell]);
+          else
+            mesh.connectVertices(_idMap[neighCell], vertexId);
           connected = true;
         } else if (mesh.getNumberOfConnections(vertexId) == 2) {
           // Already received a connection from its pair
@@ -184,10 +187,16 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
         if (segment != segmentId) {
           auto vertices = mesh.getSegmentVertices(segment);
           if (vertices[0] != neighbor[0]) {
-            mesh.connectVertices(vertices[0], vertexId);
+            if (checkOrientation(mesh, vertices[0], vertexId))
+              mesh.connectVertices(vertices[0], vertexId);
+            else
+              mesh.connectVertices(vertexId, vertices[0]);
             mesh.disconnectVertices(neighbor[0], vertices[0]);
           } else {
-            mesh.connectVertices(vertices[1], vertexId);
+            if (checkOrientation(mesh, vertices[1], vertexId))
+              mesh.connectVertices(vertices[1], vertexId);
+            else
+              mesh.connectVertices(vertexId, vertices[1]);
             mesh.disconnectVertices(neighbor[0], vertices[1]);
           }
         }
@@ -245,7 +254,7 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
     }
   }
 
-  _writeMesh(mesh);
+  // _writeMesh(mesh);
   return mesh;
 } // namespace Ramuh
 
@@ -391,6 +400,18 @@ void DualMarching2::merge(DualMarching2 square) {
   _idMap.insert(map.begin(), map.end());
 }
 
+bool DualMarching2::checkOrientation(LineMesh mesh, int vertex, int target) {
+  Eigen::Array2d origin, ending;
+  origin = mesh.getVertexPosition(vertex);
+  ending = mesh.getVertexPosition(target);
+  Eigen::Vector2d vector = (ending - origin).matrix().normalized();
+  Eigen::Vector2d normal(vector[1], -vector[0]);
+  Eigen::Vector2d vNormal = _normals[vertex];
+  if (vNormal.dot(normal) > 0)
+    return true;
+  return false;
+}
+
 void DualMarching2::_createSimpleConnections(LineMesh &mesh) {
 
   mesh.addVertices(_points);
@@ -400,27 +421,31 @@ void DualMarching2::_createSimpleConnections(LineMesh &mesh) {
   for (auto cell : _idMap) {
     int cellId = cell.first;
     auto ij = convertKey(cellId);
+    std::vector<int> neighsToConnect;
 
     // Check 4-neighborhood
     if (ij[0] > 0 &&
         _idMap.find(convertKey(ij[0] - 1, ij[1])) != _idMap.end()) {
-      mesh.connectVertices(_idMap[cellId],
-                           _idMap[convertKey(ij[0] - 1, ij[1])]);
+      neighsToConnect.emplace_back(convertKey(ij[0] - 1, ij[1]));
     }
     if (ij[0] < _resolution[0] - 1 &&
         _idMap.find(convertKey(ij[0] + 1, ij[1])) != _idMap.end()) {
-      mesh.connectVertices(_idMap[cellId],
-                           _idMap[convertKey(ij[0] + 1, ij[1])]);
+      neighsToConnect.emplace_back(convertKey(ij[0] + 1, ij[1]));
     }
     if (ij[1] > 0 &&
         _idMap.find(convertKey(ij[0], ij[1] - 1)) != _idMap.end()) {
-      mesh.connectVertices(_idMap[cellId],
-                           _idMap[convertKey(ij[0], ij[1] - 1)]);
+      neighsToConnect.emplace_back(convertKey(ij[0], ij[1] - 1));
     }
     if (ij[1] < _resolution[1] - 1 &&
         _idMap.find(convertKey(ij[0], ij[1] + 1)) != _idMap.end()) {
-      mesh.connectVertices(_idMap[cellId],
-                           _idMap[convertKey(ij[0], ij[1] + 1)]);
+      neighsToConnect.emplace_back(convertKey(ij[0], ij[1] + 1));
+    }
+    for (auto neighId : neighsToConnect) {
+      // Check face normal orientation
+      if (checkOrientation(mesh, _idMap[cellId], _idMap[neighId]))
+        mesh.connectVertices(_idMap[cellId], _idMap[neighId]);
+      else
+        mesh.connectVertices(_idMap[neighId], _idMap[cellId]);
     }
   }
 }
