@@ -345,7 +345,7 @@ DualMarching2::reconstruct(std::vector<std::pair<int, int>> connections) {
 }
 
 bool DualMarching2::_consistentNormals(std::vector<int> ids) {
-  Eigen::Vector2d faceDir = (_points[ids[0]] - _points[ids[1]]).matrix();
+  Eigen::Vector2d faceDir = (_points[ids[1]] - _points[ids[0]]).matrix();
   Eigen::Vector2d faceNormal(faceDir[1], -faceDir[0]);
   if (faceNormal.dot(_normals[ids[0]]) < 0 ||
       faceNormal.dot(_normals[ids[1]]) < 0)

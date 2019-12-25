@@ -97,7 +97,7 @@ void DualSquares::extractSurface() {
   findSurfaceCells(_h[0] * 8);
 
   std::vector<std::pair<int, int>> connections;
-#pragma omp parallel
+#pragma omp parallel num_threads(1)
   {
     Ramuh::DualMarching2 threadSurface(_gridSize);
     std::vector<std::pair<int, int>> threadConnections;
@@ -159,9 +159,11 @@ void DualSquares::extractSurface() {
             _domain.getMin() +
             _h.cwiseProduct(Eigen::Array2d(i + 1.5, j + 1.5));
         int thread = omp_get_thread_num();
-        auto x = threadSurface.evaluateSquare(
+        Eigen::Array2d x = threadSurface.evaluateSquare(
             Eigen::Array2i(i, j), normalPosition, normal,
             Ramuh::BoundingBox2(cubeMin, cubeMax));
+        if (x.hasNaN())
+          std::cerr << " NAN value!\n";
       }
     }
 #pragma omp critical(surfaceMerge)

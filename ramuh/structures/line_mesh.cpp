@@ -44,11 +44,11 @@ int LineMesh::connectVertices(Eigen::Array2i segment) {
       segId = _segmentIdQueue.front();
       _segmentIdQueue.pop();
     }
-    _activeSegment[segId] = true;
     _segments[segId] = segment;
     _vertSegments[segment[0]].emplace_back(segId);
     _vertSegments[segment[1]].emplace_back(segId);
   }
+  _activeSegment[segId] = true;
   return segId;
 }
 
@@ -146,6 +146,7 @@ void LineMesh::disconnectVertices(int vertex1, int vertex2) {
     if (segPosId < segments.size())
       segments.erase(segments.begin() + segPosId);
   }
+  _segmentIdQueue.push(segId);
   _activeSegment[segId] = false;
 }
 
