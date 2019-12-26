@@ -29,86 +29,35 @@ void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
   auto h = levelset.getH();
   std::vector<bool> visited(phi.size(), false);
 
-  for (int is = 0; is < segments.size(); is++) {
-    if (!mesh.isSegmentActive(is))
-      continue;
-    auto segment = segments[is];
+#pragma omp parallel for
+  for (int cellId = 0; cellId < levelset.cellCount(); cellId++) {
+    // Check for each cell, the closest segment
+    for (int is = 0; is < segments.size(); is++) {
+      if (!mesh.isSegmentActive(is))
+        continue;
+      auto segment = segments[is];
 
-    // Get the origin point positions and find which cell it belongs
-    Eigen::Array2d origin = mesh.getVertexPosition(segment[0]);
-    Eigen::Array2d ending = mesh.getVertexPosition(segment[1]);
-    double angle = (ending[1] - origin[1]) / (ending[0] - origin[0]);
-    auto cellId = levelset.findCellIdByCoordinate(origin);
-    auto cellij = levelset.idToij(cellId);
+      // Get the origin point positions and find which cell it belongs
+      Eigen::Array2d origin = mesh.getVertexPosition(segment[0]);
+      Eigen::Array2d ending = mesh.getVertexPosition(segment[1]);
+      double angle = (ending[1] - origin[1]) / (ending[0] - origin[0]);
+      auto cellId = levelset.findCellIdByCoordinate(origin);
+      auto cellij = levelset.idToij(cellId);
 
-    // Do rasterization for each cell the segment crosses
-    bool ended = false;
-    Eigen::Array2d newOrigin = origin, newEnding;
-    Ramuh::BoundingBox2 cellBbox = levelset.getCellBoundingBox(cellId);
-    while (!ended) {
-      Eigen::Vector2i cellInc(0, 0);
-      newEnding = ending;
-      // find which square edge intersects the surface
-      if (!cellBbox.contains(ending)) {
-        auto cellMin = cellBbox.getMin();
-        auto cellMax = cellBbox.getMax();
-        // for each edge, check intersection. If true, project to that edge:
-        // bottom/top
-        if (newEnding[1] < cellMin[1]) {
-          newEnding[1] = cellMin[1];
-          newEnding[0] = (newEnding[1] - newOrigin[1]) / angle + origin[0];
-          if (cellBbox.contains(newEnding))
-            cellij[1]--;
-        } else if (newEnding[1] > cellMax[1]) {
-          newEnding[1] = cellMax[1];
-          newEnding[0] = (newEnding[1] - newOrigin[1]) / angle + origin[0];
-          if (cellBbox.contains(newEnding))
-            cellij[1]++;
-        }
-        // left/right
-        if (newEnding[0] < cellMin[0]) {
-          newEnding[0] = cellMin[0];
-          newEnding[1] = angle * (newEnding[0] - newOrigin[0]) + newOrigin[1];
-          if (cellBbox.contains(newEnding))
-            cellij[0]--;
-        } else if (newEnding[0] > cellMax[0]) {
-          newEnding[0] = cellMax[0];
-          newEnding[1] = angle * (newEnding[0] - newOrigin[0]) + newOrigin[1];
-          if (cellBbox.contains(newEnding))
-            cellij[0]++;
-        }
+      Eigen::Array2d cellCenter = levelset.getCellPosition(cellId);
+      Eigen::Vector2d direction, target;
+      direction = ending - origin;
+      target = cellCenter - origin;
+      double distance;
+      distance = distanceToSegment(origin, ending, cellCenter);
+      if (!visited[cellId]) {
+        visited[cellId] = true;
+        phi[cellId] = distance;
       } else {
-        ended = true;
+        if (std::abs(phi[cellId]) > std::abs(distance))
+          phi[cellId] = distance;
+        // std::min(std::abs(phi[cell]), std::abs(distance)) * dSignal;
       }
-
-      // Compute cell center distance to the segment
-      auto neighborCells =
-          levelset.findCellNeighbors(levelset.ijToid(cellij[0], cellij[1]), 2);
-      for (auto cell : neighborCells) {
-        Eigen::Array2d cellCenter = levelset.getCellPosition(cell);
-        Eigen::Vector2d direction, target;
-        direction = ending - origin;
-        target = cellCenter - origin;
-        double distance;
-        distance = distanceToSegment(origin, ending, cellCenter);
-        if (!visited[cell]) {
-          visited[cell] = true;
-          phi[cell] = distance;
-        } else {
-          if (std::abs(phi[cell]) > std::abs(distance))
-            phi[cell] = distance;
-          // std::min(std::abs(phi[cell]), std::abs(distance)) * dSignal;
-        }
-      }
-      // Special case has to be treated when segment has reach an end: check
-      // for singularity
-      if (ended) {
-      }
-
-      // Prepare for next cell or segment
-      cellId = levelset.ijToid(cellij[0], cellij[1]);
-      cellBbox = levelset.getCellBoundingBox(cellId);
-      newOrigin = newEnding;
     }
   }
 }
