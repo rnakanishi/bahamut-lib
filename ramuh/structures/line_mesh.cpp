@@ -156,4 +156,11 @@ bool LineMesh::isVertexActive(int vertexId) {
   return _activeVertices[vertexId];
 }
 
+Eigen::Vector2d LineMesh::getSegmentNormal(int segId) {
+  auto vertices = getSegmentVertices(segId);
+  Eigen::Vector2d tangent =
+      (getVertexPosition(vertices[1]) - getVertexPosition(vertices[0]));
+  return Eigen::Vector2d(tangent[1], -tangent[0]);
+}
+
 } // namespace Ramuh

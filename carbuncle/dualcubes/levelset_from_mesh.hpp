@@ -49,14 +49,35 @@ void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
       direction = ending - origin;
       target = cellCenter - origin;
       double distance;
-      distance = distanceToSegment(origin, ending, cellCenter);
-      if (!visited[cellId]) {
+      // distance = distanceToSegment(origin, ending, cellCenter);
+      // if (!visited[cellId]) {
+      //   visited[cellId] = true;
+      //   phi[cellId] = distance;
+      // } else {
+      //   if (std::abs(phi[cellId]) > std::abs(distance))
+      //     phi[cellId] = distance;
+      //   // std::min(std::abs(phi[cell]), std::abs(distance)) * dSignal;
+      // }
+
+      double cross = (target[0] * direction[1] - target[1] * direction[0]);
+      int dSignal;
+      if (cross == 0) {
+        distance = 0.0;
         visited[cellId] = true;
-        phi[cellId] = distance;
+        phi[cellId] = 0.0;
+        gradients[cellId] = mesh.getSegmentNormal(is);
       } else {
-        if (std::abs(phi[cellId]) > std::abs(distance))
+        distance = distanceToSegment(origin, ending, cellCenter);
+        if (!visited[cellId]) {
+          visited[cellId] = true;
           phi[cellId] = distance;
-        // std::min(std::abs(phi[cell]), std::abs(distance)) * dSignal;
+          gradients[cellId] = mesh.getSegmentNormal(is);
+        } else {
+          if (std::abs(phi[cellId]) > std::abs(distance)) {
+            phi[cellId] = distance;
+            gradients[cellId] = mesh.getSegmentNormal(is);
+          }
+        }
       }
     }
   }

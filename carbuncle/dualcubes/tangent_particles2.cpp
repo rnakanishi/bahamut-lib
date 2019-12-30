@@ -37,6 +37,10 @@ TangentParticles2::TangentParticles2(Leviathan::LevelSetFluid2 levelset)
 
 std::map<int, int> &TangentParticles2::getPairMap() { return tangentPair; }
 
+void TangentParticles2::defineRotationCenter(Eigen::Array2d center) {
+  rotationCenter = center;
+}
+
 int TangentParticles2::seedParticlesOverSurface(
     Leviathan::LevelSetFluid2 levelset) {
   // TODO: Seed particles only near the cell face
@@ -259,6 +263,7 @@ void TangentParticles2::defineParticlesVelocity() {
   auto &velocity = getParticleArrayData("particleVelocity");
   for (size_t pid = 0; pid < particleCount(); pid++) {
     auto p = getParticlePosition(pid);
+    p -= rotationCenter;
     velocity[pid] = Eigen::Array2d(-p[1], p[0]);
   }
 }

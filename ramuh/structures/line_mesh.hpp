@@ -153,6 +153,8 @@ public:
 
   bool isVertexActive(int vertexId);
 
+  Eigen::Vector2d getSegmentNormal(int segId);
+
 protected:
   std::vector<Eigen::Array2d> _verticesPosition;
   std::vector<Eigen::Array2i> _segments; // Pair of connected vertices

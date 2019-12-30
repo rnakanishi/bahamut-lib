@@ -95,20 +95,28 @@ void fixLevelsetFromMesh(Leviathan::DualSquares &levelset,
         target = cellCenter - newOrigin;
         int pSignal = (phi[cell] < 0) ? -1 : 1;
         double distance;
-        if ((target[0] * direction[1] - target[1] * direction[0]) * pSignal < 0)
-          distance = distanceToSegment(newOrigin, newEnding, cellCenter);
-        else
-          distance = distanceToSegment(newEnding, newOrigin, cellCenter);
-        int dSignal = (distance < 0) ? -1 : 1;
-        // if (std::abs(phi[cell] > std::abs(distance)))
-        if (dSignal == pSignal)
-          if (!visited[cell]) {
-            visited[cell] = true;
-            phi[cell] = distance;
+        double cross = (target[0] * direction[1] - target[1] * direction[0]);
+        int dSignal;
+        if (cross == 0) {
+          distance = 0.0;
+          visited[cell] = true;
+          phi[cell] = 0.0;
+        } else {
+          if (cross * pSignal < 0) {
+            distance = distanceToSegment(newOrigin, newEnding, cellCenter);
           } else {
-            phi[cell] =
-                std::min(std::abs(phi[cell]), std::abs(distance)) * pSignal;
+            distance = distanceToSegment(newEnding, newOrigin, cellCenter);
           }
+          dSignal = (distance < 0) ? -1 : 1;
+          if (dSignal == pSignal)
+            if (!visited[cell]) {
+              visited[cell] = true;
+              phi[cell] = distance;
+            } else {
+              phi[cell] =
+                  std::min(std::abs(phi[cell]), std::abs(distance)) * pSignal;
+            }
+        }
       }
       // Special case has to be treated when segment has reach an end: check for
       // singularity
@@ -192,12 +200,12 @@ void printLevelset(Leviathan::DualSquares squares) {
 
 int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
-      Eigen::Array2i(40, 40),
+      Eigen::Array2i(50, 50),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
   Carbuncle::TangentParticles2 particles(cubes);
 
-  Eigen::Array2d center = Eigen::Array2d(0, 0);
-  double radius = 1.45;
+  Eigen::Array2d center = Eigen::Array2d(2, 0);
+  double radius = 1.20001;
 
   initializeCube(cubes, center, radius, ParametricSurface::SQUARE);
   initializeGradientsAtIntersection(cubes, center, radius,
@@ -208,6 +216,7 @@ int main(int argc, char const *argv[]) {
 
   defineCellsVelocity(cubes);
 
+  particles.defineRotationCenter(center);
   particles.seedParticlesOverSurface(cubes, squareMesh);
   defineParticlesVelocity(particles);
   printParticles(particles);
@@ -235,7 +244,7 @@ int main(int argc, char const *argv[]) {
     // particles.fixLevelsetGradients(cubes);
     extractLevelsetFromMesh(cubes, squareMesh);
     // cubes.redistance();
-    cubes.computeCellsGradient();
+    // cubes.computeCellsGradient();
     cubes.computeIntersectionAndNormals();
     // particles.estimateCellNormals(cubes);
     cubes.extractSurface();
