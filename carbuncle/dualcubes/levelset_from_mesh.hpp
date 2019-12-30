@@ -29,7 +29,7 @@ void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
   auto h = levelset.getH();
   std::vector<bool> visited(phi.size(), false);
 
-#pragma omp parallel for
+  // #pragma omp parallel for
   for (int cellId = 0; cellId < levelset.cellCount(); cellId++) {
     // Check for each cell, the closest segment
     for (int is = 0; is < segments.size(); is++) {
@@ -41,23 +41,13 @@ void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
       Eigen::Array2d origin = mesh.getVertexPosition(segment[0]);
       Eigen::Array2d ending = mesh.getVertexPosition(segment[1]);
       double angle = (ending[1] - origin[1]) / (ending[0] - origin[0]);
-      auto cellId = levelset.findCellIdByCoordinate(origin);
-      auto cellij = levelset.idToij(cellId);
+      // auto cellId = levelset.findCellIdByCoordinate(origin);
 
       Eigen::Array2d cellCenter = levelset.getCellPosition(cellId);
       Eigen::Vector2d direction, target;
       direction = ending - origin;
       target = cellCenter - origin;
       double distance;
-      // distance = distanceToSegment(origin, ending, cellCenter);
-      // if (!visited[cellId]) {
-      //   visited[cellId] = true;
-      //   phi[cellId] = distance;
-      // } else {
-      //   if (std::abs(phi[cellId]) > std::abs(distance))
-      //     phi[cellId] = distance;
-      //   // std::min(std::abs(phi[cell]), std::abs(distance)) * dSignal;
-      // }
 
       double cross = (target[0] * direction[1] - target[1] * direction[0]);
       int dSignal;
