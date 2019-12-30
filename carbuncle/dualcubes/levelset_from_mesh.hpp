@@ -29,7 +29,7 @@ void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
   auto h = levelset.getH();
   std::vector<bool> visited(phi.size(), false);
 
-  // #pragma omp parallel for
+#pragma omp parallel for
   for (int cellId = 0; cellId < levelset.cellCount(); cellId++) {
     // Check for each cell, the closest segment
     for (int is = 0; is < segments.size(); is++) {

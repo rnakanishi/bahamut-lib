@@ -249,6 +249,7 @@ int main(int argc, char const *argv[]) {
     // particles.estimateCellNormals(cubes);
     cubes.extractSurface();
     printLevelset(cubes);
+    printParticles(particles);
     cubes.print();
   }
   // cubes.computeCellsGradient();

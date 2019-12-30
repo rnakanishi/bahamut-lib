@@ -154,31 +154,52 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
     int cell = simpleConn.front();
     simpleConn.pop();
     int vertexId = _idMap[cell];
+    int neighborId = mesh.getAdjacentVertices(vertexId)[0];
     // First try to find the other vertex that is also missing a connection
     bool connected = false;
     auto ij = convertKey(cell);
-    for (int i = -1; i <= 1; i++) {
-      for (int j = -1; j <= 1; j++) {
-        if (i == 0 && j == 0)
-          continue;
-        int neighCell = convertKey(ij[0] + i, ij[1] + j);
-        if (_idMap.find(neighCell) != _idMap.end() &&
-            mesh.getNumberOfConnections(_idMap[neighCell]) == 1) {
-          if (checkOrientation(mesh, vertexId, _idMap[neighCell]))
-            mesh.connectVertices(vertexId, _idMap[neighCell]);
-          else
-            mesh.connectVertices(_idMap[neighCell], vertexId);
-          connected = true;
-        } else if (mesh.getNumberOfConnections(vertexId) == 2) {
-          // Already received a connection from its pair
-          connected = true;
+    if (mesh.getNumberOfConnections(neighborId) < 3) {
+      std::vector<int> toConnect;
+      for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+          if (i == 0 && j == 0)
+            continue;
+          int neighCell = convertKey(ij[0] + i, ij[1] + j);
+          if (_idMap.find(neighCell) != _idMap.end()) {
+            if (mesh.getNumberOfConnections(_idMap[neighCell]) == 1) {
+              connected = true;
+              // Simple case: both need to be connected
+              if (checkOrientation(mesh, vertexId, _idMap[neighCell]))
+                mesh.connectVertices(vertexId, _idMap[neighCell]);
+              else
+                mesh.connectVertices(_idMap[neighCell], vertexId);
+            } else if (mesh.getNumberOfConnections(vertexId) == 1 &&
+                       mesh.getNumberOfConnections(_idMap[neighCell]) == 2) {
+              // Isolation: Connect both and the neighbor vertex will be
+              // analysed
+              toConnect.emplace_back(neighCell);
+            }
+          }
         }
       }
-    }
-    if (!connected) {
-      // Not able to find any missing neighbor vertex, then,
-      // If the neighbor is a hub, then its connections are given to the
-      // current vertex and this neighbor is disconnected
+      if (!connected) {
+        for (auto cellNeigh : toConnect) {
+          int neighId = _idMap[cellNeigh];
+          if (mesh.hasConnection(vertexId, neighId) < 0) {
+            tripleConn.push(cellNeigh);
+            if (checkOrientation(mesh, vertexId, neighId))
+              mesh.connectVertices(vertexId, neighId);
+            else
+              mesh.connectVertices(neighId, vertexId);
+          }
+        }
+        if (mesh.getNumberOfConnections(vertexId) == 3)
+          tripleConn.push(cell);
+      }
+    } else {
+      // Not able to find any missing neighbor vertex so niehgbor is probably a
+      // hub. In this case, its connections are given to the current vertex and
+      // the neighbor is disconnected
       auto neighbor = mesh.getAdjacentVertices(vertexId);
       int neighborConnections = mesh.getNumberOfConnections(neighbor[0]);
       auto neighSegments = mesh.getVertexSegments(neighbor[0]);

@@ -108,6 +108,8 @@ int LineMesh::hasConnection(int vertex1, int vertex2) {
 }
 
 int LineMesh::getNumberOfConnections(int vertexId) {
+  if (!_activeVertices[vertexId])
+    return 0;
   return _vertSegments[vertexId].size();
 }
 

@@ -325,7 +325,7 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
   std::vector<Eigen::Vector2d> normals;
   static Ramuh::DualMarching2 surface(levelset.getResolution());
 
-  surface.setBaseFolder("results/dualSquares/rotation/");
+  // surface.setBaseFolder("results/dualSquares/rotation/");
   // surface.setBaseFolder("results/dualSquares/rotationOriginal/");
   surface.clear();
 
@@ -349,11 +349,13 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
       normals.emplace_back(normal.normalized());
     }
     if (positions.size() < 1) {
-      surface.getPoints().emplace_back(positions[0]);
+      // surface.getPoints().emplace_back(positions[0]);
+      continue;
     } else if (!positions.empty()) {
       auto ij = levelset.idToij(cell);
       Eigen::Array2i index(ij[0], ij[1]);
-      surface.evaluateSquare(index, positions, normals);
+      auto bbox = levelset.getCellBoundingBox(cell);
+      surface.evaluateSquare(index, positions, normals, bbox);
     }
     // previousCell = cell;
   }
