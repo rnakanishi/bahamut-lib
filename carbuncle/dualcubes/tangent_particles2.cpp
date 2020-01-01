@@ -37,6 +37,10 @@ TangentParticles2::TangentParticles2(Leviathan::LevelSetFluid2 levelset)
 
 std::map<int, int> &TangentParticles2::getPairMap() { return tangentPair; }
 
+void TangentParticles2::defineRotationCenter(Eigen::Array2d center) {
+  rotationCenter = center;
+}
+
 int TangentParticles2::seedParticlesOverSurface(
     Leviathan::LevelSetFluid2 levelset) {
   // TODO: Seed particles only near the cell face
@@ -259,6 +263,7 @@ void TangentParticles2::defineParticlesVelocity() {
   auto &velocity = getParticleArrayData("particleVelocity");
   for (size_t pid = 0; pid < particleCount(); pid++) {
     auto p = getParticlePosition(pid);
+    p -= rotationCenter;
     velocity[pid] = Eigen::Array2d(-p[1], p[0]);
   }
 }
@@ -321,7 +326,7 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
   static Ramuh::DualMarching2 surface(levelset.getResolution());
 
   // surface.setBaseFolder("results/dualSquares/rotation/");
-  surface.setBaseFolder("results/dualSquares/rotationOriginal/");
+  // surface.setBaseFolder("results/dualSquares/rotationOriginal/");
   surface.clear();
 
   // Check which particles belong to that cell
@@ -344,16 +349,18 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
       normals.emplace_back(normal.normalized());
     }
     if (positions.size() < 1) {
-      surface.getPoints().emplace_back(positions[0]);
+      // surface.getPoints().emplace_back(positions[0]);
+      continue;
     } else if (!positions.empty()) {
       auto ij = levelset.idToij(cell);
       Eigen::Array2i index(ij[0], ij[1]);
-      surface.evaluateSquare(index, positions, normals);
+      auto bbox = levelset.getCellBoundingBox(cell);
+      surface.evaluateSquare(index, positions, normals, bbox);
     }
     // previousCell = cell;
   }
-  // return surface.reconstruct();
-  return surface.reconstruct(std::vector<std::pair<int, int>>());
+  return surface.reconstruct();
+  // return surface.reconstruct(std::vector<std::pair<int, int>>());
 }
 
 } // namespace Carbuncle

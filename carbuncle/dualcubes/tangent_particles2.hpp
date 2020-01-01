@@ -12,6 +12,8 @@ public:
 
   TangentParticles2(Leviathan::LevelSetFluid2 levelset);
 
+  void defineRotationCenter(Eigen::Array2d center);
+
   int seedParticlesOverSurface(Leviathan::LevelSetFluid2 levelset);
   int seedParticlesOverSurface(Leviathan::LevelSetFluid2 levelset,
                                Ramuh::LineMesh mesh);
@@ -30,6 +32,7 @@ public:
 
 protected:
   std::map<int, int> tangentPair;
+  Eigen::Array2d rotationCenter;
 };
 
 } // namespace Carbuncle

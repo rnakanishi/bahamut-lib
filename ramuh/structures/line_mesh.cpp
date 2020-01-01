@@ -4,8 +4,17 @@ namespace Ramuh {
 LineMesh::LineMesh() {}
 
 int LineMesh::addVertex(Eigen::Array2d position) {
-  int vId = _verticesPosition.size();
-  _verticesPosition.emplace_back(position);
+  int vId;
+  if (_vertexIdQueue.empty()) {
+    vId = _verticesPosition.size();
+    _verticesPosition.emplace_back(0., 0.);
+    _activeVertices.emplace_back(true);
+  } else {
+    vId = _vertexIdQueue.front();
+    _vertexIdQueue.pop();
+  }
+  _activeVertices[vId] = true;
+  _verticesPosition[vId] = position;
   _vertSegments[vId] = std::vector<int>();
   return vId;
 }
@@ -23,13 +32,23 @@ int LineMesh::connectVertices(int vertex1, int vertex2) {
 }
 
 int LineMesh::connectVertices(Eigen::Array2i segment) {
+  if (!isVertexActive(segment[0]) || !isVertexActive(segment[1]))
+    return -1;
   int segId = hasConnection(segment[0], segment[1]);
   if (segId < 0) {
-    segId = _segments.size();
-    _segments.emplace_back(segment);
+    if (_segmentIdQueue.empty()) {
+      segId = _segments.size();
+      _segments.emplace_back(0, 0);
+      _activeSegment.emplace_back(true);
+    } else {
+      segId = _segmentIdQueue.front();
+      _segmentIdQueue.pop();
+    }
+    _segments[segId] = segment;
     _vertSegments[segment[0]].emplace_back(segId);
     _vertSegments[segment[1]].emplace_back(segId);
   }
+  _activeSegment[segId] = true;
   return segId;
 }
 
@@ -37,7 +56,9 @@ std::vector<int>
 LineMesh::connectVertices(std::vector<Eigen::Array2i> segments) {
   std::vector<int> indices;
   for (auto segment : segments) {
-    indices.emplace_back(connectVertices(segment));
+    int segId = connectVertices(segment);
+    if (segId >= 0)
+      indices.emplace_back(segId);
   }
   return indices;
 }
@@ -87,6 +108,8 @@ int LineMesh::hasConnection(int vertex1, int vertex2) {
 }
 
 int LineMesh::getNumberOfConnections(int vertexId) {
+  if (vertexId < 0 || !_activeVertices[vertexId])
+    return 0;
   return _vertSegments[vertexId].size();
 }
 
@@ -104,10 +127,42 @@ std::vector<int> LineMesh::getAdjacentVertices(int vertexId) {
   return neighbors;
 }
 
+void LineMesh::removeVertex(int vertexId) { _activeVertices[vertexId] = false; }
+
 void LineMesh::disconnectVertices(int vertex1, int vertex2) {
   // Find which segment is between those two vertices
   auto segId = hasConnection(vertex1, vertex2);
-  
+  if (segId < 0)
+    return;
+
+  // In the list of segmetns of each vertex, look for that to be deleted
+  std::vector<int> vIds(2);
+  vIds[0] = vertex1;
+  vIds[1] = vertex2;
+  for (auto vId : vIds) {
+    auto &segments = getVertexSegments(vId);
+    int segPosId = 0;
+    while (segments[segPosId] != segId && segPosId < segments.size()) {
+      segPosId++;
+    }
+    if (segPosId < segments.size())
+      segments.erase(segments.begin() + segPosId);
+  }
+  _segmentIdQueue.push(segId);
+  _activeSegment[segId] = false;
+}
+
+bool LineMesh::isSegmentActive(int segId) { return _activeSegment[segId]; }
+
+bool LineMesh::isVertexActive(int vertexId) {
+  return _activeVertices[vertexId];
+}
+
+Eigen::Vector2d LineMesh::getSegmentNormal(int segId) {
+  auto vertices = getSegmentVertices(segId);
+  Eigen::Vector2d tangent =
+      (getVertexPosition(vertices[1]) - getVertexPosition(vertices[0]));
+  return Eigen::Vector2d(tangent[1], -tangent[0]);
 }
 
 } // namespace Ramuh

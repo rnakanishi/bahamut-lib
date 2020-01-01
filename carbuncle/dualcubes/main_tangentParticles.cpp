@@ -6,8 +6,10 @@
 #include "dual_cubes.h"
 #include <surface/dual_squares.h>
 #include <structures/line_mesh.hpp>
+#include <fstream>
 #include "initialization.hpp"
 #include "tangent_particles2.hpp"
+#include "levelset_from_mesh.hpp"
 
 void printParticles(Carbuncle::TangentParticles2 particles) {
   std::ofstream file("matlab/particles.txt");
@@ -23,23 +25,6 @@ void printParticles(Carbuncle::TangentParticles2 particles) {
     }
   }
   file.close();
-}
-
-double distanceToSegment(Eigen::Array2d origin, Eigen::Array2d ending,
-                         Eigen::Array2d point) {
-  double length = (origin - point).matrix().squaredNorm();
-  Eigen::Vector2d target, segment;
-  target = (point - origin).matrix();
-  segment = (ending - origin).matrix();
-  double t = target.dot(segment) / length;
-  t = std::min(1.0, std::max(0.0, t));
-  Eigen::Array2d projection = origin + t * (ending - origin);
-
-  target.normalize();
-  segment.normalize();
-  if (target[0] * segment[1] - target[1] * segment[0] > 0.0)
-    return (point - projection).matrix().norm();
-  return -(point - projection).matrix().norm();
 }
 
 void fixLevelsetFromMesh(Leviathan::DualSquares &levelset,
@@ -110,20 +95,28 @@ void fixLevelsetFromMesh(Leviathan::DualSquares &levelset,
         target = cellCenter - newOrigin;
         int pSignal = (phi[cell] < 0) ? -1 : 1;
         double distance;
-        if ((target[0] * direction[1] - target[1] * direction[0]) * pSignal < 0)
-          distance = distanceToSegment(newOrigin, newEnding, cellCenter);
-        else
-          distance = distanceToSegment(newEnding, newOrigin, cellCenter);
-        int dSignal = (distance < 0) ? -1 : 1;
-        // if (std::abs(phi[cell] > std::abs(distance)))
-        if (dSignal == pSignal)
-          if (!visited[cell]) {
-            visited[cell] = true;
-            phi[cell] = distance;
+        double cross = (target[0] * direction[1] - target[1] * direction[0]);
+        int dSignal;
+        if (cross == 0) {
+          distance = 0.0;
+          visited[cell] = true;
+          phi[cell] = 0.0;
+        } else {
+          if (cross * pSignal < 0) {
+            distance = distanceToSegment(newOrigin, newEnding, cellCenter);
           } else {
-            phi[cell] =
-                std::min(std::abs(phi[cell]), std::abs(distance)) * pSignal;
+            distance = distanceToSegment(newEnding, newOrigin, cellCenter);
           }
+          dSignal = (distance < 0) ? -1 : 1;
+          if (dSignal == pSignal)
+            if (!visited[cell]) {
+              visited[cell] = true;
+              phi[cell] = distance;
+            } else {
+              phi[cell] =
+                  std::min(std::abs(phi[cell]), std::abs(distance)) * pSignal;
+            }
+        }
       }
       // Special case has to be treated when segment has reach an end: check for
       // singularity
@@ -138,14 +131,81 @@ void fixLevelsetFromMesh(Leviathan::DualSquares &levelset,
   }
 }
 
+void writeMesh(Ramuh::LineMesh &mesh, std::string baseFolder) {
+
+  std::ofstream file;
+  std::stringstream filename;
+  static int count = 0;
+  filename << baseFolder << std::setfill('0') << std::setw(4) << count++
+           << ".obj";
+  auto fullpath = filename.str();
+  file.open(fullpath.c_str(), std::ofstream::out);
+  if (!file.is_open()) {
+    std::cerr << "\033[1;31m[ X ]\033[0m Failed opening file " << filename.str()
+              << std::endl;
+    return;
+  }
+
+  auto &vertices = mesh.getVerticesList();
+  auto &segments = mesh.getSegmentsList();
+  int nVertices = vertices.size();
+  std::vector<int> inactiveVertices;
+  inactiveVertices.clear();
+  for (size_t vId = 0; vId < vertices.size(); vId++) {
+    auto vertex = vertices[vId];
+    if (mesh.isVertexActive(vId))
+      file << "v " << vertex[0] << " " << vertex[1] << " 0" << std::endl;
+    else {
+      inactiveVertices.emplace_back(vId);
+      nVertices--;
+    }
+  }
+  for (size_t vId = 0; vId < vertices.size(); vId++) {
+    auto vertex = vertices[vId];
+    if (mesh.isVertexActive(vId))
+      file << "v " << vertex[0] << " " << vertex[1] << " 1" << std::endl;
+  }
+
+  for (size_t sId = 0; sId < segments.size(); sId++) {
+    if (!mesh.isSegmentActive(sId))
+      continue;
+    auto segment = segments[sId];
+    Eigen::Array2i reduction(0, 0);
+    for (auto vertex : inactiveVertices) {
+      if (segment[0] >= vertex)
+        reduction[0]++;
+      if (segment[1] >= vertex)
+        reduction[1]++;
+    }
+    segment = segment - reduction;
+
+    file << "f " << segment[0] + 1 << " " << segment[1] + 1 << " "
+         << segment[1] + 1 + nVertices << " " << segment[0] + 1 + nVertices
+         << " " << std::endl;
+  }
+  std::cerr << "File written: " << filename.str();
+  std::cerr << ": " << vertices.size() << " vertices, " << segments.size()
+            << " faces.\n";
+}
+
+void printLevelset(Leviathan::DualSquares squares) {
+  std::ofstream file("matlab/levelset.txt");
+  auto &phi = squares.getCellScalarData("phi");
+  for (size_t cellId = 0; cellId < squares.cellCount(); cellId++) {
+    file << phi[cellId] << " ";
+  }
+
+  file.close();
+}
+
 int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
-      Eigen::Array2i(40, 40),
+      Eigen::Array2i(50, 50),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
   Carbuncle::TangentParticles2 particles(cubes);
 
-  Eigen::Array2d center = Eigen::Array2d(0, 0);
-  double radius = 1.45;
+  Eigen::Array2d center = Eigen::Array2d(2, 0);
+  double radius = 1.20001;
 
   initializeCube(cubes, center, radius, ParametricSurface::SQUARE);
   initializeGradientsAtIntersection(cubes, center, radius,
@@ -156,36 +216,41 @@ int main(int argc, char const *argv[]) {
 
   defineCellsVelocity(cubes);
 
+  particles.defineRotationCenter(center);
   particles.seedParticlesOverSurface(cubes, squareMesh);
   defineParticlesVelocity(particles);
   printParticles(particles);
 
   // cubes.computeCellsGradient();
-  // cubes.computeIntersectionAndNormals();
 
-  cubes.extractSurface();
   squareMesh = particles.extractSurface(cubes);
+  extractLevelsetFromMesh(cubes, squareMesh);
+  cubes.computeIntersectionAndNormals();
+  writeMesh(squareMesh, "results/dualSquares/particles/");
+  cubes.extractSurface();
 
   for (int i = 1; i <= 50; i++) {
     // particles.clearParticles();
     // particles.seedParticlesOverSurface(cubes, squareMesh);
 
-    // fixLevelsetFromMesh(cubes, squareMesh);
-    // cubes.redistance();
-    // cubes.computeCellsGradient();
-    cubes.advectWeno();
     particles.advectParticles();
+    squareMesh = particles.extractSurface(cubes);
+    writeMesh(squareMesh, "results/dualSquares/particles/");
+    // printParticles(particles);
 
     // After levelset and particles advection, cell gradient should be corrected
     // using particle information
     // Correct computed gradients with particle normals
-    particles.fixLevelsetGradients(cubes);
+    // particles.fixLevelsetGradients(cubes);
+    extractLevelsetFromMesh(cubes, squareMesh);
+    // cubes.redistance();
     // cubes.computeCellsGradient();
     cubes.computeIntersectionAndNormals();
     // particles.estimateCellNormals(cubes);
     cubes.extractSurface();
-    squareMesh = particles.extractSurface(cubes);
+    printLevelset(cubes);
     printParticles(particles);
+    cubes.print();
   }
   // cubes.computeCellsGradient();
   // cubes.computeIntersectionAndNormals();

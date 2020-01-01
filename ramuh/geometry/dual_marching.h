@@ -58,6 +58,8 @@ public:
   void resetCounter();
   void resetCounter(int value);
 
+  bool checkOrientation(LineMesh mesh, int cellId, int neighId);
+
 protected:
   bool _consistentNormals(std::vector<int> ids);
 
