@@ -131,11 +131,10 @@ void fixLevelsetFromMesh(Leviathan::DualSquares &levelset,
   }
 }
 
-void writeMesh(Ramuh::LineMesh &mesh, std::string baseFolder) {
+void writeMesh(Ramuh::LineMesh &mesh, std::string baseFolder, int count) {
 
   std::ofstream file;
   std::stringstream filename;
-  static int count = 0;
   filename << baseFolder << std::setfill('0') << std::setw(4) << count++
            << ".obj";
   auto fullpath = filename.str();
@@ -203,22 +202,27 @@ int main(int argc, char const *argv[]) {
       Eigen::Array2i(50, 50),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
   Carbuncle::TangentParticles2 particles(cubes);
+  Carbuncle::TangentParticles2 particles2(cubes);
 
-  Eigen::Array2d center = Eigen::Array2d(2, 0);
+  Eigen::Array2d center = Eigen::Array2d(1.4, 0);
   double radius = 1.20001;
 
   initializeCube(cubes, center, radius, ParametricSurface::SQUARE);
   initializeGradientsAtIntersection(cubes, center, radius,
                                     ParametricSurface::SQUARE);
   cubes.setFolder("results/dualSquares/");
-  Ramuh::LineMesh squareMesh;
+  Ramuh::LineMesh squareMesh, squareMesh2;
   createLineMesh(squareMesh, center, radius);
+  createLineMesh(squareMesh2, -center, radius);
 
   defineCellsVelocity(cubes);
 
   particles.defineRotationCenter(center);
   particles.seedParticlesOverSurface(cubes, squareMesh);
+  particles2.defineRotationCenter(-center);
+  particles2.seedParticlesOverSurface(cubes, squareMesh2);
   defineParticlesVelocity(particles);
+  defineParticlesVelocity(particles2);
   printParticles(particles);
 
   // cubes.computeCellsGradient();
@@ -226,7 +230,7 @@ int main(int argc, char const *argv[]) {
   squareMesh = particles.extractSurface(cubes);
   extractLevelsetFromMesh(cubes, squareMesh);
   cubes.computeIntersectionAndNormals();
-  writeMesh(squareMesh, "results/dualSquares/particles/");
+  writeMesh(squareMesh, "results/dualSquares/particles/", 0);
   cubes.extractSurface();
 
   for (int i = 1; i <= 50; i++) {
@@ -234,8 +238,11 @@ int main(int argc, char const *argv[]) {
     // particles.seedParticlesOverSurface(cubes, squareMesh);
 
     particles.advectParticles();
+    particles2.advectParticles();
     squareMesh = particles.extractSurface(cubes);
-    writeMesh(squareMesh, "results/dualSquares/particles/");
+    squareMesh2 = particles2.extractSurface(cubes);
+    writeMesh(squareMesh, "results/dualSquares/particles/", i);
+    writeMesh(squareMesh2, "results/dualSquares/particles2/", i);
     // printParticles(particles);
 
     // After levelset and particles advection, cell gradient should be corrected
