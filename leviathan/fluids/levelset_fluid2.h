@@ -75,6 +75,8 @@ public:
 
   std::vector<int> trackSurface();
 
+  void merge(LevelSetFluid2 &levelset);
+
 protected:
   double __interpolateVelocityU(Eigen::Array2d position);
   double __interpolateVelocityV(Eigen::Array2d position);

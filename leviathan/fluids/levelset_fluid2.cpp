@@ -854,4 +854,19 @@ std::vector<int> LevelSetFluid2::findCellNeighbors(int cellId, int distance) {
   return neighbors;
 }
 
+void LevelSetFluid2::merge(LevelSetFluid2 &levelset) {
+  auto &phiLocal = getCellScalarData(_phiId);
+  auto &phiNew = levelset.getCellScalarData("phi");
+
+  for (size_t cellId = 0; cellId < phiLocal.size(); cellId++) {
+    if (phiLocal[cellId] <= 0 && phiNew[cellId] <= 0)
+      phiLocal[cellId] = std::max(phiLocal[cellId], phiNew[cellId]);
+    else if (phiLocal[cellId] <= 0 || phiNew[cellId] <= 0) {
+      phiLocal[cellId] = std::min(phiLocal[cellId], phiNew[cellId]);
+    } else {
+      phiLocal[cellId] = std::min(phiLocal[cellId], phiNew[cellId]);
+    }
+  }
+}
+
 } // namespace Leviathan

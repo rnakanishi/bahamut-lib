@@ -201,6 +201,7 @@ int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
       Eigen::Array2i(50, 50),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
+  Leviathan::DualSquares cubes2(cubes);
   Carbuncle::TangentParticles2 particles(cubes);
   Carbuncle::TangentParticles2 particles2(cubes);
 
@@ -208,6 +209,7 @@ int main(int argc, char const *argv[]) {
   double radius = 1.20001;
 
   initializeCube(cubes, center, radius, ParametricSurface::SQUARE);
+  initializeCube(cubes2, -center, radius, ParametricSurface::SQUARE);
   initializeGradientsAtIntersection(cubes, center, radius,
                                     ParametricSurface::SQUARE);
   cubes.setFolder("results/dualSquares/");
@@ -233,7 +235,7 @@ int main(int argc, char const *argv[]) {
   writeMesh(squareMesh, "results/dualSquares/particles/", 0);
   cubes.extractSurface();
 
-  for (int i = 1; i <= 50; i++) {
+  for (int i = 1; i <= 90; i++) {
     // particles.clearParticles();
     // particles.seedParticlesOverSurface(cubes, squareMesh);
 
@@ -249,9 +251,12 @@ int main(int argc, char const *argv[]) {
     // using particle information
     // Correct computed gradients with particle normals
     // particles.fixLevelsetGradients(cubes);
+    resetLevelset(cubes);
     extractLevelsetFromMesh(cubes, squareMesh);
+    extractLevelsetFromMesh(cubes2, squareMesh2);
+    cubes.merge(cubes2);
     // cubes.redistance();
-    // cubes.computeCellsGradient();
+    cubes.computeCellsGradient();
     cubes.computeIntersectionAndNormals();
     // particles.estimateCellNormals(cubes);
     cubes.extractSurface();

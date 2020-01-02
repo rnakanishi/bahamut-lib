@@ -92,6 +92,7 @@ void DualSquares::extractSurface() {
   auto &_ufaceNormals = getFaceArrayData(0, "faceNormal");
   auto &_vfaceNormals = getFaceArrayData(1, "faceNormal");
   auto _h = getH();
+  Eigen::Array2d domainMin = _domain.getMin();
 
   surface.clear();
   findSurfaceCells(_h[0] * 8);
@@ -119,15 +120,32 @@ void DualSquares::extractSurface() {
       if ((i + 1 < _gridSize[0]) &&
           hasSignChange(_phi[ijToid(i, j)], _phi[ijToid(i + 1, j)])) {
         isSurface = true;
-        normal.emplace_back(_ufaceNormals[faceijToid(0, i + 1, j)]);
-        normalPosition.emplace_back(_ufaceLocation[faceijToid(0, i + 1, j)]);
+        double theta = _phi[ijToid(i + 1, j)] - _phi[ijToid(i, j)];
+        double x = domainMin[0] - _h[0] * _phi[ijToid(i, j)] / (theta) +
+                   (i + 0.5) * _h[0];
+        double y = domainMin[1] + (j + 0.5) * _h[1];
+        Eigen::Array2d gradient =
+            (cellGradient[id] - cellGradient[ijToid(i + 1, j)]) * _phi[id] /
+                theta +
+            cellGradient[id];
+
+        normal.emplace_back(gradient);
+        normalPosition.emplace_back(x, y);
       }
       if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1]) &&
           hasSignChange(_phi[ijToid(i + 1, j + 1)], _phi[ijToid(i, j + 1)])) {
         isSurface = true;
-        normal.emplace_back(_ufaceNormals[faceijToid(0, i + 1, j + 1)]);
-        normalPosition.emplace_back(
-            _ufaceLocation[faceijToid(0, i + 1, j + 1)]);
+        double theta = _phi[ijToid(i + 1, j + 1)] - _phi[ijToid(i, j + 1)];
+        double x = domainMin[0] - _h[0] * _phi[ijToid(i, j + 1)] / (theta) +
+                   (i + 0.5) * _h[0];
+        double y = domainMin[1] + (j + 1.5) * _h[1];
+        Eigen::Array2d gradient = (cellGradient[ijToid(i, j + 1)] -
+                                   cellGradient[ijToid(i + 1, j + 1)]) *
+                                      _phi[ijToid(i, j + 1)] / theta +
+                                  cellGradient[ijToid(i, j + 1)];
+
+        normal.emplace_back(gradient);
+        normalPosition.emplace_back(x, y);
         // Connections are made between cells that share an edge containing
         // intersection
         threadConnections.emplace_back(
@@ -137,17 +155,34 @@ void DualSquares::extractSurface() {
       if ((i + 1 < _gridSize[0] && j + 1 < _gridSize[1]) &&
           hasSignChange(_phi[ijToid(i + 1, j + 1)], _phi[ijToid(i + 1, j)])) {
         isSurface = true;
-        normal.emplace_back(_vfaceNormals[faceijToid(1, i + 1, j + 1)]);
-        normalPosition.emplace_back(
-            _vfaceLocation[faceijToid(1, i + 1, j + 1)]);
+        double theta = _phi[ijToid(i + 1, j + 1)] - _phi[ijToid(i + 1, j)];
+        double x = domainMin[0] + (i + 1.5) * _h[0];
+        double y = domainMin[1] - _h[1] * _phi[ijToid(i + 1, j)] / (theta) +
+                   (j + 0.5) * _h[1];
+        Eigen::Array2d gradient = (cellGradient[ijToid(i + 1, j)] -
+                                   cellGradient[ijToid(i + 1, j + 1)]) *
+                                      _phi[ijToid(i + 1, j)] / theta +
+                                  cellGradient[ijToid(i + 1, j)];
+
+        normal.emplace_back(gradient);
+        normalPosition.emplace_back(x, y);
         threadConnections.emplace_back(
             std::make_pair(ijToid(i, j), ijToid(i + 1, j)));
       }
       if ((j + 1 < _gridSize[1]) &&
           hasSignChange(_phi[ijToid(i, j)], _phi[ijToid(i, j + 1)])) {
         isSurface = true;
-        normal.emplace_back(_vfaceNormals[faceijToid(1, i, j + 1)]);
-        normalPosition.emplace_back(_vfaceLocation[faceijToid(1, i, j + 1)]);
+        double theta = _phi[ijToid(i, j + 1)] - _phi[ijToid(i, j)];
+        double x = domainMin[0] + (i + 0.5) * _h[0];
+        double y = domainMin[1] - _h[1] * _phi[ijToid(i, j)] / (theta) +
+                   (j + 0.5) * _h[1];
+        Eigen::Array2d gradient =
+            (cellGradient[ijToid(i, j)] - cellGradient[ijToid(i, j + 1)]) *
+                _phi[ijToid(i, j)] / theta +
+            cellGradient[ijToid(i, j)];
+
+        normal.emplace_back(gradient);
+        normalPosition.emplace_back(x, y);
       }
 
       // Solve quadratic function

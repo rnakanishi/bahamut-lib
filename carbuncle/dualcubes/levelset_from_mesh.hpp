@@ -1,5 +1,6 @@
 #include <geometry/bounding_box.h>
 #include <Eigen/Dense>
+#include <algorithm>
 
 double distanceToSegment(Eigen::Array2d origin, Eigen::Array2d ending,
                          Eigen::Array2d point) {
@@ -15,6 +16,10 @@ double distanceToSegment(Eigen::Array2d origin, Eigen::Array2d ending,
   if (target[0] * segment[1] - target[1] * segment[0] >= 0.0)
     return (point - projection).matrix().norm();
   return -(point - projection).matrix().norm();
+}
+void resetLevelset(Leviathan::DualSquares &levelset) {
+  auto &phi = levelset.getCellScalarData("phi");
+  std::fill(phi.begin(), phi.end(), 1e8);
 }
 
 void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
