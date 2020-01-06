@@ -37,6 +37,8 @@ void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
 #pragma omp parallel for
   for (int cellId = 0; cellId < levelset.cellCount(); cellId++) {
     // Check for each cell, the closest segment
+    // TOFIX: only works for convex polygons
+    bool outside = false;
     for (int is = 0; is < segments.size(); is++) {
       if (!mesh.isSegmentActive(is))
         continue;
@@ -54,6 +56,12 @@ void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
       target = cellCenter - origin;
       double distance;
 
+      if (cellCenter.isApprox(Eigen::Array2d(-3.7, 2.3))) {
+        origin.transpose();
+        // std::cerr << origin.transpose() << " " << ending.transpose()
+        // << std::endl;
+      }
+
       double cross = (target[0] * direction[1] - target[1] * direction[0]);
       int dSignal;
       if (cross == 0) {
@@ -63,14 +71,21 @@ void extractLevelsetFromMesh(Leviathan::DualSquares &levelset,
         gradients[cellId] = mesh.getSegmentNormal(is);
       } else {
         distance = distanceToSegment(origin, ending, cellCenter);
+        if (distance > 0)
+          outside = true;
         if (!visited[cellId]) {
           visited[cellId] = true;
           phi[cellId] = distance;
           gradients[cellId] = mesh.getSegmentNormal(is);
         } else {
-          if (std::abs(phi[cellId]) > std::abs(distance)) {
-            phi[cellId] = distance;
-            gradients[cellId] = mesh.getSegmentNormal(is);
+          if (!outside) {
+            phi[cellId] = std::max(phi[cellId], distance);
+          } else {
+            phi[cellId] = std::abs(phi[cellId]);
+            if (std::abs(phi[cellId]) > std::abs(distance)) {
+              phi[cellId] = std::abs(distance);
+              gradients[cellId] = mesh.getSegmentNormal(is);
+            }
           }
         }
       }

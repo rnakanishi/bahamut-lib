@@ -197,6 +197,17 @@ void printLevelset(Leviathan::DualSquares squares) {
   file.close();
 }
 
+void resampleParticlesFromLevelset(Carbuncle::TangentParticles2 particles,
+                                   Leviathan::DualSquares levelset) {
+
+  // Check particle interpolated levelset
+
+  // For each particle, check if it is in a surface cell
+  // If surface cell chek which particles are key
+
+  // Else if fully interior cell, remove the particles
+}
+
 int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
       Eigen::Array2i(50, 50),
@@ -255,6 +266,7 @@ int main(int argc, char const *argv[]) {
     extractLevelsetFromMesh(cubes, squareMesh);
     extractLevelsetFromMesh(cubes2, squareMesh2);
     cubes.merge(cubes2);
+
     // cubes.redistance();
     cubes.computeCellsGradient();
     cubes.computeIntersectionAndNormals();

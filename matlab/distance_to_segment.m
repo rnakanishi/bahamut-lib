@@ -16,7 +16,7 @@ function [d t] = distance_to_segment(origin, ending, target)
 
     quiver(target(1), target(2), dvec(1), dvec(2), 'g')
 
-    display(norm(origin - target))
+    display(["Abs distance: " num2str(norm(dvec))])
 
     scatter(proj(1), proj(2), '*')
 
