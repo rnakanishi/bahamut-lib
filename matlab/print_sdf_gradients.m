@@ -1,3 +1,4 @@
+
 figure;
 particles = dlmread("particles.txt");
 % scatter3(particles(:, 1), particles(:, 2), particles(:, 3), '.');

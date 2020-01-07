@@ -18,7 +18,13 @@ public:
   int seedParticlesOverSurface(Leviathan::LevelSetFluid2 levelset,
                                Ramuh::LineMesh mesh);
 
+  void removeParticle(int pid) override;
+
   std::map<int, int> &getPairMap();
+
+  int getParticlePairId(int pid);
+
+  void assignPair(int particleId, int tangentId);
 
   void estimateCellNormals(Leviathan::LevelSetFluid2 &levelset);
 
@@ -29,6 +35,9 @@ public:
   void advectParticles() override;
 
   Ramuh::LineMesh extractSurface(Leviathan::LevelSetFluid2 &levelset);
+
+  static TangentParticles2 mergeParticles(TangentParticles2 p1,
+                                          TangentParticles2 p2);
 
 protected:
   std::map<int, int> tangentPair;

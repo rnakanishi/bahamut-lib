@@ -363,4 +363,50 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset) {
   // return surface.reconstruct(std::vector<std::pair<int, int>>());
 }
 
+void TangentParticles2::removeParticle(int pid) {
+  if (_active[pid]) {
+    _idQueue.push(pid);
+    _idQueue.push(tangentPair[pid]);
+    _count -= 2;
+  }
+  _active[pid] = false;
+  _active[tangentPair[pid]] = false;
+  tangentPair.erase(pid);
+}
+
+int TangentParticles2::getParticlePairId(int pid) { return tangentPair[pid]; }
+
+void TangentParticles2::assignPair(int particleId, int tangentId) {
+  if (particleId > particleCount() || tangentId > particleCount()) {
+    std::cerr << "ParticleId bigger than the amount of particles\n";
+  }
+  tangentPair[particleId] = tangentId;
+}
+
+TangentParticles2 TangentParticles2::mergeParticles(TangentParticles2 p1,
+                                                    TangentParticles2 p2) {
+  TangentParticles2 result(p1);
+  result.newParticleArrayLabel("particlePosition");
+  auto &resultPosition = result.getParticleArrayData("particlePosition");
+
+  auto &positions = p1.getParticleArrayData("particlePosition");
+  for (auto pos : positions) {
+    result.insertParticle(pos);
+  }
+  auto particlePair = p1.getPairMap();
+  for (auto pair : particlePair) {
+    result.assignPair(pair.first, pair.second);
+  }
+
+  // add particles from the second group
+  positions = p2.getParticleArrayData("particlePosition");
+  particlePair = p2.getPairMap();
+  for (auto pair : particlePair) {
+    int originId = result.insertParticle(positions[pair.first]);
+    int endingId = result.insertParticle(positions[pair.second]);
+    result.assignPair(originId, endingId);
+  }
+  return result;
+}
+
 } // namespace Carbuncle

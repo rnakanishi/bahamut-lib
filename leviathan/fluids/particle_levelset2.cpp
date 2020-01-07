@@ -18,8 +18,8 @@ ParticleLevelSet2::ParticleLevelSet2()
 
 ParticleLevelSet2::ParticleLevelSet2(Eigen::Array2i gridSize,
                                      Ramuh::BoundingBox2 domain)
-    : Ramuh::ParticleSystem2(domain),
-      Leviathan::LevelSetFluid2(gridSize, domain) {
+    : Ramuh::ParticleSystem2(domain), Leviathan::LevelSetFluid2(gridSize,
+                                                                domain) {
   _particleRadiusId = newParticleScalarLabel("radius");
   _particleVelocityId = newParticleArrayLabel("particleVelocity");
   _particleSignalId = newParticleScalarLabel("particleSignal");
@@ -455,12 +455,14 @@ void ParticleLevelSet2::reseedParticles() {
   _seedCells(seedingCells, nParticles);
 }
 
-void ParticleLevelSet2::sortParticles() {
+std::map<int, std::vector<int>> ParticleLevelSet2::sortParticles() {
   auto h = getH();
   _particlesInCell.clear();
 
   // Loop over particles computing their cell index
-  for (size_t pid = 0; pid < particleCount(); pid++) {
+  for (size_t pid = 0; pid < _totalIds; pid++) {
+    if (!_active[pid])
+      continue;
     auto position = getParticlePosition(pid);
     // Computing cell id from particle position
     Eigen::Array2i cellIj = (position - LevelSetFluid2::_domain.getMin())
@@ -478,6 +480,7 @@ void ParticleLevelSet2::sortParticles() {
   for (auto particleVector : _particlesInCell) {
     auto particles = particleVector.second;
   }
+  return _particlesInCell;
 }
 
 std::vector<int> ParticleLevelSet2::computeCellsWithParticles() {

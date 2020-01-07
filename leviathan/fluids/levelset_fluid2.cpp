@@ -841,6 +841,18 @@ std::vector<int> LevelSetFluid2::findSurfaceCells(double surfaceDistance) {
   return _surfaceCellIds;
 }
 
+bool LevelSetFluid2::isSurfaceCell(int cellId) {
+  auto &phi = getCellScalarData(_phiId);
+  auto ij = idToij(cellId);
+  for (int i = -1; i <= 1; i++) {
+    for (int j = -1; j <= 1; j++) {
+      if (phi[cellId] * phi[ijToid(ij[0] + i, ij[1] + j)] < 0)
+        return true;
+    }
+  }
+  return false;
+}
+
 std::vector<int> LevelSetFluid2::findCellNeighbors(int cellId, int distance) {
   auto ij = idToij(cellId);
   std::vector<int> neighbors;

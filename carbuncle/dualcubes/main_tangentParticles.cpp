@@ -15,13 +15,36 @@ void printParticles(Carbuncle::TangentParticles2 particles) {
   std::ofstream file("matlab/particles.txt");
   auto &normalPair = particles.getPairMap();
   for (auto normal : normalPair) {
-    if (particles.isActive(normal.first) && particles.isActive(normal.second)) {
+    if (particles.isActive(normal.first)) {
       auto origin = particles.getParticlePosition(normal.first);
       auto ending = particles.getParticlePosition(normal.second);
       Eigen::Array2d tangent((ending - origin).matrix());
       Eigen::Vector2d direction(tangent[1], -tangent[0]);
       file << origin.transpose() << " " << direction.normalized().transpose()
            << std::endl;
+    }
+  }
+  file.close();
+}
+
+void printParticlesPerCell(Carbuncle::TangentParticles2 particles) {
+  std::ofstream file("matlab/particles.txt");
+  auto &normalPair = particles.getPairMap();
+  auto cells = particles.computeCellsWithParticles();
+  for (auto cell : cells) {
+    auto pVector = particles.getParticlesInCell(cell);
+    for (auto particleId : pVector) {
+      if (normalPair.find(particleId) == normalPair.end())
+        continue;
+      auto normal = normalPair[particleId];
+      if (particles.isActive(particleId) && particles.isActive(normal)) {
+        auto origin = particles.getParticlePosition(particleId);
+        auto ending = particles.getParticlePosition(normal);
+        Eigen::Array2d tangent((ending - origin).matrix());
+        Eigen::Vector2d direction(tangent[1], -tangent[0]);
+        file << origin.transpose() << " " << direction.normalized().transpose()
+             << std::endl;
+      }
     }
   }
   file.close();
@@ -197,15 +220,26 @@ void printLevelset(Leviathan::DualSquares squares) {
   file.close();
 }
 
-void resampleParticlesFromLevelset(Carbuncle::TangentParticles2 particles,
+void resampleParticlesFromLevelset(Carbuncle::TangentParticles2 &particles,
                                    Leviathan::DualSquares levelset) {
 
   // Check particle interpolated levelset
+  auto cellsWithParticles = particles.computeCellsWithParticles();
 
-  // For each particle, check if it is in a surface cell
-  // If surface cell chek which particles are key
+  for (auto cell : cellsWithParticles) {
+    int cellId = cell;
 
-  // Else if fully interior cell, remove the particles
+    if (!levelset.isSurfaceCell(cellId)) {
+      // If interior cell, remove all particles
+      auto allParticles = particles.getParticlesInCell(cell);
+      for (auto particleId : allParticles) {
+        particles.removeParticle(particleId);
+        particles.removeParticle(particles.getParticlePairId(particleId));
+      }
+    } else {
+      // Else if surface cell, check particles over segments
+    }
+  }
 }
 
 int main(int argc, char const *argv[]) {
@@ -216,7 +250,7 @@ int main(int argc, char const *argv[]) {
   Carbuncle::TangentParticles2 particles(cubes);
   Carbuncle::TangentParticles2 particles2(cubes);
 
-  Eigen::Array2d center = Eigen::Array2d(1.4, 0);
+  Eigen::Array2d center = Eigen::Array2d(1.45, 0);
   double radius = 1.20001;
 
   initializeCube(cubes, center, radius, ParametricSurface::SQUARE);
@@ -224,7 +258,7 @@ int main(int argc, char const *argv[]) {
   initializeGradientsAtIntersection(cubes, center, radius,
                                     ParametricSurface::SQUARE);
   cubes.setFolder("results/dualSquares/");
-  Ramuh::LineMesh squareMesh, squareMesh2;
+  Ramuh::LineMesh squareMesh, squareMesh2, finalMesh;
   createLineMesh(squareMesh, center, radius);
   createLineMesh(squareMesh2, -center, radius);
 
@@ -252,6 +286,7 @@ int main(int argc, char const *argv[]) {
 
     particles.advectParticles();
     particles2.advectParticles();
+
     squareMesh = particles.extractSurface(cubes);
     squareMesh2 = particles2.extractSurface(cubes);
     writeMesh(squareMesh, "results/dualSquares/particles/", i);
@@ -275,6 +310,17 @@ int main(int argc, char const *argv[]) {
     printLevelset(cubes);
     printParticles(particles);
     cubes.print();
+
+    Carbuncle::TangentParticles2 mergedParticles;
+    mergedParticles =
+        Carbuncle::TangentParticles2::mergeParticles(particles, particles2);
+    printParticles(mergedParticles);
+    printParticlesPerCell(mergedParticles);
+    resampleParticlesFromLevelset(mergedParticles, cubes);
+    printParticles(mergedParticles);
+    printParticlesPerCell(mergedParticles);
+    finalMesh = mergedParticles.extractSurface(cubes);
+    writeMesh(finalMesh, "results/dualSquares/finalMesh/", i);
   }
   // cubes.computeCellsGradient();
   // cubes.computeIntersectionAndNormals();

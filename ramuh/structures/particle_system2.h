@@ -65,8 +65,8 @@ public:
    *
    * @param pid either a single particle id, or a vector with id bundle
    */
-  void removeParticle(int pid);
-  void removeParticle(std::vector<int> pids);
+  virtual void removeParticle(int pid);
+  virtual void removeParticle(std::vector<int> pids);
 
   std::vector<int> searchParticles(Ramuh::BoundingBox2 region);
 

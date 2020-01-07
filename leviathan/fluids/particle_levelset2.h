@@ -61,7 +61,7 @@ public:
    * belong to that cell
    *
    */
-  void sortParticles();
+  std::map<int, std::vector<int>> sortParticles();
 
   /**
    * @brief Find all the cell ids that contains particles

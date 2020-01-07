@@ -71,6 +71,8 @@ public:
   std::vector<int> findSurfaceCells();
   std::vector<int> findSurfaceCells(double surfaceDistance);
 
+  bool isSurfaceCell(int cellId);
+
   std::vector<int> findCellNeighbors(int cellId, int distance = 1);
 
   std::vector<int> trackSurface();

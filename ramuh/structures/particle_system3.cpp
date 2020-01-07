@@ -10,7 +10,7 @@ ParticleSystem3::ParticleSystem3() : ParticleSystem3(BoundingBox3::unitBox()) {}
 ParticleSystem3::ParticleSystem3(BoundingBox3 domain) : _domain(domain) {
   _count = 0;
   _totalIds = 0;
-  _particlePositionsId = newParticleArrayLabel("positions");
+  _particlePositionsId = newParticleArrayLabel("particlePosition");
 
   std::srand(0);
 }

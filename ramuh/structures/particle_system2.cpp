@@ -13,7 +13,7 @@ ParticleSystem2::ParticleSystem2(BoundingBox2 domain, Eigen::Array2i gridSize)
     : _domain(domain), _gridSize(gridSize) {
   _count = 0;
   _totalIds = 0;
-  _particlePositionsId = newParticleArrayLabel("positions");
+  _particlePositionsId = newParticleArrayLabel("particlePosition");
 
   std::srand(0);
 }
