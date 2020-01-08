@@ -10,6 +10,7 @@
 #include "initialization.hpp"
 #include "tangent_particles2.hpp"
 #include "levelset_from_mesh.hpp"
+#include <Eigen/Geometry>
 
 void printParticles(Carbuncle::TangentParticles2 particles) {
   std::ofstream file("matlab/particles.txt");
@@ -238,19 +239,33 @@ void resampleParticlesFromLevelset(Carbuncle::TangentParticles2 &particles,
       }
     } else {
       // Else if surface cell, check particles over segments
+      // Main problem happens when particles form a corner
+
+      // Interpolate particle values
+
+      // Check if particles have different normal direction
     }
   }
 }
 
+void computeAnalyticSquare(Eigen::Array2d center, double radius,
+                           double degree) {
+  Eigen::Transform<double, 2, Eigen::Affine> t;
+  t = Eigen::Translation<double, 2>(-center);
+  t.rotate(-degree * M_PI / 180);
+  t.scale(1 / radius);
+  std::cerr << t.matrix() << std::endl;
+}
+
 int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
-      Eigen::Array2i(50, 50),
+      Eigen::Array2i(40, 40),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
   Leviathan::DualSquares cubes2(cubes);
   Carbuncle::TangentParticles2 particles(cubes);
   Carbuncle::TangentParticles2 particles2(cubes);
 
-  Eigen::Array2d center = Eigen::Array2d(1.45, 0);
+  Eigen::Array2d center = Eigen::Array2d(1.35, 0);
   double radius = 1.20001;
 
   initializeCube(cubes, center, radius, ParametricSurface::SQUARE);
@@ -261,6 +276,9 @@ int main(int argc, char const *argv[]) {
   Ramuh::LineMesh squareMesh, squareMesh2, finalMesh;
   createLineMesh(squareMesh, center, radius);
   createLineMesh(squareMesh2, -center, radius);
+
+  computeAnalyticSquare(center, radius, 30.0);
+  return 1;
 
   defineCellsVelocity(cubes);
 
@@ -280,6 +298,8 @@ int main(int argc, char const *argv[]) {
   writeMesh(squareMesh, "results/dualSquares/particles/", 0);
   cubes.extractSurface();
 
+  particles.setDt(0.01745507241); // To rotate 1 degree per timestep
+  particles2.setDt(0.01745507241);
   for (int i = 1; i <= 90; i++) {
     // particles.clearParticles();
     // particles.seedParticlesOverSurface(cubes, squareMesh);

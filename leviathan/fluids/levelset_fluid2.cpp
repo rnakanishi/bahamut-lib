@@ -33,6 +33,10 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
   _isSurfaceCell.resize(cellCount(), false);
 }
 
+void LevelSetFluid2::setDt(double dt){
+  _dt = dt;
+}
+
 void LevelSetFluid2::computeCellsGradient() {
   auto &phi = getCellScalarData("phi");
   auto &gradient = getCellArrayData("cellGradient");
@@ -652,8 +656,9 @@ void LevelSetFluid2::redistance() {
       if (!isInterface[id]) {
         newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
       } else {
-        newPhi = phi[id] - (dt / h[0]) * (cellSignal[id] * abs(phi[id]) -
-                                          interfaceFactor[id]);
+        newPhi =
+            phi[id] -
+            (dt / h[0]) * (cellSignal[id] * abs(phi[id]) - interfaceFactor[id]);
       }
       error += abs(phi[id] - newPhi);
       phi[id] = newPhi;
@@ -844,6 +849,20 @@ std::vector<int> LevelSetFluid2::findSurfaceCells(double surfaceDistance) {
 bool LevelSetFluid2::isSurfaceCell(int cellId) {
   auto &phi = getCellScalarData(_phiId);
   auto ij = idToij(cellId);
+
+  // 4 neighborhood
+  // std::vector<int> verifyCells;
+  // verifyCells.push_back(ijToid(ij[0] - 1, ij[1] + 0));
+  // verifyCells.push_back(ijToid(ij[0] + 1, ij[1] + 0));
+  // verifyCells.push_back(ijToid(ij[0] + 0, ij[1] - 1));
+  // verifyCells.push_back(ijToid(ij[0] + 0, ij[1] + 1));
+  // for (auto neighId : verifyCells) {
+  //   if (phi[cellId] * phi[neighId] < 0)
+  //     return true;
+  // }
+  // return false;
+
+  // 8 neighborhood
   for (int i = -1; i <= 1; i++) {
     for (int j = -1; j <= 1; j++) {
       if (phi[cellId] * phi[ijToid(ij[0] + i, ij[1] + j)] < 0)

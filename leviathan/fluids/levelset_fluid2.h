@@ -11,6 +11,8 @@ public:
 
   LevelSetFluid2(Eigen::Array2i gridSize, Ramuh::BoundingBox2 domain);
 
+  void setDt(double dt);
+
   /*
    * @brief Advect the values int the levelset using the grid velocity. An order
    *for the advection can be given. If no order is set, then semi Lagrangean

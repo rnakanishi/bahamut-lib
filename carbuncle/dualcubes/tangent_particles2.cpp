@@ -114,7 +114,7 @@ int TangentParticles2::seedParticlesOverSurface(
   auto &vertices = mesh.getVerticesList();
   Eigen::Vector2d tangent;
   auto h = levelset.getH();
-  int nTanPoints = 25;
+  int nTanPoints = 15;
 
   for (auto segment : segments) {
     // Get the origin point positions and find which cell it belongs
