@@ -226,6 +226,7 @@ void resampleParticlesFromLevelset(Carbuncle::TangentParticles2 &particles,
 
   // Check particle interpolated levelset
   auto cellsWithParticles = particles.computeCellsWithParticles();
+  auto phi = levelset.getCellScalarData("phi");
 
   for (auto cell : cellsWithParticles) {
     int cellId = cell;
@@ -240,26 +241,56 @@ void resampleParticlesFromLevelset(Carbuncle::TangentParticles2 &particles,
     } else {
       // Else if surface cell, check particles over segments
       // Main problem happens when particles form a corner
+      if (phi[cell] < 0) {
+        auto allParticles = particles.getParticlesInCell(cell);
+        auto particlePosition =
+            particles.getParticleArrayData("particlePosition");
+        auto h = levelset.getH();
 
-      // Interpolate particle values
-
+        // Interpolate particle values
+        for (auto particleId : allParticles) {
+          if (particles.isActive(particleId)) {
+            double particlePhi = levelset.interpolateCellScalarData(
+                "phi", particlePosition[particleId]);
+            if (particlePhi < -.98 * h[0])
+              particles.removeParticle(particleId);
+          }
+        }
+      }
       // Check if particles have different normal direction
     }
   }
 }
-
-void computeAnalyticSquare(Eigen::Array2d center, double radius,
-                           double degree) {
+void removeParticlesFromSquare(Carbuncle::TangentParticles2 &particles,
+                               Eigen::Array2d center, double radius,
+                               double degree) {
   Eigen::Transform<double, 2, Eigen::Affine> t;
-  t = Eigen::Translation<double, 2>(-center);
-  t.rotate(-degree * M_PI / 180);
-  t.scale(1 / radius);
+  t.setIdentity();
+  t.translate(center.matrix());
+  t.rotate(degree * M_PI / 180);
+  t.scale(radius);
   std::cerr << t.matrix() << std::endl;
+
+  auto &positions = particles.getParticleArrayData("particlePosition");
+  auto &tanMap = particles.getPairMap();
+
+  for (int pid = 0; pid < positions.size(); pid++) {
+    auto position = positions[pid];
+    Eigen::Vector2d newPos = t.inverse() * position.matrix();
+    if (newPos.cwiseAbs()[0] < 1 && newPos.cwiseAbs()[1] < 1) {
+      // Inner particle: remove
+      particles.removeParticle(pid);
+      particles.removeParticle(tanMap[pid]);
+    }
+  }
 }
+
+void copyParticles(Carbuncle::TangentParticles2 &from,
+                   Carbuncle::TangentParticles2 &to) {}
 
 int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
-      Eigen::Array2i(40, 40),
+      Eigen::Array2i(65, 65),
       Ramuh::BoundingBox2(Eigen::Array2d(-5, -5), Eigen::Array2d(5, 5)));
   Leviathan::DualSquares cubes2(cubes);
   Carbuncle::TangentParticles2 particles(cubes);
@@ -276,9 +307,6 @@ int main(int argc, char const *argv[]) {
   Ramuh::LineMesh squareMesh, squareMesh2, finalMesh;
   createLineMesh(squareMesh, center, radius);
   createLineMesh(squareMesh2, -center, radius);
-
-  computeAnalyticSquare(center, radius, 30.0);
-  return 1;
 
   defineCellsVelocity(cubes);
 
@@ -331,16 +359,30 @@ int main(int argc, char const *argv[]) {
     printParticles(particles);
     cubes.print();
 
-    Carbuncle::TangentParticles2 mergedParticles;
-    mergedParticles =
-        Carbuncle::TangentParticles2::mergeParticles(particles, particles2);
-    printParticles(mergedParticles);
-    printParticlesPerCell(mergedParticles);
-    resampleParticlesFromLevelset(mergedParticles, cubes);
-    printParticles(mergedParticles);
-    printParticlesPerCell(mergedParticles);
-    finalMesh = mergedParticles.extractSurface(cubes);
-    writeMesh(finalMesh, "results/dualSquares/finalMesh/", i);
+    if (false) {
+      Carbuncle::TangentParticles2 mergedParticles;
+      mergedParticles =
+          Carbuncle::TangentParticles2::mergeParticles(particles, particles2);
+      removeParticlesFromSquare(mergedParticles, center, 0.99 * radius, i);
+      removeParticlesFromSquare(mergedParticles, -center, 0.99 * radius, i);
+
+      // resampleParticlesFromLevelset(mergedParticles, cubes);
+
+      printParticles(mergedParticles);
+      printParticlesPerCell(mergedParticles);
+      finalMesh = mergedParticles.extractSurface(cubes);
+      writeMesh(finalMesh, "results/dualSquares/analyticRemoval/", i);
+    }
+    {
+      Carbuncle::TangentParticles2 mergedParticles;
+      mergedParticles =
+          Carbuncle::TangentParticles2::mergeParticles(particles, particles2);
+
+      resampleParticlesFromLevelset(mergedParticles, cubes);
+      printParticles(mergedParticles);
+      finalMesh = mergedParticles.extractSurface(cubes);
+      writeMesh(finalMesh, "results/dualSquares/finalMesh/", i);
+    }
   }
   // cubes.computeCellsGradient();
   // cubes.computeIntersectionAndNormals();
