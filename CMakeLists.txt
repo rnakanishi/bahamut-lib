@@ -11,7 +11,6 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/glad" "external/glad")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/pugixml" "external/pugixml")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/tinyobjloader" 
 "external/tinyobjloader")
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/nanogui" "external/nanogui")
 set(GLAD_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include")
 
 find_package(OpenMP)
