@@ -172,6 +172,7 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
             if (mesh.getNumberOfConnections(_idMap[neighCell]) <= 1) {
               connected = true;
               // Simple case: both need to be connected
+              // if (checkNormalDirection(vertexId, _idMap[neighCell]))
               if (checkOrientation(mesh, vertexId, _idMap[neighCell]))
                 mesh.connectVertices(vertexId, _idMap[neighCell]);
               else
@@ -190,6 +191,7 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
           int neighId = _idMap[cellNeigh];
           if (mesh.hasConnection(vertexId, neighId) < 0) {
             tripleConn.push(cellNeigh);
+            // if (checkNormalDirection(vertexId, neighId))
             if (checkOrientation(mesh, vertexId, neighId))
               mesh.connectVertices(vertexId, neighId);
             else
@@ -211,12 +213,14 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
         if (segment != segmentId) {
           auto vertices = mesh.getSegmentVertices(segment);
           if (vertices[0] != neighbor[0]) {
+            // if (checkNormalDirection(vertices[0], vertexId))
             if (checkOrientation(mesh, vertices[0], vertexId))
               mesh.connectVertices(vertices[0], vertexId);
             else
               mesh.connectVertices(vertexId, vertices[0]);
             mesh.disconnectVertices(neighbor[0], vertices[0]);
           } else {
+            // if (checkNormalDirection(vertices[0], vertexId))
             if (checkOrientation(mesh, vertices[1], vertexId))
               mesh.connectVertices(vertices[1], vertexId);
             else
@@ -436,8 +440,17 @@ bool DualMarching2::checkOrientation(LineMesh mesh, int vertex, int target) {
   return false;
 }
 
-void DualMarching2::_createSimpleConnections(LineMesh &mesh) {
+bool DualMarching2::checkNormalDirection(int vert1Id, int vert2Id) {
+  Eigen::Vector2d normal1, normal2;
+  normal1 = _normals[vert1Id];
+  normal2 = _normals[vert2Id];
 
+  if (normal1.dot(normal2) < 0)
+    return false;
+  return true;
+}
+
+void DualMarching2::_createSimpleConnections(LineMesh &mesh) {
   mesh.addVertices(_points);
 
   // for all cells, evaluate 4-neighborhood and connect with all cells that
@@ -465,11 +478,13 @@ void DualMarching2::_createSimpleConnections(LineMesh &mesh) {
       neighsToConnect.emplace_back(convertKey(ij[0], ij[1] + 1));
     }
     for (auto neighId : neighsToConnect) {
-      // Check face normal orientation
-      if (checkOrientation(mesh, _idMap[cellId], _idMap[neighId]))
-        mesh.connectVertices(_idMap[cellId], _idMap[neighId]);
-      else
-        mesh.connectVertices(_idMap[neighId], _idMap[cellId]);
+      // check if the vertices are not pointing against each other
+      if (checkNormalDirection(_idMap[cellId], _idMap[neighId]))
+        // Check face normal orientation
+        if (checkOrientation(mesh, _idMap[cellId], _idMap[neighId]))
+          mesh.connectVertices(_idMap[cellId], _idMap[neighId]);
+        else
+          mesh.connectVertices(_idMap[neighId], _idMap[cellId]);
     }
   }
 }
@@ -481,7 +496,6 @@ void DualMarching2::resetCounter() { count = 0; }
 void DualMarching2::resetCounter(int value) { count = value; }
 
 void DualMarching2::_writeMesh(LineMesh &mesh) {
-
   std::ofstream file;
   std::stringstream filename;
   filename << _baseFolder << std::setfill('0') << std::setw(4) << count++
