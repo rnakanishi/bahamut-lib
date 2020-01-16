@@ -58,7 +58,7 @@ public:
   void resetCounter();
   void resetCounter(int value);
 
-  bool checkOrientation(LineMesh mesh, int cellId, int neighId);
+  bool checkOrientation(LineMesh &mesh, int cellId, int neighId);
 
   bool checkNormalDirection(int cellId, int neighId);
 
@@ -77,10 +77,12 @@ private:
   std::map<int, int> _idMap;
   std::vector<Eigen::Array2d> _points;
   std::vector<Eigen::Vector2d> _normals;
+  std::map<int, Eigen::Vector2d> _doubleNormals;
   std::map<int, std::vector<int>> _connections;
   Eigen::Array2i _resolution;
   std::string _baseFolder;
   int count;
+  LineMesh _mesh;
 };
 
 /*************************************************************************

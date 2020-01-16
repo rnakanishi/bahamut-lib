@@ -1,28 +1,49 @@
 #include <structures/line_mesh.hpp>
+#include <utils/log.hpp>
+#include <string>
 
 namespace Ramuh {
 LineMesh::LineMesh() {}
 
 int LineMesh::addVertex(Eigen::Array2d position) {
+  return addVertex(position, Eigen::Vector2d(0.0, 0.0));
+}
+
+int LineMesh::addVertex(Eigen::Array2d position, Eigen::Vector2d normal) {
   int vId;
   if (_vertexIdQueue.empty()) {
     vId = _verticesPosition.size();
-    _verticesPosition.emplace_back(0., 0.);
+    _verticesPosition.emplace_back(0.);
+    _verticesNormals.emplace_back(0., 0.);
     _activeVertices.emplace_back(true);
+    _isCorner.emplace_back(false);
   } else {
     vId = _vertexIdQueue.front();
     _vertexIdQueue.pop();
   }
   _activeVertices[vId] = true;
   _verticesPosition[vId] = position;
+  _verticesNormals[vId] = normal;
   _vertSegments[vId] = std::vector<int>();
   return vId;
 }
 
 std::vector<int> LineMesh::addVertices(std::vector<Eigen::Array2d> positions) {
+  std::vector<Eigen::Vector2d> normals(positions.size(),
+                                       Eigen::Vector2d(0., 0.));
+  return addVertices(positions, normals);
+}
+
+std::vector<int> LineMesh::addVertices(std::vector<Eigen::Array2d> positions,
+                                       std::vector<Eigen::Vector2d> normals) {
+  if (positions.size() != normals.size()) {
+    Log::raiseError(
+        "LineMesh::AddVertices: Vertices count doesnt match normal count");
+    return std::vector<int>(positions.size(), -1);
+  }
   std::vector<int> indices;
-  for (auto position : positions) {
-    indices.emplace_back(addVertex(position));
+  for (int i = 0; i < positions.size(); i++) {
+    indices.emplace_back(addVertex(positions[i], normals[i]));
   }
   return indices;
 }
@@ -157,6 +178,8 @@ bool LineMesh::isSegmentActive(int segId) { return _activeSegment[segId]; }
 bool LineMesh::isVertexActive(int vertexId) {
   return _activeVertices[vertexId];
 }
+
+bool LineMesh::isCorner(int vertexId) { return _isCorner[vertexId]; }
 
 Eigen::Vector2d LineMesh::getSegmentNormal(int segId) {
   auto vertices = getSegmentVertices(segId);

@@ -21,7 +21,22 @@ public:
    * @return return the indices of added vertices
    */
   int addVertex(Eigen::Array2d position);
+  int addVertex(Eigen::Array2d position, Eigen::Vector2d normal);
   std::vector<int> addVertices(std::vector<Eigen::Array2d> positions);
+  std::vector<int> addVertices(std::vector<Eigen::Array2d> positions,
+                               std::vector<Eigen::Vector2d> normals);
+
+  /**
+   * @brief adds a second normal to designated vertex
+   *
+   * @param vertexId vertex to add a second normal
+   * @param normal itself to be added
+   *
+   * Double normals are important for corner vertices, as they represent
+   * singularities. Having the second normal direction helps connecting vertices
+   * later and also computing corners accurately
+   */
+  void addDoubleNormal(int vertexId, Eigen::Vector2d normal);
 
   /**
    * @brief Add two vertices: one at @origin and the other at @ending position.
@@ -153,12 +168,16 @@ public:
 
   bool isVertexActive(int vertexId);
 
+  bool isCorner(int vertexId);
+
   Eigen::Vector2d getSegmentNormal(int segId);
 
 protected:
   std::vector<Eigen::Array2d> _verticesPosition;
+  std::vector<Eigen::Vector2d> _verticesNormals;
+  std::map<int, Eigen::Vector2d> _doubleNormal;
   std::vector<Eigen::Array2i> _segments; // Pair of connected vertices
-  std::vector<bool> _activeSegment, _activeVertices;
+  std::vector<bool> _activeSegment, _activeVertices, _isCorner;
   std::queue<int> _segmentIdQueue, _vertexIdQueue;
 
   std::map<int, std::vector<int>>

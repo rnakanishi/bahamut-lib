@@ -79,6 +79,7 @@ Eigen::Array2d DualMarching2::evaluateSquare(
     }
     // posAvg = cubeLimits.center();
     posAvg /= validNormals;
+    // TODO: check if normals make a corner
     normalAvg /= validNormals;
 
     // QR minimization
@@ -283,6 +284,7 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
   }
 
   // _writeMesh(mesh);
+  _mesh = mesh;
   return mesh;
 } // namespace Ramuh
 
@@ -428,7 +430,7 @@ void DualMarching2::merge(DualMarching2 square) {
   _idMap.insert(map.begin(), map.end());
 }
 
-bool DualMarching2::checkOrientation(LineMesh mesh, int vertex, int target) {
+bool DualMarching2::checkOrientation(LineMesh &mesh, int vertex, int target) {
   Eigen::Array2d origin, ending;
   origin = mesh.getVertexPosition(vertex);
   ending = mesh.getVertexPosition(target);
@@ -451,7 +453,8 @@ bool DualMarching2::checkNormalDirection(int vert1Id, int vert2Id) {
 }
 
 void DualMarching2::_createSimpleConnections(LineMesh &mesh) {
-  mesh.addVertices(_points);
+
+  mesh.addVertices(_points, _normals);
 
   // for all cells, evaluate 4-neighborhood and connect with all cells that
   // have a vertex
