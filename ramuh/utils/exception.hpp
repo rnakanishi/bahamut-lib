@@ -7,6 +7,8 @@ namespace Ramuh {
 
 class Exception : public std::exception {
 public:
+  enum class ExceptionType { SIZE_COUNT_NOT_MATCH, INDEX_NOT_FOUND };
+
   Exception(const std::string &msg);
 
   virtual const char *what() const noexcept override;
