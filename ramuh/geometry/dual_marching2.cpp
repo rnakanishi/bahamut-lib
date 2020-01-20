@@ -155,6 +155,9 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
     int cell = simpleConn.front();
     simpleConn.pop();
     int vertexId = _idMap[cell];
+    if (mesh.getNumberOfConnections(vertexId) == 2)
+      continue;
+
     auto neighbors = mesh.getAdjacentVertices(vertexId);
     int neighborId = -1;
     // First try to find the other vertex that is also missing a connection
@@ -173,7 +176,6 @@ Ramuh::LineMesh DualMarching2::reconstruct() {
             if (mesh.getNumberOfConnections(_idMap[neighCell]) <= 1) {
               connected = true;
               // Simple case: both need to be connected
-              // if (checkNormalDirection(vertexId, _idMap[neighCell]))
               if (checkOrientation(mesh, vertexId, _idMap[neighCell]))
                 mesh.connectVertices(vertexId, _idMap[neighCell]);
               else

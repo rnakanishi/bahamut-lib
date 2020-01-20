@@ -34,7 +34,10 @@ public:
 
   void advectParticles() override;
 
-  Ramuh::LineMesh extractSurface(Leviathan::LevelSetFluid2 &levelset);
+  void advectParticles(std::function<void(void)> defineParticlesVelocity);
+
+  Ramuh::LineMesh extractSurface(Leviathan::LevelSetFluid2 &levelset,
+                                 bool onlyConnections = false);
 
   static TangentParticles2 mergeParticles(TangentParticles2 p1,
                                           TangentParticles2 p2);

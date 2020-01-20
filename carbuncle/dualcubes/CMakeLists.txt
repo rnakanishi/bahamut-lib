@@ -11,5 +11,8 @@ target_link_libraries(normalParticle2 Ramuh Leviathan)
 add_executable(tangentParticle2 main_tangentParticles.cpp dual_cubes2.cpp tangent_particles2.cpp )
 target_link_libraries(tangentParticle2 Ramuh Leviathan)
 
+add_executable(fusingParticle2 main_fuseParticles.cpp dual_cubes2.cpp tangent_particles2.cpp )
+target_link_libraries(fusingParticle2 Ramuh Leviathan)
+
 add_executable(extractSurface extract.cpp dual_cubes3.cpp)
 target_link_libraries(extractSurface Ramuh Leviathan pugixml)

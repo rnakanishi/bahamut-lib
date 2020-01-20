@@ -62,6 +62,8 @@ public:
 
   bool checkNormalDirection(int cellId, int neighId);
 
+  void _createSimpleConnections(LineMesh &mesh);
+
 protected:
   bool _consistentNormals(std::vector<int> ids);
 
@@ -69,7 +71,7 @@ protected:
 
   void _buildConnectionMap(std::vector<std::pair<int, int>> connections);
 
-  void _createSimpleConnections(LineMesh &mesh);
+  // void _createSimpleConnections(LineMesh &mesh);
 
   void _writeMesh(LineMesh &mesh);
 

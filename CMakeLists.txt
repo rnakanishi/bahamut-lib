@@ -25,7 +25,7 @@ set(EIGEN3_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/eigen3)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 add_subdirectory(ramuh) # Geometric structures lib
-add_subdirectory(garuda) # GUI and interface
+# add_subdirectory(garuda) # GUI and interface
 add_subdirectory(leviathan) # Incompressible fluid simulation
 add_subdirectory(carbuncle) # Incompressible fluid simulation
 add_subdirectory(app)
