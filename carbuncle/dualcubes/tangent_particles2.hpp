@@ -18,6 +18,9 @@ public:
   int seedParticlesOverSurface(Leviathan::LevelSetFluid2 levelset,
                                Ramuh::LineMesh mesh);
 
+  int seedParticleOverSegment(Eigen::Array2d origin, Eigen::Array2d ending,
+                              double cellH, int n = 20);
+
   void removeParticle(int pid) override;
 
   std::map<int, int> &getPairMap();

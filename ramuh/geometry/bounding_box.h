@@ -127,6 +127,8 @@ public:
 
   bool contains(BoundingBox2 box);
 
+  Eigen::Array2d findIntersection(Eigen::Array2d p1, Eigen::Array2d p2);
+
 private:
   Eigen::Array2d _min, _max;
 };

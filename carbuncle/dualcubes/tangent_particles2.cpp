@@ -107,6 +107,30 @@ int TangentParticles2::seedParticlesOverSurface(
   return surfaceCells.size() * particlesPerCell * 2;
 }
 
+int TangentParticles2::seedParticleOverSegment(Eigen::Array2d origin,
+                                               Eigen::Array2d ending,
+                                               double cellH, int maxPoints) {
+  Eigen::Vector2d tangent;
+  double twoSqr = 1.41421356237;
+
+  // Generate a certain quantity of point along the cell segment
+  Eigen::Array2d newPoint, tangentTarget;
+  tangent = (ending - origin).matrix();
+  Eigen::Array2d samplOrigin = origin + tangent.array() * 0.001;
+  Eigen::Array2d samplEnding = ending - tangent.array() * 0.001;
+  Eigen::Vector2d segTangent = (samplEnding - samplOrigin).matrix();
+  int nTanPoints = segTangent.norm() * maxPoints / (cellH * twoSqr);
+  for (int samplI = 0; samplI <= nTanPoints; samplI++) {
+    newPoint =
+        samplOrigin + segTangent.array() * (1.0 - (double)samplI / nTanPoints);
+    tangentTarget = newPoint + (segTangent.array() * 0.001);
+    int pid = insertParticle(newPoint);
+    int tid = insertParticle(tangentTarget);
+    tangentPair[pid] = tid;
+  }
+  return nTanPoints;
+}
+
 int TangentParticles2::seedParticlesOverSurface(
     Leviathan::LevelSetFluid2 levelset, Ramuh::LineMesh mesh) {
   // For all segments
@@ -114,8 +138,8 @@ int TangentParticles2::seedParticlesOverSurface(
   auto &vertices = mesh.getVerticesList();
   Eigen::Vector2d tangent;
   auto h = levelset.getH();
+  int maxPoints = 20;
   double twoSqr = 1.41421356237;
-  int maxPoints = 30; // max points per segment
 
   for (auto segment : segments) {
     // Get the origin point positions and find which cell it belongs
@@ -170,20 +194,7 @@ int TangentParticles2::seedParticlesOverSurface(
       }
 
       // Generate a certain quantity of point along the cell segment
-      Eigen::Array2d newPoint, tangentTarget;
-      tangent = (newEnding - newOrigin).matrix();
-      Eigen::Array2d samplOrigin = newOrigin + tangent.array() * 0.001;
-      Eigen::Array2d samplEnding = newEnding - tangent.array() * 0.001;
-      Eigen::Vector2d segTangent = (samplEnding - samplOrigin).matrix();
-      int nTanPoints = segTangent.norm() * maxPoints / (h[0] * twoSqr);
-      for (int samplI = 0; samplI <= nTanPoints; samplI++) {
-        newPoint = samplOrigin +
-                   segTangent.array() * (1.0 - (double)samplI / nTanPoints);
-        tangentTarget = newPoint + (segTangent.array() * 0.001);
-        int pid = insertParticle(newPoint);
-        int tid = insertParticle(tangentTarget);
-        tangentPair[pid] = tid;
-      }
+      seedParticleOverSegment(newOrigin, newEnding, h[0]);
 
       newOrigin = newEnding;
     }
@@ -267,20 +278,23 @@ void TangentParticles2::advectParticles(
 
   std::vector<Eigen::Array2d> lastPosition(position.size());
   for (size_t i = 0; i < position.size(); i++) {
-    lastPosition[i] = position[i];
+    if (_active[i])
+      lastPosition[i] = position[i];
   }
   advectEuler();
   defineVelocity();
   advectEuler();
 #pragma omp parallel for
   for (size_t i = 0; i < position.size(); i++) {
-    position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
+    if (_active[i])
+      position[i] = 0.75 * lastPosition[i] + 0.25 * position[i];
   }
   defineVelocity();
   advectEuler();
 #pragma omp parallel for
   for (size_t i = 0; i < position.size(); i++) {
-    position[i] = lastPosition[i] / 3 + 2 * position[i] / 3;
+    if (_active[i])
+      position[i] = lastPosition[i] / 3 + 2 * position[i] / 3;
   }
 }
 
@@ -387,6 +401,7 @@ TangentParticles2::extractSurface(Leviathan::LevelSetFluid2 &levelset,
   }
   if (!onlyConnections)
     return surface.reconstruct();
+
   Ramuh::LineMesh mesh;
   surface._createSimpleConnections(mesh);
   return mesh;

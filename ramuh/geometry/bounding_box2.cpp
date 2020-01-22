@@ -1,4 +1,5 @@
 #include <geometry/bounding_box.h>
+#include <utils/log.hpp>
 
 namespace Ramuh {
 
@@ -50,6 +51,46 @@ bool BoundingBox2::contains(BoundingBox2 box) {
 
 BoundingBox2 BoundingBox2::unitBox() {
   return BoundingBox2(Eigen::Array2d(0, 0), Eigen::Array2d(1, 1));
+}
+
+Eigen::Array2d BoundingBox2::findIntersection(Eigen::Array2d p1,
+                                              Eigen::Array2d p2) {
+  if (!contains(p1) && !contains(p2)) {
+    Ramuh::Log::raiseError(
+        "BoundingBox2::findIntersection: segment does not intersect bbox.");
+    return Eigen::Array2d(0, 0);
+  }
+  Eigen::Array2d origin, ending;
+  origin = ending = p1;
+  if (contains(p1)) {
+    origin = p2;
+  } else {
+    ending = p2;
+  }
+  double angle = (p2[1] - p1[1]) / (p2[0] - p1[0]);
+  Eigen::Vector2d direction;
+  direction = (p2 - p1).matrix().normalized();
+  Eigen::Array2d newOrigin = origin;
+
+  // for each edge, check intersection. If true, project to that edge
+  // bottom/top
+  if (ending[1] < _min[1]) {
+    ending[1] = _min[1];
+    ending[0] = (ending[1] - newOrigin[1]) / angle + origin[0];
+  } else if (ending[1] > _max[1]) {
+    ending[1] = _max[1];
+    ending[0] = (ending[1] - newOrigin[1]) / angle + origin[0];
+  }
+  // left/right
+  if (ending[0] < _min[0]) {
+    ending[0] = _min[0];
+    ending[1] = angle * (ending[0] - newOrigin[0]) + newOrigin[1];
+  } else if (ending[0] > _max[0]) {
+    ending[0] = _max[0];
+    ending[1] = angle * (ending[0] - newOrigin[0]) + newOrigin[1];
+  }
+
+  return ending;
 }
 
 } // namespace Ramuh

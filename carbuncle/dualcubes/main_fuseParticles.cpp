@@ -221,6 +221,93 @@ void printLevelset(Leviathan::DualSquares squares) {
   file.close();
 }
 
+std::map<int, std::vector<int>>
+findCellSegments(Leviathan::DualSquares &levelset, Ramuh::LineMesh &mesh) {
+  auto segments = mesh.getSegmentsList();
+  std::map<int, std::vector<int>> cellSegments;
+  for (size_t segId = 0; segId < mesh.getSegmentsCount(); segId++) {
+    auto vertices = segments[segId];
+    auto vPos = mesh.getVertexPosition(vertices[0]);
+    int cellId = levelset.findCellIdByCoordinate(vPos);
+    // check if segments are added corretly
+    cellSegments[cellId].emplace_back(segId);
+  }
+  return cellSegments;
+}
+
+void resampleParticlesFromGeometry(Carbuncle::TangentParticles2 &particles,
+                                   Leviathan::DualSquares &levelset,
+                                   Ramuh::LineMesh &mesh) {
+  // Check particle interpolated levelset
+  auto cellsWithParticles = particles.computeCellsWithParticles();
+  auto phi = levelset.getCellScalarData("phi");
+  auto cellSegments = findCellSegments(levelset, mesh);
+  std::vector<int> cellsToAddParticles;
+
+  for (auto cell : cellsWithParticles) {
+    int cellId = cell;
+
+    if (!levelset.isSurfaceCell(cellId)) {
+      // If interior cell, remove all particles
+      auto allParticles = particles.getParticlesInCell(cell);
+      for (auto particleId : allParticles) {
+        particles.removeParticle(particleId);
+        particles.removeParticle(particles.getParticlePairId(particleId));
+      }
+    } else {
+      // Else if surface cell, check particles over segments
+      // Main problem happens when particles form a corner
+
+      // reseed particles over the segment intersection
+      auto particlesInCell = particles.getParticlesInCell(cell);
+      if (particlesInCell.size() < 10) {
+        // Reseed particles
+        for (auto pId : particlesInCell) {
+          particles.removeParticle(pId);
+        }
+        auto segments = cellSegments[cell];
+        auto bbox = levelset.getCellBoundingBox(cell);
+
+        for (auto segment : segments) {
+          auto vertices = mesh.getSegmentVertices(segment);
+          auto intersec =
+              bbox.findIntersection(mesh.getVertexPosition(vertices[0]),
+                                    mesh.getVertexPosition(vertices[1]));
+          Eigen::Array2d inside = mesh.getVertexPosition(vertices[0]);
+          if (!bbox.contains(inside))
+            inside = mesh.getVertexPosition(vertices[1]);
+          particles.seedParticleOverSegment(inside, intersec,
+                                            levelset.getH()[0]);
+        }
+      }
+      // Measure the segment length
+
+      if (phi[cell] < 0) {
+        auto allParticles = particles.getParticlesInCell(cell);
+        auto particlePosition =
+            particles.getParticleArrayData("particlePosition");
+        auto h = levelset.getH();
+
+        // Interpolate particle values
+        for (auto particleId : allParticles) {
+          if (particles.isActive(particleId)) {
+            double particlePhi = levelset.interpolateCellScalarData(
+                "phi", particlePosition[particleId]);
+            if (particlePhi < -.5 * h[0])
+              // std::cerr << "remove";
+              particles.removeParticle(particleId);
+          }
+        }
+      }
+
+      // count the number of particles and compute the ratio of particles per
+      // cell per segment Iff the count is below a threshold, remove all
+      // partices and refill the cell using the semgmebt informations
+      // Careful with corner segments
+    }
+  }
+}
+
 void resampleParticlesFromLevelset(Carbuncle::TangentParticles2 &particles,
                                    Leviathan::DualSquares levelset) {
 
@@ -252,12 +339,12 @@ void resampleParticlesFromLevelset(Carbuncle::TangentParticles2 &particles,
           if (particles.isActive(particleId)) {
             double particlePhi = levelset.interpolateCellScalarData(
                 "phi", particlePosition[particleId]);
-            if (particlePhi < -.99 * h[0])
+            if (particlePhi < -.15 * h[0])
+              // std::cerr << "remove";
               particles.removeParticle(particleId);
           }
         }
       }
-      // Check if particles have different normal direction
     }
   }
 }
@@ -334,10 +421,14 @@ int main(int argc, char const *argv[]) {
 
   mergedParticles =
       Carbuncle::TangentParticles2::mergeParticles(particles, particles2);
+  extractLevelsetFromMesh(cubes, squareMesh);
+  extractLevelsetFromMesh(cubes2, squareMesh2);
+  cubes.merge(cubes2);
+  finalMesh = mergedParticles.extractSurface(cubes);
+
   for (int i = 1; i <= 90; i++) {
     // particles.clearParticles();
     // particles.seedParticlesOverSurface(cubes, squareMesh);
-
     particles.advectParticles();
     particles2.advectParticles();
 
@@ -353,7 +444,6 @@ int main(int argc, char const *argv[]) {
     cubes.computeIntersectionAndNormals();
     cubes.extractSurface();
     printLevelset(cubes);
-    printParticles(mergedParticles);
     cubes.print();
 
     if (false) {
@@ -376,8 +466,12 @@ int main(int argc, char const *argv[]) {
             mergedParticles.getParticleArrayData("particleVelocity");
         auto &particleSide =
             mergedParticles.getParticleScalarData("particleSide");
-        for (size_t pid = 0; pid < mergedParticles.particleCount(); pid++) {
-          auto p = mergedParticles.getParticlePosition(pid);
+        auto &position =
+            mergedParticles.getParticleArrayData("particlePosition");
+        for (size_t pid = 0; pid < position.size(); pid++) {
+          if (!mergedParticles.isActive(pid))
+            continue;
+          auto p = position[pid];
           if (particleSide[pid] == 0) {
             p -= center;
           } else {
@@ -388,6 +482,7 @@ int main(int argc, char const *argv[]) {
       });
 
       resampleParticlesFromLevelset(mergedParticles, cubes);
+      resampleParticlesFromGeometry(mergedParticles, cubes, finalMesh);
       printParticles(mergedParticles);
       finalMesh = mergedParticles.extractSurface(cubes);
       writeMesh(finalMesh, "results/dualSquares/fuseParticles/", i);
