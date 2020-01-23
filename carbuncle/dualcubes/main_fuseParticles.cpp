@@ -373,9 +373,6 @@ void removeParticlesFromSquare(Carbuncle::TangentParticles2 &particles,
   }
 }
 
-void copyParticles(Carbuncle::TangentParticles2 &from,
-                   Carbuncle::TangentParticles2 &to) {}
-
 int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes(
       Eigen::Array2i(65, 65),
@@ -383,7 +380,7 @@ int main(int argc, char const *argv[]) {
   Leviathan::DualSquares cubes2(cubes);
   Carbuncle::TangentParticles2 particles(cubes);
   Carbuncle::TangentParticles2 particles2(cubes);
-
+  std::vector<int> segmentParticles;
   Eigen::Array2d center = Eigen::Array2d(1.35, 0);
   double radius = 1.20001;
 

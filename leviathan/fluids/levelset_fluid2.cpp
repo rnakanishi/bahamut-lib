@@ -33,9 +33,7 @@ LevelSetFluid2::LevelSetFluid2(Eigen::Array2i gridSize,
   _isSurfaceCell.resize(cellCount(), false);
 }
 
-void LevelSetFluid2::setDt(double dt){
-  _dt = dt;
-}
+void LevelSetFluid2::setDt(double dt) { _dt = dt; }
 
 void LevelSetFluid2::computeCellsGradient() {
   auto &phi = getCellScalarData("phi");
@@ -656,9 +654,8 @@ void LevelSetFluid2::redistance() {
       if (!isInterface[id]) {
         newPhi = phi[id] - dt * cellSignal[id] * gradient[id];
       } else {
-        newPhi =
-            phi[id] -
-            (dt / h[0]) * (cellSignal[id] * abs(phi[id]) - interfaceFactor[id]);
+        newPhi = phi[id] - (dt / h[0]) * (cellSignal[id] * abs(phi[id]) -
+                                          interfaceFactor[id]);
       }
       error += abs(phi[id] - newPhi);
       phi[id] = newPhi;
