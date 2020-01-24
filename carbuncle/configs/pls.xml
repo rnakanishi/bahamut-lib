@@ -6,14 +6,32 @@
 		<domain>0 1</domain>
 		<dt>0.0166666666667</dt>
 		<cfl>0.25</cfl>
+		<extrapolateGrads>1</extrapolateGrads>
 	</parameters>
-	<baseFolder>results/particles/3d/enright/cip128/</baseFolder>
-	<meshFolder>results/particles/3d/enright/cip128/mesh/</meshFolder>
+	<baseFolder>results/particles/3d/enright/ciptest2/</baseFolder>
+	<meshFolder>results/particles/3d/enright/ciptest2/mesh/</meshFolder>
 	<logfile>cip_log.csv</logfile>
 	<statisticsFile>stats.cip.csv</statisticsFile>
-</simulation>  <simulation>
+</simulation>  
 
+<!-- <simulation>
 	<parameters>
+		<type>cip_advection</type>
+		<gridSize>128</gridSize>
+		<frames>180</frames>
+		<domain>0 1</domain>
+		<dt>0.0166666666667</dt>
+		<cfl>0.25</cfl>
+		<extrapolateGrads>0</extrapolateGrads>
+	</parameters>
+	<baseFolder>results/particles/3d/enright/ciptest/</baseFolder>
+	<meshFolder>results/particles/3d/enright/ciptest/mesh/</meshFolder>
+	<logfile>cip_log.csv</logfile>
+	<statisticsFile>stats.cip.csv</statisticsFile>
+</simulation>   -->
+
+<!-- <simulation>
+ <parameters>
 		<type>weno_advection</type>
 		<gridSize>128</gridSize>
 		<frames>180</frames>
@@ -53,4 +71,4 @@
 	<statisticsFile>stats.pls.csv</statisticsFile>
 	<baseFolder>results/particles/3d/enright/pls128/</baseFolder>
 	<meshFolder>results/particles/3d/enright/pls128/mesh/</meshFolder>
-</simulation>
+</simulation> -->

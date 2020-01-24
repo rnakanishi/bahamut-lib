@@ -9,9 +9,10 @@
 #include <shader/material.hpp>
 #include <shader/texture.hpp>
 #include <structures/triangle_mesh.h>
+#include <graphics/scene_object.hpp>
 
 namespace Garuda {
-class MeshObject : public Ramuh::TriangleMesh {
+class MeshObject : public SceneObject, public Ramuh::TriangleMesh {
 public:
   MeshObject();
 
@@ -19,13 +20,13 @@ public:
    * @brief Creates vbo, vao and ebo buffers.
    *
    **/
-  void initialize();
+  void initialize() override;
 
   /**
    * @brief Bind corresponding buffers for rendering
    *
    **/
-  virtual void draw(Shader shader);
+  virtual void draw(Shader shader) override;
 
   /**
    * @brief Load an obj mesh and assemble buffers created before.
@@ -69,14 +70,11 @@ protected:
    **/
   void _readObj(const char *objPath);
   // TODO: change vbo to accept any size
-  unsigned int _vbo[3], _vao, _ebo, _tex;
   std::vector<glm::vec3> _vertexColor;
   std::vector<glm::vec2> _vertexTexture;
 
   Texture _textureImage;
   Material _material;
-  std::vector<glm::mat4> _modelMatrix, _normalMatrix;
-  int _instanceCount;
   bool _hasTexture, _hasNormal, _hasMaterial;
 };
 
