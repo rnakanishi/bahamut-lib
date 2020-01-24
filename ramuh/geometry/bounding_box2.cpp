@@ -59,14 +59,11 @@ Eigen::Array2d BoundingBox2::findIntersection(Eigen::Array2d p1,
     Ramuh::Log::raiseError(
         "BoundingBox2::findIntersection: segment does not intersect bbox.");
     return Eigen::Array2d(0, 0);
-  }
+  } else if (contains(p1) && contains(p2))
+    return p1;
   Eigen::Array2d origin, ending;
-  origin = ending = p1;
-  if (contains(p1)) {
-    origin = p2;
-  } else {
-    ending = p2;
-  }
+  origin = p1;
+  ending = p2;
   double angle = (p2[1] - p1[1]) / (p2[0] - p1[0]);
   Eigen::Vector2d direction;
   direction = (p2 - p1).matrix().normalized();

@@ -119,14 +119,16 @@ int TangentParticles2::seedParticleOverSegment(Eigen::Array2d origin,
   Eigen::Array2d samplOrigin = origin + tangent.array() * 0.001;
   Eigen::Array2d samplEnding = ending - tangent.array() * 0.001;
   Eigen::Vector2d segTangent = (samplEnding - samplOrigin).matrix();
-  int nTanPoints = segTangent.norm() * maxPoints / (cellH * twoSqr);
+  int nTanPoints = ceil(segTangent.norm() * maxPoints / (cellH * twoSqr));
+  nTanPoints = std::max(2, nTanPoints);
   for (int samplI = 0; samplI <= nTanPoints; samplI++) {
     newPoint =
         samplOrigin + segTangent.array() * (1.0 - (double)samplI / nTanPoints);
     tangentTarget = newPoint + (segTangent.array() * 0.001);
     int pid = insertParticle(newPoint);
     int tid = insertParticle(tangentTarget);
-    tangentPair[pid] = tid;
+    assignPair(pid, tid);
+    // tangentPair[pid] = tid;
   }
   return nTanPoints;
 }

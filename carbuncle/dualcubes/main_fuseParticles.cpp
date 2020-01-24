@@ -229,8 +229,12 @@ findCellSegments(Leviathan::DualSquares &levelset, Ramuh::LineMesh &mesh) {
     auto vertices = segments[segId];
     auto vPos = mesh.getVertexPosition(vertices[0]);
     int cellId = levelset.findCellIdByCoordinate(vPos);
-    // check if segments are added corretly
     cellSegments[cellId].emplace_back(segId);
+
+    vPos = mesh.getVertexPosition(vertices[1]);
+    cellId = levelset.findCellIdByCoordinate(vPos);
+    cellSegments[cellId].emplace_back(segId);
+    // check if segments are added corretly
   }
   return cellSegments;
 }
@@ -422,6 +426,7 @@ int main(int argc, char const *argv[]) {
   extractLevelsetFromMesh(cubes2, squareMesh2);
   cubes.merge(cubes2);
   finalMesh = mergedParticles.extractSurface(cubes);
+  writeMesh(finalMesh, "results/dualSquares/fuseParticles/", 0);
 
   for (int i = 1; i <= 90; i++) {
     // particles.clearParticles();
@@ -443,8 +448,8 @@ int main(int argc, char const *argv[]) {
     printLevelset(cubes);
     cubes.print();
 
-    if (false) {
-      Carbuncle::TangentParticles2 mergedParticles;
+    if (true) {
+      // Carbuncle::TangentParticles2 mergedParticles;
       mergedParticles =
           Carbuncle::TangentParticles2::mergeParticles(particles, particles2);
       removeParticlesFromSquare(mergedParticles, center, 0.99 * radius, i);
@@ -456,8 +461,8 @@ int main(int argc, char const *argv[]) {
       printParticlesPerCell(mergedParticles);
       finalMesh = mergedParticles.extractSurface(cubes);
       writeMesh(finalMesh, "results/dualSquares/analyticRemoval/", i);
-    }
-    {
+    } else {
+      resampleParticlesFromGeometry(mergedParticles, cubes, finalMesh);
       mergedParticles.advectParticles([&] {
         auto &velocity =
             mergedParticles.getParticleArrayData("particleVelocity");
@@ -478,8 +483,7 @@ int main(int argc, char const *argv[]) {
         }
       });
 
-      resampleParticlesFromLevelset(mergedParticles, cubes);
-      resampleParticlesFromGeometry(mergedParticles, cubes, finalMesh);
+      // resampleParticlesFromLevelset(mergedParticles, cubes);
       printParticles(mergedParticles);
       finalMesh = mergedParticles.extractSurface(cubes);
       writeMesh(finalMesh, "results/dualSquares/fuseParticles/", i);
