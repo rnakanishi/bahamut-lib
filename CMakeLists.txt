@@ -21,8 +21,14 @@ if (OPENMP_FOUND)
                                  ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-set(EIGEN3_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/eigen3)
-include_directories(${EIGEN3_INCLUDE_DIR})
+find_package(Eigen3 REQUIRED)
+if(Eigen3_FOUND)
+message("--Found Eigen3")
+else()
+    message("-- Building local Eigen3")
+    set(EIGEN3_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/eigen3)
+    include_directories(${EIGEN3_INCLUDE_DIR})
+endif()
 
 add_subdirectory(ramuh) # Geometric structures lib
 add_subdirectory(garuda) # GUI and interface
